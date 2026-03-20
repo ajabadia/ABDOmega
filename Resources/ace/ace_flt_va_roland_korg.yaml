@@ -1,0 +1,65 @@
+components:
+  - id: FLT-VA-001
+    name: Roland IR3109 LP24
+    family: Filter
+    engine: VirtualAnalog
+    modelId: RolandJunoIR3109
+    origin: Roland Juno-106
+    status: active
+    version: 1
+    tags: [va, roland, juno, ir3109, smooth]
+    parameters:
+      - id: cutoff
+        label: Cutoff
+        unit: Hz
+        min: 20.0
+        max: 20000.0
+        default: 2000.0
+      - id: resonance
+        label: Resonance
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.2
+    modulationTargets:
+      - id: cutoff
+        label: Cutoff
+        unit: Hz
+      - id: res
+        label: Resonance
+        unit: norm
+  - id: FLT-VA-003
+    name: Korg KORG35
+    family: Filter
+    engine: VirtualAnalog
+    modelId: Korg35Filter
+    origin: Korg MS-20
+    status: active
+    version: 1
+    tags: [va, korg, ms20, korg35, aggressive]
+    parameters:
+      - id: cutoff
+        label: Cutoff
+        unit: Hz
+        min: 20.0
+        max: 20000.0
+        default: 1000.0
+      - id: resonance
+        label: Resonance
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.5
+      - id: drive
+        label: Grit (Saturation)
+        unit: norm
+        min: 1.0
+        max: 10.0
+        default: 1.0
+    modulationTargets:
+      - id: cutoff
+        label: Cutoff
+        unit: Hz
+      - id: res
+        label: Resonance
+        unit: norm

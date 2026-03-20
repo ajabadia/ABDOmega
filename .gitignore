@@ -1,0 +1,36 @@
+# Ignore everything by default
+/*
+
+# Except these (Source and Documentation)
+!/SOURCE/
+!/Resources/
+!/DOCUMENTACION/
+!/SCRIPTS/
+!/README.md
+!/ROADMAP.md
+!/CMakeLists.txt
+!/.gitignore
+
+# Subdirectories of SOURCE/ and others should be handled by their own structure
+# But we need to make sure we don't re-ignore things inside SOURCE
+!/SOURCE/**
+!/Resources/**
+!/DOCUMENTACION/**
+!/SCRIPTS/**
+
+# Exclude specific heavy or binary files even if they are in allowed folders
+*.exe
+*.log
+*.pdb
+*.obj
+*.o
+.vs/
+.vscode/
+build*/
+
+# Heavy folders to exclude explicitly
+/JUCE/
+/REFERENCE/
+/CMake/
+/build/
+/build_nmake/

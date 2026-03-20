@@ -1,0 +1,62 @@
+components:
+  - id: OSC-VA-001
+    name: Roland DCO
+    family: Oscillator
+    engine: VirtualAnalog
+    modelId: RolandJunoDco
+    origin: Roland Juno-106
+    status: active
+    version: 1
+    tags: [va, roland, juno, dco]
+    parameters:
+      - id: tune
+        label: Tune
+        unit: semitones
+        min: -24.0
+        max: 24.0
+        default: 0.0
+      - id: pulsewidth
+        label: Pulse Width
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.5
+      - id: sub
+        label: Sub level
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.0
+    modulationTargets:
+      - id: pitch
+        label: Pitch
+        unit: semitones
+      - id: pw
+        label: Pulse Width
+        unit: norm
+  - id: OSC-VA-004
+    name: Roland Supersaw
+    family: Oscillator
+    engine: VirtualAnalog
+    modelId: RolandJp8000Supersaw
+    origin: Roland JP-8000
+    status: active
+    version: 1
+    tags: [va, roland, supersaw]
+    parameters:
+      - id: detune
+        label: Detune
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.1
+      - id: spread
+        label: Spread
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.5
+    modulationTargets:
+      - id: pitch
+        label: Pitch
+        unit: semitones

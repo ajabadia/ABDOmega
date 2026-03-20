@@ -1,0 +1,30 @@
+components:
+  - id: OSC-PM-001
+    name: Prophecy Pluck
+    family: Oscillator
+    engine: PhysicalModeling
+    modelId: ProphecyPluckOsc
+    origin: Korg Prophecy
+    status: active
+    version: 1
+    tags: [pm, korg, prophecy, moss, pluck, karplus-strong]
+    parameters:
+      - id: damping
+        label: Damping
+        unit: norm
+        min: 0.01
+        max: 0.99
+        default: 0.5
+      - id: feedback
+        label: Feedback
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.99
+    modulationTargets:
+      - id: damping
+        label: Damping
+        unit: norm
+      - id: feedback
+        label: Feedback
+        unit: norm

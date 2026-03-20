@@ -1,0 +1,6 @@
+version: 1
+files:
+  - ace_osc_va_roland_korg.yaml
+  - ace_osc_pm_korg.yaml
+  - ace_flt_va_roland_korg.yaml
+  - ace_env_lfo_fx_basic.yaml
