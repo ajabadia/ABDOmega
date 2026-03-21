@@ -6,7 +6,8 @@ namespace Omega::Plugin {
     OmegaAudioProcessor::OmegaAudioProcessor() 
         : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
           mValidator(mCatalog),
-          mApvts(*this, nullptr, "PARAMETERS", createParameterLayout())
+          mApvts(*this, nullptr, "PARAMETERS", createParameterLayout()),
+          mUiBridge(mApvts)
     {
         // Initialize Parameter Cache
         mParamCache.cutoff = mApvts.getRawParameterValue("LAYERAMAINCUTOFF");

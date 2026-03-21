@@ -19,6 +19,8 @@ target_sources(omega_plugin
         OmegaAudioProcessor.h
         Midi1InputAdapter.cpp
         Midi1InputAdapter.h
+        ../UI/OmegaUiBridge.cpp
+        ../UI/OmegaUiBridge.h
 )
 
 target_link_libraries(omega_plugin

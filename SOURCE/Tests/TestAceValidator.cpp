@@ -2,7 +2,9 @@
 #include "../Core/Ace/AceValidator.h"
 #include "../Core/Ace/AceCatalog.h"
 #include "../Core/Preset/OmegaPreset.h"
+#include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_core/juce_core.h>
+
 
 using namespace Omega::Core::Ace;
 using namespace Omega::Core::Preset;

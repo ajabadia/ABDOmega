@@ -8,7 +8,10 @@ add_executable(omegatests
     TestModulationGraph.cpp
     TestVibratoRoute.cpp
     TestYamlPreset.cpp
+    TestUiBridge.cpp
     ../Plugin/Midi1InputAdapter.cpp
+    ../Plugin/OmegaAudioProcessor.cpp
+    ../UI/OmegaUiBridge.cpp
 )
 
 target_link_libraries(omegatests
@@ -17,6 +20,8 @@ target_link_libraries(omegatests
         omega_dsp
         juce::juce_core
         juce::juce_audio_basics
+        juce::juce_audio_processors
+        juce::juce_audio_utils
         Catch2::Catch2WithMain
 )
 

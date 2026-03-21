@@ -8,6 +8,8 @@
 #include "../Core/Ace/AceValidator.h"
 #include "Midi1InputAdapter.h"
 #include "../Core/Input/OmegaInput.h"
+#include "../UI/OmegaUiBridge.h"
+
 
 namespace Omega::Plugin {
 
@@ -61,6 +63,7 @@ namespace Omega::Plugin {
         
         // State
         juce::AudioProcessorValueTreeState mApvts;
+        UI::OmegaUiBridge mUiBridge;
         Core::Preset::OmegaPreset mCurrentPreset;
 
         // Parameter Cache (Lock-free access)
