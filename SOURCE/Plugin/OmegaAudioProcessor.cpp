@@ -32,6 +32,16 @@ namespace Omega::Plugin {
         mParamCache.korgHpCutoff = mApvts.getRawParameterValue("LAYERAKORGHPFDCUTOFF");
         mParamCache.korgHpRes = mApvts.getRawParameterValue("LAYERAKORGHPFRESONANCE");
         mParamCache.korgGrit = mApvts.getRawParameterValue("LAYERAKORGGRIT");
+        
+        // --- Space Echo Cache ---
+        mParamCache.spaceEchoEnabled = mApvts.getRawParameterValue("LAYERAFXSPACEENABLE");
+        mParamCache.spaceEchoSpeed = mApvts.getRawParameterValue("LAYERAFXSPACESPEED");
+        mParamCache.spaceEchoIntensity = mApvts.getRawParameterValue("LAYERAFXSPACEINTENSITY");
+        mParamCache.spaceEchoEchoVol = mApvts.getRawParameterValue("LAYERAFXSPACEECHOVOL");
+        mParamCache.spaceEchoReverbVol = mApvts.getRawParameterValue("LAYERAFXSPACEREVERBVOL");
+        mParamCache.spaceEchoMode = mApvts.getRawParameterValue("LAYERAFXSPACEMODE");
+        mParamCache.spaceEchoWow = mApvts.getRawParameterValue("LAYERAFXSPACEWOW");
+        mParamCache.spaceEchoDrive = mApvts.getRawParameterValue("LAYERAFXSPACEDRIVE");
 
         // Carga inicial del preset de factoría
         loadPreset(Core::Preset::JunoFactory::createJunoBasicPad());
@@ -111,6 +121,18 @@ namespace Omega::Plugin {
         }
         
         mEngine.setFxParams(chorusMode, 0.5f);
+
+        // --- Space Echo Sync ---
+        mEngine.setSpaceEchoEnabled(mParamCache.spaceEchoEnabled->load() > 0.5f);
+        mEngine.setSpaceEchoParams({
+            mParamCache.spaceEchoSpeed->load(),
+            mParamCache.spaceEchoIntensity->load(),
+            mParamCache.spaceEchoEchoVol->load(),
+            mParamCache.spaceEchoReverbVol->load(),
+            (int)mParamCache.spaceEchoMode->load(),
+            mParamCache.spaceEchoWow->load(),
+            mParamCache.spaceEchoDrive->load()
+        });
     }
 
     void OmegaAudioProcessor::loadPreset(const Core::Preset::OmegaPreset& preset) {
@@ -143,6 +165,18 @@ namespace Omega::Plugin {
                 } else {
                     mEngine.setFilterType(DSP::Engines::Juno::VirtualAnalogEngine::FilterType::JunoIR3109);
                 }
+            }
+
+            // FX Mapping (Dynamic ACE)
+            if (!layer.voiceArch.fxSlots.empty()) {
+                const auto& fxId = layer.voiceArch.fxSlots[0].componentId;
+                if (fxId == "FX-DL-002") {
+                    mEngine.setSpaceEchoEnabled(true);
+                } else {
+                    mEngine.setSpaceEchoEnabled(false);
+                }
+            } else {
+                mEngine.setSpaceEchoEnabled(false);
             }
         }
     }
@@ -214,6 +248,24 @@ namespace Omega::Plugin {
             juce::ParameterID("LAYERAKORGHPFRESONANCE", 1), "Korg HP Res", 0.0f, 1.0f, 0.1f));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("LAYERAKORGGRIT", 1), "Korg Grit", 1.0f, 10.0f, 1.0f));
+
+        // --- Space Echo (FX-DL-002) ---
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID("LAYERAFXSPACEENABLE", 1), "Space Echo Enable", false));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAFXSPACESPEED", 1), "Tape Speed (Repeat Rate)", 0.0f, 1.0f, 0.5f));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAFXSPACEINTENSITY", 1), "Intensity (Feedback)", 0.0f, 1.0f, 0.4f));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAFXSPACEECHOVOL", 1), "Echo Volume", 0.0f, 1.0f, 0.5f));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAFXSPACEREVERBVOL", 1), "Reverb Volume", 0.0f, 1.0f, 0.3f));
+        params.push_back(std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID("LAYERAFXSPACEMODE", 1), "Mode (1-12)", 1, 12, 1));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAFXSPACEWOW", 1), "Wow & Flutter", 0.0f, 1.0f, 0.2f));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAFXSPACEDRIVE", 1), "Tape Drive (Input)", 0.0f, 1.0f, 0.5f));
 
         return { params.begin(), params.end() };
     }

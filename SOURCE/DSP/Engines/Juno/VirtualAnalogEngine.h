@@ -19,6 +19,7 @@
 #include "../Korg/OscillatorPoolProphecyBowed.h"
 #include "../Korg/ProphecyMacroContext.h"
 #include "ChorusPoolJuno.h"
+#include "../Korg/SpaceEchoProcessor.h"
 #include "../Korg/KorgMs20Esp.h"
 #include "../../VA/EnvelopeAdsrVA.h"
 #include "../../VA/EnvelopeMs20.h"
@@ -66,6 +67,7 @@ namespace Omega::DSP::Engines::Juno {
             mKorg35Flt.prepare(sampleRate);
             mJpFilterPool.prepare(sampleRate);
             mChorusPool.prepare(sampleRate);
+            mSpaceEcho.prepare(sampleRate);
             for (auto& env : mMs20Envelopes) env.prepare(sampleRate);
             mBowedOsc.prepare(sampleRate);
             
@@ -131,6 +133,17 @@ namespace Omega::DSP::Engines::Juno {
         void setJpDetune(float detune) noexcept { mJpDetune = detune; }
         void setJpSpread(float spread) noexcept { mJpSpread = spread; }
         void setJpFilterMode(int mode) noexcept { mJpFilterMode = mode; }
+        
+        void setSpaceEchoEnabled(bool e) noexcept { mSpaceEchoEnabled = e; }
+        void setSpaceEchoParams(float speed, float intensity, float echoVol, float revVol, int mode, float wf, float drive) noexcept {
+            mSpaceEchoSpeed = speed;
+            mSpaceEchoIntensity = intensity;
+            mSpaceEchoEchoVol = echoVol;
+            mSpaceEchoReverbVol = revVol;
+            mSpaceEchoMode = mode;
+            mSpaceEchoWowFlutter = wf;
+            mSpaceEchoDrive = drive;
+        }
 
         // --- Audio Processing ---
         void renderNextBlock(::juce::AudioBuffer<float>& buffer, 
@@ -299,6 +312,24 @@ namespace Omega::DSP::Engines::Juno {
                 float left = mixedL, right = mixedR;
                 mChorusPool.process(left, right);
 
+                // FX-DL-002: Space Echo (RE-201)
+                if (mSpaceEchoEnabled) {
+                    ::Omega::DSP::FX::SpaceEchoProcessor::Params p;
+                    p.tapeSpeed = mSpaceEchoSpeed;
+                    p.intensity = mSpaceEchoIntensity;
+                    p.echoVol = mSpaceEchoEchoVol;
+                    p.reverbVol = mSpaceEchoReverbVol;
+                    p.mode = mSpaceEchoMode;
+                    p.wowFlutter = mSpaceEchoWowFlutter;
+                    p.tapeDrive = mSpaceEchoDrive;
+                    
+                    float lSmp[1] = { left };
+                    float rSmp[1] = { right };
+                    mSpaceEcho.process(lSmp, rSmp, 1, p);
+                    left = lSmp[0];
+                    right = rSmp[0];
+                }
+
                 for (int c = 0; c < numChannels; ++c) {
                     if (s < buffer.getNumSamples()) buffer.setSample(c, s, (c == 0) ? left : right);
                 }
@@ -451,6 +482,17 @@ namespace Omega::DSP::Engines::Juno {
         int mJpFilterMode = 0; 
         std::array<int, 16> mActiveNotes;
         std::array<float, static_cast<int>(::Omega::Core::Input::ModSource::Count)> mChannelModStates;
+
+        // Space Echo (RE-201) State
+        bool mSpaceEchoEnabled = false;
+        float mSpaceEchoSpeed = 0.5f;
+        float mSpaceEchoIntensity = 0.4f;
+        float mSpaceEchoEchoVol = 0.5f;
+        float mSpaceEchoReverbVol = 0.3f;
+        int mSpaceEchoMode = 1;
+        float mSpaceEchoWowFlutter = 0.2f;
+        float mSpaceEchoDrive = 0.0f;
+        ::Omega::DSP::FX::SpaceEchoProcessor mSpaceEcho;
     };
 
 } // namespace Omega::DSP::Engines::Juno

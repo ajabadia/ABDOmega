@@ -90,6 +90,16 @@ namespace Omega::Plugin {
             std::atomic<float>* korgHpCutoff = nullptr;
             std::atomic<float>* korgHpRes = nullptr;
             std::atomic<float>* korgGrit = nullptr;
+
+            // Space Echo
+            std::atomic<float>* spaceEchoEnabled = nullptr;
+            std::atomic<float>* spaceEchoSpeed = nullptr;
+            std::atomic<float>* spaceEchoIntensity = nullptr;
+            std::atomic<float>* spaceEchoEchoVol = nullptr;
+            std::atomic<float>* spaceEchoReverbVol = nullptr;
+            std::atomic<float>* spaceEchoMode = nullptr;
+            std::atomic<float>* spaceEchoWow = nullptr;
+            std::atomic<float>* spaceEchoDrive = nullptr;
         } mParamCache;
         
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OmegaAudioProcessor)

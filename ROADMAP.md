@@ -41,7 +41,8 @@
 - [x] **Core Decoupling (JUCE-free omega_core)** (2026-03-20 14:20)
 - [x] **Prophecy Physical Models** (Brass/Reed/Pluck/VPM/Bowed) (2026-03-21 09:25)
 - [x] **MS-20 ESP & High-Fidelity**: Processor, ENV1, RingMod (2026-03-21 09:15)
-- [ ] **OSC-WT-001 (Wavetable - Waldorf style)**.
+- [x] **OSC-WT-001 (Wavetable - Waldorf style)**.
+- [x] **FX-DL-002: Space Echo (RE-201)** (2026-03-21 09:45)
 - [ ] **OSC-FM-001 (FM - DX7 style)**.
 
 ### Phase 5: UI/UX Finalization [TODO]

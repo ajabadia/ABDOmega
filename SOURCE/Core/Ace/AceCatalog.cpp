@@ -114,6 +114,20 @@ namespace Omega::Core::Ace {
         registerComponent({"OSC-VA-001", "Juno DCO", "Oscillator", "VirtualAnalog", "RolandJunoDco", "Roland Juno-106", "active", 1, {"va", "roland", "juno", "dco"}, 
             {{"tune", "Tune", "semitones", -24.0f, 24.0f, 0.0f}, {"sub", "Sub level", "norm", 0.0f, 1.0f, 0.0f}, {"pwm", "Pulse Width", "norm", 0.0f, 1.0f, 0.5f}},
             {}, {{"tune", 0.0f}, {"sub", 0.0f}, {"pwm", 0.5f}}});
+
+        // Roland RE-201 Space Echo (FX-DL-002)
+        registerComponent({"FX-DL-002", "Space Echo", "Delay", "RolandRE201", "Roland", "RE-201 Space Echo", "active", 1, {"delay", "tape", "roland", "re201", "echo"},
+            {
+                {"speed", "Repeat Rate", "norm", 0.0f, 1.0f, 0.5f},
+                {"intensity", "Intensity", "norm", 0.0f, 1.0f, 0.4f},
+                {"echo_vol", "Echo Vol", "norm", 0.0f, 1.0f, 0.5f},
+                {"reverb_vol", "Reverb Vol", "norm", 0.0f, 1.0f, 0.3f},
+                {"mode", "Mode Selector", "int", 1.0f, 12.0f, 1.0f},
+                {"wow_flutter", "Wow & Flutter", "norm", 0.0f, 1.0f, 0.2f},
+                {"drive", "Input Drive", "norm", 0.0f, 1.0f, 0.0f}
+            },
+            {}, 
+            {{"speed", 0.5f}, {"intensity", 0.4f}, {"echo_vol", 0.5f}, {"reverb_vol", 0.3f}, {"mode", 1.0f}, {"wow_flutter", 0.2f}, {"drive", 0.0f}}});
     }
 
     void AceCatalog::buildFallbacks() {
