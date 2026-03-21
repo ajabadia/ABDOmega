@@ -50,6 +50,18 @@ components:
         min: 0.0
         max: 1.0
         default: 0.5
+      - id: hpCutoff
+        label: HP Cutoff
+        unit: Hz
+        min: 20.0
+        max: 20000.0
+        default: 100.0
+      - id: hpRes
+        label: HP Resonance
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.0
       - id: drive
         label: Grit (Saturation)
         unit: norm
@@ -57,9 +69,15 @@ components:
         max: 10.0
         default: 1.0
     modulationTargets:
-      - id: cutoff
-        label: Cutoff
+      - id: lpCutoff
+        label: LP Cutoff
         unit: Hz
-      - id: res
-        label: Resonance
+      - id: hpCutoff
+        label: HP Cutoff
+        unit: Hz
+      - id: lpRes
+        label: LP Resonance
+        unit: norm
+      - id: hpRes
+        label: HP Resonance
         unit: norm

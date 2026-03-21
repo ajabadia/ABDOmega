@@ -87,6 +87,9 @@ namespace Omega::Plugin {
             std::atomic<float>* dcoLfoDepth = nullptr;
             std::atomic<float>* jpDetune = nullptr;
             std::atomic<float>* jpFilterMode = nullptr;
+            std::atomic<float>* korgHpCutoff = nullptr;
+            std::atomic<float>* korgHpRes = nullptr;
+            std::atomic<float>* korgGrit = nullptr;
         } mParamCache;
         
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OmegaAudioProcessor)

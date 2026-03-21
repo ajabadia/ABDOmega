@@ -90,10 +90,13 @@ namespace Omega::DSP::Engines::Juno {
         void setVcfEnvPolarity(bool inverted) noexcept { mVcfEnvInverted = inverted; }
         void setDcoLfoDepth(float depth) noexcept { mDcoLfoDepth = depth; }
         
-        void setVoiceParams(int voiceIndex, float cutoff, float resonance) noexcept {
-            mJunoFlt.setVoiceParams(voiceIndex, cutoff, resonance);
-            mKorg35Flt.setVoiceParams(voiceIndex, cutoff, resonance, 2.0f); // Default grit
-            mCurrentResonance = resonance;
+        void setVoiceParams(int voiceIndex, float lpCut, float lpRes, float hpCut, float hpRes, float grit) noexcept {
+            mJunoFlt.setVoiceParams(voiceIndex, lpCut, lpRes);
+            mKorg35Flt.setVoiceParams(voiceIndex, lpCut, lpRes, hpCut, hpRes, grit);
+            mCurrentResonance = lpRes;
+            mKorgHpCut = hpCut;
+            mKorgHpRes = hpRes;
+            mKorgGrit = grit;
         }
 
         void setOscillatorMode(int voiceIndex, OscillatorMode mode) noexcept { 
@@ -147,10 +150,12 @@ namespace Omega::DSP::Engines::Juno {
                         float finalCutoff = 800.0f + ((cutoffMod + nativeVcfMod) * 8000.0f);
                         float filtered = 0.0f;
                         if (mFilterType == FilterType::JunoIR3109) {
-                            mJunoFlt.setVoiceParams(v, finalCutoff, mCurrentResonance); // Set params again for safety
+                            mJunoFlt.setVoiceParams(v, finalCutoff, mCurrentResonance);
                             filtered = mJunoFlt.process(v, oscOut);
                         } else if (mFilterType == FilterType::Korg35) {
-                            mKorg35Flt.setVoiceParams(v, finalCutoff, mCurrentResonance, 2.0f); // Set params again for safety, with grit
+                            // En el MS-20, el HPF suele estar por debajo del LPF. 
+                            // Aplicamos la modulación del filtro principalmente al LPF.
+                            mKorg35Flt.setVoiceParams(v, finalCutoff, mCurrentResonance, mKorgHpCut, mKorgHpRes, mKorgGrit);
                             filtered = mKorg35Flt.process(v, oscOut);
                         } else if (mFilterType == FilterType::JP8080) {
                             filtered = mJpFilterPool.process(v, oscOut, finalCutoff, mCurrentResonance, mJpFilterMode);
@@ -262,6 +267,9 @@ namespace Omega::DSP::Engines::Juno {
         int mHpfPosition = 1;
         bool mVcaGateMode = false;
         float mCurrentResonance = 0.0f;
+        float mKorgHpCut = 100.0f;
+        float mKorgHpRes = 0.0f;
+        float mKorgGrit = 1.0f;
 
         float mDcoLfoDepth = 0.0f;
         float mVcfEnvDepth = 0.0f;

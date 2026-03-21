@@ -29,6 +29,9 @@ namespace Omega::Plugin {
         mParamCache.dcoLfoDepth = mApvts.getRawParameterValue("LAYERADCOMODDEPTH");
         mParamCache.jpDetune = mApvts.getRawParameterValue("LAYERAMAINJPDETUNE");
         mParamCache.jpFilterMode = mApvts.getRawParameterValue("LAYERAMAINJPFILTERMODE");
+        mParamCache.korgHpCutoff = mApvts.getRawParameterValue("LAYERAKORGHPFDCUTOFF");
+        mParamCache.korgHpRes = mApvts.getRawParameterValue("LAYERAKORGHPFRESONANCE");
+        mParamCache.korgGrit = mApvts.getRawParameterValue("LAYERAKORGGRIT");
 
         // Carga inicial del preset de factoría
         loadPreset(Core::Preset::JunoFactory::createJunoBasicPad());
@@ -81,6 +84,9 @@ namespace Omega::Plugin {
         
         float jpDetune = mParamCache.jpDetune->load();
         int jpFilterMode = (int)mParamCache.jpFilterMode->load();
+        float korgHpCut = mParamCache.korgHpCutoff->load();
+        float korgHpRes = mParamCache.korgHpRes->load();
+        float korgGrit = mParamCache.korgGrit->load();
 
         // Pushing to Engine
         mEngine.setHpfPosition(hpfPos);
@@ -96,7 +102,7 @@ namespace Omega::Plugin {
         mEngine.setJpFilterMode(jpFilterMode);
 
         for (int v = 0; v < 16; ++v) {
-            mEngine.setVoiceParams(v, cutoff, resonance);
+            mEngine.setVoiceParams(v, cutoff, resonance, korgHpCut, korgHpRes, korgGrit);
             mEngine.setDriftAmount(v, drift); 
             mEngine.setSawEnabled(v, sawOn);
             mEngine.setPulseEnabled(v, pulseOn);
@@ -199,6 +205,15 @@ namespace Omega::Plugin {
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID("LAYERAMAINJPFILTERMODE", 1), "JP Filter Mode", 
             juce::StringArray{"LP", "BP", "HP"}, 0));
+
+        // --- Korg Specific ---
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAKORGHPFDCUTOFF", 1), "Korg HP Cutoff", 
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 0.0f, 0.3f), 100.0f));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAKORGHPFRESONANCE", 1), "Korg HP Res", 0.0f, 1.0f, 0.1f));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("LAYERAKORGGRIT", 1), "Korg Grit", 1.0f, 10.0f, 1.0f));
 
         return { params.begin(), params.end() };
     }

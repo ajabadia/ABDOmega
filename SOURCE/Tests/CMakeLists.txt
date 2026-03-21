@@ -9,6 +9,7 @@ add_executable(omegatests
     TestVibratoRoute.cpp
     TestYamlPreset.cpp
     TestUiBridge.cpp
+    TestKorg35Refined.cpp
     ../Plugin/Midi1InputAdapter.cpp
     ../Plugin/OmegaAudioProcessor.cpp
     ../UI/OmegaUiBridge.cpp

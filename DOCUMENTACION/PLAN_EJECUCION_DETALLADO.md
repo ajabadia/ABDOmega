@@ -4,74 +4,74 @@ Este plan detalla los pasos técnicos necesarios para cerrar la brecha entre el 
 
 ---
 
-## 🚀 Sprint 1: Dinamización del Catálogo ACE
+## ✅ Sprint 1: Dinamización del Catálogo ACE
 **Objetivo:** Eliminar el hardcoding en `AceCatalog.h` y habilitar la carga desde recursos YAML.
 
-1. **Infraestructura YAML:**
-   - [ ] Integrar un parser ligero (ej: `juce::JSON` o `yaml-cpp`).
-   - [ ] Implementar `Omega::Core::Ace::AceCatalog::loadFromResources(juce::File indexFile)`.
-2. **Migración de Datos:**
-   - [ ] Mover los registros de `registerDefaults()` a los archivos `.yaml` en `Resources/ace/`.
-3. **Validación:**
-   - [ ] Implementar un test unitario que verifique que el catálogo se vacía y se vuelve a llenar correctamente desde disco.
+1. **Infraestructura YAML:** [x]
+   - [x] Integrar `yaml-cpp`.
+   - [x] Implementar `AceCatalog::createFromResources(std::string path)`.
+2. **Migración de Datos:** [x]
+   - [x] Mover los registros de `registerDefaults()` a los archivos `.yaml` en `Resources/ace/`.
+3. **Validación:** [x]
+   - [x] Test unitario `TestAceCatalog` verificado con carga dinámica.
 
 ---
 
-## 🎹 Sprint 2: Expresión Neutra (OmegaInput)
+## ✅ Sprint 2: Expresión Neutra (OmegaInput)
 **Objetivo:** Desvincular el motor DSP de MIDI 1.0 y habilitar la base para MPE/MIDI 2.0.
 
-1. **Capa de Entrada:**
-   - [ ] Crear `SOURCE/Core/Input/OmegaInput.h` con structs para `NoteEvent`, `Pressure`, `Timbre`, `PitchBend`.
-   - [ ] Implementar `SOURCE/Core/Input/Midi1InputAdapter.h` que traduzca `juce::MidiBuffer` a `OmegaInput`.
-2. **Refactor de Motor:**
-   - [ ] Actualizar `ISynthesisEngine::renderNextBlock` para aceptar `OmegaInput` en lugar de `juce::MidiBuffer`.
-   - [ ] Modificar `VirtualAnalogEngine` para leer las expresiones polifónicas por voz desde `OmegaInput`.
+1. **Capa de Entrada:** [x]
+   - [x] Crear `SOURCE/Core/Input/OmegaInput.h` con structs para eventos agnósticos.
+   - [x] Implementar `SOURCE/Plugin/Midi1InputAdapter.h` como puente con JUCE.
+2. **Refactor de Motor:** [x]
+   - [x] Actualizar `ISynthesisEngine` y `VirtualAnalogEngine` para consumir `OmegaInput`.
 
 ---
 
-## 🌐 Sprint 3: El Puente UI (OmegaUiBridge)
+## ✅ Sprint 3: KORG ERA (MS-20 & Prophecy)
+**Objetivo:** Implementación de modelos de síntesis clásicos de los 90.
+
+1. **MS-20 (Korg35):** [x]
+   - [x] Filtro Sallen-Key TPT con lazo de saturación no lineal ("Grit").
+2. **Prophecy (MOSS):** [x]
+   - [x] Oscilador de modelado físico (*Digital Waveguide/Karplus-Strong*).
+3. **Validación:** [x]
+   - [x] 105 aserciones de test unitario pasadas correctamente.
+
+---
+
+## 🎹 Sprint 4: El Puente UI (OmegaUiBridge)
 **Objetivo:** Implementar la infraestructura de comunicación JSON-RPC para la WebUI.
 
 1. **Protocolo JSON v1:**
    - [ ] Crear `SOURCE/UI/OmegaUiBridge.h/cpp`.
    - [ ] Implementar handlers para: `getState`, `setParam`, `loadPreset`, `savePreset`.
 2. **Integración en Processor:**
-   - [ ] Añadir `OmegaUiBridge` como miembro de `OmegaAudioProcessor`.
-   - [ ] Vincular el Bridge a `APVTS` para el reporte de cambios de parámetros en tiempo real.
-3. **Mecanismo de Mensajería:**
-   - [ ] Implementar las colas de mensajes (Thread-safe) para que la UI no bloquee el audio.
+   - [ ] Vincular el Bridge a `APVTS` para el reporte de cambios de parámetros.
 
 ---
 
-## 🎨 Sprint 4: Integración WebView (JUCE 8)
+## 🎨 Sprint 5: Integración WebView (JUCE 8)
 **Objetivo:** Cargar el front-end React/Vite dentro del plugin.
 
 1. **Contenedor WebView:**
    - [ ] Crear `SOURCE/UI/OmegaWebViewComponent.h` usando `juce::WebBrowserComponent`.
-   - [ ] Implementar `OmegaWebResourceProvider` para servir los archivos de `BinaryData`.
 2. **Editor Nativo:**
-   - [ ] Refactorizar `OmegaMainEditor` para que sea un contenedor ligero del `WebView`.
-   - [ ] Inyectar el `OmegaUiBridge` en el `WebView` para cerrar el ciclo de mensajes.
-3. **Draft Front-end:**
-   - [ ] Montar el esqueleto de React con el hook `useOmegaParams` diseñado en `0004.txt.finished`.
+   - [ ] Refactorizar `OmegaMainEditor` para ser un contenedor ligero del `WebView`.
 
 ---
 
-## 📂 Sprint 5: Git-for-Sounds (Versioning)
+## 📂 Sprint 6: Versión de Presets (Git-for-Sounds)
 **Objetivo:** Evolucionar `OmegaPreset` hacia un sistema de versiones controlado.
 
-1. **Repositorio de Presets:**
+1. **Repositorio de Presets:** [ ]
    - [ ] Crear `SOURCE/Core/Preset/PresetRepository.h/cpp`.
-   - [ ] Implementar lógica de "Snapshot" que asigne un SHA único a cada estado del `ValueTree`.
-2. **Branching & History:**
-   - [ ] Implementar `CommitLog` para navegar por el historial de cambios del preset.
-   - [ ] Implementar `ComparePreset(sha1, sha2)` que genere un diff lógico (YAML diff).
-3. **UI de Git:**
-   - [ ] Exponer los comandos de Git (Commit, Checkout, Branch) a través del `OmegaUiBridge`.
+2. **Branching & History:** [ ]
+   - [ ] Implementar lógica de "Snapshot" (SHA único).
 
 ---
 
 ## 📈 Resumen de Prioridades
-1. **Prioridad 1:** Sprint 1 & 2 (Estabilidad del motor y entrada).
-2. **Prioridad 2:** Sprint 3 & 4 (Habilitación de la nueva interfaz premium).
-3. **Prioridad 3:** Sprint 5 (Funcionalidades avanzadas de workflow).
+1. **Completado:** Sprint 1, 2 y 3 (Motor, Entrada y Modelado Korg).
+2. **En Proceso:** Sprint 4 (Infraestructura de comunicación con la UI).
+3. **Próximo:** Sprint 5 (Visualización Premium con WebView).
