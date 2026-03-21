@@ -81,3 +81,37 @@ components:
       - id: hpRes
         label: HP Resonance
         unit: norm
+  - id: FLT-VA-008
+    name: JP-8080 Filter
+    family: Filter
+    engine: VirtualAnalog
+    modelId: RolandJp8080Filter
+    origin: Roland JP-8080
+    status: active
+    version: 1
+    tags: [va, roland, jp8000, jp8080, svf]
+    parameters:
+      - id: cutoff
+        label: Cutoff
+        unit: Hz
+        min: 20.0
+        max: 20000.0
+        default: 2000.0
+      - id: resonance
+        label: Resonance
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.3
+      - id: mode
+        label: Mode
+        unit: enum
+        options: [ "LP12", "BP12", "HP12", "LP24", "BP24", "HP24" ]
+        default: 0
+    modulationTargets:
+      - id: cutoff
+        label: Cutoff
+        unit: Hz
+      - id: res
+        label: Resonance
+        unit: norm

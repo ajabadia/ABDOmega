@@ -20,6 +20,8 @@ The project follow a "Modular-without-Cables" architecture, focusing on expressi
 - **ACE Core**: Dynamic component architecture (Catalog & Validator) fully integrated.
 - **Juno High-Fidelity**: Emulación de hardware con cuantización de timer Intel 8253 (8MHz), modelo de drift analógico de 3 niveles y chorus BBD.
 - **Modulation System**: Sample-accurate graph processing (Graph-to-Runtime) implemented.
+- **Korg Prophecy (MOSS)**: Modelos físicos de cuerda, metales, caña, VPM y **Bowed String**. Sistema de macros **Energy, Movement, Air y Expressivity**.
+- **Korg MS-20**: Filtro Korg35 LP/HP, **External Signal Processor (ESP)** con seguimiento de pitch/env y envolvente **ENV1** con Delay/Hold.
 - **Build System**: Stabilized environment isolation (NMake/v143) for reliable cross-IDE development.
 
 ---

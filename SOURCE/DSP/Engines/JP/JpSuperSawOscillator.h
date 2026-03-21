@@ -8,7 +8,7 @@ namespace Omega::DSP::Engines::JP {
 
     /**
      * @brief Oscilador individual de 7 sierras (SuperSaw) para una voz.
-     * Basado en las especificaciones de fidelidad de OMEGA (0006.txt).
+     * Refinado en Sprint 6 con la curva polinómica de Szabo y ratios precisos.
      */
     class JpSuperSawOscillator {
     public:
@@ -22,55 +22,91 @@ namespace Omega::DSP::Engines::JP {
         }
 
         /**
-         * @brief Procesa un bloque de samples para esta voz.
-         * @param buffer Bloque de salida (mono/stereo según contexto, aquí sumamos)
+         * @brief Procesa un bloque de samples estéreo para esta voz.
+         * @param leftBuffer Buffer de salida izquierdo
+         * @param rightBuffer Buffer de salida derecho
          * @param numSamples Cantidad de samples
          * @param baseHz Frecuencia fundamental
-         * @param detune 0.0 - 1.0 (curva mHz shaped)
+         * @param detune 0.0 - 1.0 (Szabo curve)
+         * @param spread 0.0 - 1.0 (Stereo width)
          * @param level Nivel de salida
          */
-        inline void process(float* buffer, int numSamples, float baseHz, float detune, float level) noexcept {
+        inline void processStereo(float* leftBuffer, float* rightBuffer, int numSamples, 
+                                 float baseHz, float detune, float spread, float level) noexcept {
             if (baseHz <= 0.0f || numSamples <= 0) return;
 
-            const float basePhaseInc = static_cast<float>(baseHz / mSampleRate);
+            const float invSr = 1.0f / static_cast<float>(mSampleRate);
+            const float basePhaseInc = baseHz * invSr;
 
-            // 1. Szabo Detune Curve (11th Order Polynomial Approximation)
-            // Maps [0..1] input to frequency offset factor
-            float x = detune;
-            float x2 = x * x; float x3 = x2 * x; float x4 = x3 * x; float x5 = x4 * x;
-            float d = (0.0030115f * x5 * x5 * x) - (0.0157189f * x5 * x5) + (0.0322300f * x5 * x4) 
-                    - (0.0322314f * x4 * x4) + (0.0135722f * x4 * x3) + (0.0020027f * x3 * x3) 
-                    - (0.0048854f * x5) + (0.0017530f * x4) + (0.0003327f * x3) 
-                    - (0.0001012f * x2) + (0.0001140f * x) + 0.0000029f;
+            // 1. Szabo Detune Curve: f(x) = 0.002852x^2 + 0.01461x
+            float d = (0.002852f * detune * detune) + (0.01461f * detune);
 
             // 2. Szabo Mix Curve (Parabolic)
-            // Determinamos ganancia del oscilador central vs laterales
-            float lateralGain = (-0.55366f * x2) + (0.99785f * x) + 0.1091f;
-            float centerGain = (-0.73764f * x2) + (0.00844f * x) + 1.0f;
+            float x2 = detune * detune;
+            float lateralGain = (-0.55366f * x2) + (0.99785f * detune) + 0.1091f;
+            float centerGain = (-0.73764f * x2) + (0.00844f * detune) + 1.0f;
 
-            // Ratios de detune fijos (Szabo measured)
+            // Ratios de detune precisos (Szabo measured)
+            // Central osc at index 3 (0.0 offset)
             static constexpr float detuneRatios[7] = {
-                -1.0f, -0.7379f, -0.25f, 0.0f, 0.25f, 0.7379f, 1.0f
+                -1.1444f, -0.5365f, -1.0f, 0.0f, 1.0f, 0.5365f, 1.1444f
+            };
+
+            // Pans para el spread: 0 center, 1/2 wide, 3/4 medium, 5/6 narrow
+            const float pans[7] = {
+                0.5f - (0.5f * spread), // L (Wide)
+                0.5f + (0.5f * spread), // R (Wide)
+                0.5f - (0.25f * spread), // L (Mid)
+                0.5f + (0.25f * spread), // R (Mid)
+                0.5f - (0.125f * spread), // L (Narrow)
+                0.5f + (0.125f * spread), // R (Narrow)
+                0.5f                     // Center
             };
 
             float vPhaseInc[7];
-            float vGains[7];
+            float vGainsL[7];
+            float vGainsR[7];
+
             for (int v = 0; v < 7; ++v) {
                 vPhaseInc[v] = basePhaseInc * (1.0f + detuneRatios[v] * d);
-                vGains[v] = (v == 3) ? centerGain : lateralGain;
+                float g = (v == 6) ? centerGain : lateralGain;
+                vGainsL[v] = g * std::sqrt(1.0f - pans[v]);
+                vGainsR[v] = g * std::sqrt(pans[v]);
             }
 
             for (int i = 0; i < numSamples; ++i) {
-                float sum = 0.0f;
+                float sumL = 0.0f;
+                float sumR = 0.0f;
                 for (int v = 0; v < 7; ++v) {
                     mPhase[v] += vPhaseInc[v];
                     if (mPhase[v] >= 1.0f) mPhase[v] -= 1.0f;
-                    sum += (2.0f * mPhase[v] - 1.0f) * vGains[v];
+                    
+                    // Basic Saw with PolyBLEP
+                    float ph = mPhase[v];
+                    float saw = 2.0f * ph - 1.0f;
+                    
+                    // Simple PolyBLEP to reduce aliasing
+                    if (ph < vPhaseInc[v]) {
+                        float t = ph / vPhaseInc[v];
+                        saw -= (t + t - t * t - 1.0f);
+                    } else if (ph > 1.0f - vPhaseInc[v]) {
+                        float t = (ph - 1.0f) / vPhaseInc[v];
+                        saw += (t + t + t * t + 1.0f);
+                    }
+
+                    sumL += saw * vGainsL[v];
+                    sumR += saw * vGainsR[v];
                 }
 
-                // Normalización inteligente (Szabo scale factor approx)
-                buffer[i] += (sum * 0.18f) * level; 
+                const float scaleFactor = 0.18f * level;
+                leftBuffer[i] += sumL * scaleFactor;
+                rightBuffer[i] += sumR * scaleFactor;
             }
+        }
+
+        // Legacy mono support
+        inline void process(float* buffer, int numSamples, float baseHz, float detune, float level) noexcept {
+            processStereo(buffer, buffer, numSamples, baseHz, detune, 0.0f, level);
         }
 
     private:

@@ -51,21 +51,24 @@ namespace Omega {
             v.write_idx = 0;
             v.filter_z1 = 0.0f;
 
-            // Excitación: Ruido blanco durante la longitud de la "cuerda"
+            // Excitación: Ruido con decaimiento exponencial para un ataque más natural
             std::mt19937 gen(std::random_device{}());
             std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
             
             int excitationSize = static_cast<int>(v.length);
             for (int i = 0; i < kMaxDelaySize; ++i) {
-                if (i < excitationSize) v.buffer[i] = dist(gen);
+                if (i < excitationSize) {
+                    float env = 1.0f - (static_cast<float>(i) / excitationSize);
+                    v.buffer[i] = dist(gen) * env;
+                }
                 else v.buffer[i] = 0.0f;
             }
         }
 
         void setVoiceParams(int voiceIndex, float damping, float feedback) noexcept {
             if (voiceIndex < kMaxVoices) {
-                mVoices[voiceIndex].damping = std::clamp(damping, 0.01f, 0.99f);
-                mVoices[voiceIndex].feedback = std::clamp(feedback, 0.0f, 1.0f);
+                mVoices[voiceIndex].damping = std::max(0.01f, std::min(0.99f, damping));
+                mVoices[voiceIndex].feedback = std::max(0.8f, std::min(1.0f, feedback));
             }
         }
 
@@ -73,15 +76,21 @@ namespace Omega {
             auto& v = mVoices[voiceIndex];
             if (!v.active) return 0.0f;
 
-            // Lectura con Delay Line
-            int read_idx = (v.write_idx - static_cast<int>(v.length) + kMaxDelaySize) % kMaxDelaySize;
-            float val = v.buffer[read_idx];
+            // 1. Lectura con Fractional Delay (Interpolación Lineal)
+            float read_ptr = static_cast<float>(v.write_idx) - v.length;
+            if (read_ptr < 0) read_ptr += kMaxDelaySize;
+            
+            int i0 = static_cast<int>(read_ptr);
+            int i1 = (i0 + 1) % kMaxDelaySize;
+            float frac = read_ptr - i0;
+            
+            float val = v.buffer[i0] * (1.0f - frac) + v.buffer[i1] * frac;
 
-            // Low Pass Filter (Damping simple)
+            // 2. Filtro de Damping (LPF suave)
             float filtered_val = val * (1.0f - v.damping) + v.filter_z1 * v.damping;
             v.filter_z1 = filtered_val;
 
-            // Feedback loop
+            // 3. Feedback loop
             float next_val = filtered_val * v.feedback;
             v.buffer[v.write_idx] = next_val;
             

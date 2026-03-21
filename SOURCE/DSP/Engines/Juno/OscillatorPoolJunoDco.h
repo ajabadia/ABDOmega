@@ -1,9 +1,14 @@
-#pragma once
-
 #include "JunoConstants.h"
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <cstdint>
+#include <cmath>
+#include <algorithm>
+#include <array>
 
-namespace Omega::DSP::Engines::Juno {
+namespace Omega {
+    namespace DSP {
+        namespace Engines {
+            namespace Juno {
 
     using namespace Constants;
 
@@ -35,6 +40,9 @@ namespace Omega::DSP::Engines::Juno {
             bool subEnabled = true;
             bool noiseEnabled = true;
             bool subFlipFlop = false;
+            
+            // Ring Mod state
+            bool ringModEnabled = false;
         };
 
         void prepare(double sampleRate) noexcept {
@@ -75,6 +83,10 @@ namespace Omega::DSP::Engines::Juno {
 
         void setNoiseEnabled(int voiceIndex, bool enabled) noexcept {
             if (voiceIndex < kMaxVoices) mVoices[voiceIndex].noiseEnabled = enabled;
+        }
+
+        void setRingModEnabled(int voiceIndex, bool enabled) noexcept {
+            if (voiceIndex < kMaxVoices) mVoices[voiceIndex].ringModEnabled = enabled;
         }
 
         void setSubLevel(int voiceIndex, float level) noexcept {
@@ -119,8 +131,15 @@ namespace Omega::DSP::Engines::Juno {
 
             double dt = freq * mInvSampleRate;
 
-            // 4. PWM Slew Rate & Mapping
-            float targetPWM = kPwmCenterDuty + (v.pulseWidth - 0.5f) * 2.0f * (kPwmMaxDuty - kPwmCenterDuty);
+            // 4. PWM Modulation
+            // lfoValue viene del ModGraph (enviado desde VirtualAnalogEngine)
+            float pwmMod = lfoValue * 0.4f; // Profundidad de modulación PWM
+            float targetPWM = kPwmCenterDuty + (v.pulseWidth - 0.5f + pwmMod) * 2.0f * (kPwmMaxDuty - kPwmCenterDuty);
+            
+            // Clamp manual para evitar aliasing masivo por duty cycles extremos
+            if (targetPWM < 0.05f) targetPWM = 0.05f;
+            if (targetPWM > 0.95f) targetPWM = 0.95f;
+            
             v.currentPWM += (targetPWM - v.currentPWM) * kPwmSlewRateManual;
 
             // --- Render Waves ---
@@ -130,18 +149,26 @@ namespace Omega::DSP::Engines::Juno {
             // Sub-Osc (Squares con flip-flop toggle en phase wrap)
             float sub = (v.subEnabled) ? (v.subFlipFlop ? 1.0f : -1.0f) * v.subLevel : 0.0f;
             
-            // Noise (Simple white noise for now, will modularize later)
+            // Noise
             float noise = (v.noiseEnabled) ? (mRandom.nextFloat() * 2.0f - 1.0f) * v.noiseLevel : 0.0f;
 
             // Phase Update
             v.phase += dt;
             if (v.phase >= 1.0) {
                 v.phase -= 1.0;
-                v.subFlipFlop = !v.subFlipFlop; // Toggle en cada ciclo del DCO
+                v.subFlipFlop = !v.subFlipFlop; 
             }
 
-            // Mix con Ssaturation suave (Mixer saturation)
+            // Mix con Saturation suave (Mixer saturation)
             float out = (saw + pulse + sub + noise);
+            
+            // 5. Aplicar Ring Mod si está habilitado
+            // Multiplicamos la salida por una onda cuadrada de VCO2 (aproximada para el pool)
+            if (v.ringModEnabled) {
+                float vco2 = (v.phase * 1.5 < 0.5) ? 1.0f : -1.0f;
+                out *= vco2; 
+            }
+
             if (std::abs(out) > kDcoMixerSaturationThreshold) {
                 out = std::tanh(out * 1.1f);
             }
@@ -181,4 +208,7 @@ namespace Omega::DSP::Engines::Juno {
         }
     };
 
-} // namespace Omega::DSP::Engines::Juno
+            } // namespace Juno
+        } // namespace Engines
+    } // namespace DSP
+} // namespace Omega

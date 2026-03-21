@@ -10329,39 +10329,42 @@ OmegaPreset createOmegaPreset_MS20_NoiseFX()
 Con Bass/Lead/FX tienes ya un MS‑20 core pack completo utilizando el mismo contrato de macros de pack (Energy/Movement/Air) más MACRO4 = Grit.
 ​
 
-¿Te interesa seguir con otra familia (por ejemplo Prophecy o un JP+MS20 híbrido) aplicando el mismo sistema de macros, o prefieres parar aquí y ya integrar todo esto en el motor antes de añadir más sintes?
+~~¿Te interesa seguir con otra familia (por ejemplo Prophecy o un JP+MS20 híbrido) aplicando el mismo sistema de macros, o prefieres parar aquí y ya integrar todo esto en el motor antes de añadir más sintes?~~ [SPRINT 7: IMPLEMENTADOS MODELOS FÍSICOS BRASS/REED/PLUCK/VPM]
 
 
-Para Prophecy el mismo esquema de macros encaja bien, pero con énfasis en expresividad monofónica y modelado físico.
+~~Para Prophecy el mismo esquema de macros encaja bien, pero con énfasis en expresividad monofónica y modelado físico.~~
 
-Cómo mapear Energy / Movement / Air + MACRO4
-Energy
+~~Cómo mapear Energy / Movement / Air + MACRO4~~
+~~Energy~~
 
-Afecta drive del waveshaper (CLIP/RESO), nivel del subosc y quizá compresión post.
+~~Afecta drive del waveshaper (CLIP/RESO), nivel del subosc y quizá compresión post.~~
 ​
 
-En programas tipo brass/reed sube también algo de “breath/noise” para más realismo.
+~~En programas tipo brass/reed sube también algo de “breath/noise” para más realismo.~~
 ​
 
-Movement
+~~Movement~~
 
-Escala LFOs y la profundidad de modulación ligada a controllers (pitch wheel, ribbon, aftertouch).
+~~Escala LFOs y la profundidad de modulación ligada a controllers (pitch wheel, ribbon, aftertouch).~~
 ​
 
-En modelos físicos (brass/reed/plucked) ajusta velocidad de respuesta y vibrato.
+~~En modelos físicos (brass/reed/plucked) ajusta velocidad de respuesta y vibrato.~~
 ​
 
-Air
+~~Air~~
 
-Controla EQ de agudos, mezcla de noise+comb y anchura estéreo en la versión plugin polifónica.
+~~Controla EQ de agudos, mezcla de noise+comb y anchura estéreo en la versión plugin polifónica.~~
 ​
 ​
 
-MACRO4 local (por familia Prophecy)
+~~MACRO4 local (por familia Prophecy)~~
 
-“Expressivity” o “Articulation”: mezcla de portamento, legato-behaviour, cantidad de respuesta a aftertouch/BC (aunque BC sea virtual).
+~~“Expressivity” o “Articulation”: mezcla de portamento, legato-behaviour, cantidad de respuesta a aftertouch/BC (aunque BC sea virtual).~~
 
-Si quieres, el siguiente paso puede ser diseñar un preset base tipo “Prophecy Lead VA” (usando tu engine VA pero etiquetado como Prophecy) con estos cuatro macros ya cableados, análogo a lo que hicimos con JP y MS‑20.
+~~Si quieres, el siguiente paso puede ser diseñar un preset base tipo “Prophecy Lead VA” (usando tu engine VA pero etiquetado como Prophecy) con estos cuatro macros ya cableados, análogo a lo que hicimos con JP y MS‑20.~~
+
+> [!NOTE]
+> Superseded by Sprint 7: Real Physical Modeling integration (Brass, Wood, Reed, VPM) with dynamic Expressivity Matrix (Ribbon/Aftertouch).
 
 
 

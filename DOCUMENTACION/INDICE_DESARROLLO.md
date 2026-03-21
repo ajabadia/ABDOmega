@@ -21,10 +21,11 @@ Este documento centraliza el estado actual de todas las funcionalidades y aspect
 | **Capa 1: Motores DSP** | | | |
 | Engine A: Virtual Analog (Fidelidad Juno) | `[x]` | `0000` / `0003` | `VirtualAnalogEngine` implementado y optimizado |
 | Engine B: Spectral / Additive | `[/]` | `0000` / `0003` | Basado en NEURONiK; **Integración ACE pendiente** |
-| Engine C: Wavetable | `[ ]` | `0000` / `0003` | Diseño de análisis de audio terminado en docs |
+| Engine C: Wavetable | `[/]` | `0000` / `0003` | Diseño de análisis de audio terminado; Investigación Waldorf en curso |
 | Engine D: Granular | `[ ]` | `0000` / `0003` | Pendiente |
-| Engine E: Physical Modeling | `[ ]` | `0000` / `0003` | Pendiente |
+| Engine E: Physical Modeling | `[/]` | `0000` / `0003` | **Siete osciladores OMEGA-MOSS (Prophecy) implementados** |
 | Engine F: Neural (RNN Real-time) | `[ ]` | `0000` / `0003` | Pendiente |
+| Engine G: Frequency Modulation (FM) | `[ ]` | `0001` / `0003` | Planeado para arquitectura DX7 |
 | **Capa 2: Voces y Composición** | | | |
 | Voice Factory / Pool Lock-free | `[x]` | `0000` / `0003` | Gestión de pool estable |
 | Voice Architecture Componible | `[x]` | `0000` / `0003` | Ensamblaje dinámico funcional |
@@ -47,11 +48,11 @@ Este documento centraliza el estado actual de todas las funcionalidades y aspect
 | ID | Nombre | Origen | Estado | Notas |
 | :--- | :--- | :--- | :---: | :--- |
 | **OSC-VA-001** | Roland DCO | Juno-106 | `[x]` | Implementado en `OscillatorPoolJunoDco.h` |
-| **OSC-VA-004** | Roland Supersaw | JP-8000 | `[x]` | Implementado en `OscillatorPoolSuperSaw.h` |
+| ~~**OSC-VA-004**~~ | ~~Roland Supersaw~~ | ~~JP-8000~~ | ~~`[x]`~~ | ~~Implementado en `OscillatorPoolSuperSaw.h`~~ | [HECHO / REFINAMIENTO EN SPRINT 6]
 | **FLT-VA-001** | Roland IR3109 | Juno-106 | `[x]` | Implementado en `FilterPoolJunoIr3109.h` |
-| **FLT-VA-003** | Korg KORG35 | MS-20 | `[x]` | Implementado en `FilterPoolKorg35.h` |
-| **FLT-VA-008** | JP-8080 Filter | JP-8000 | `[/]` | Registrado en catálogo; DSP pendiente |
-| **OSC-VA-002** | Korg VCO | MS-20 | `[/]` | Registrado en catálogo; DSP pendiente |
+| **FLT-VA-003** | Korg KORG35 | MS-20 | `[x]` | Implementado en `FilterPoolKorg35.h` (Refinado con Grit) |
+| **OSC-PM-001/4** | Prophecy MOSS | Korg | `[x]` | Brass, Reed, Pluck y VPM implementados |
+| **MS-20 ESP** | Ext. Signal Proc | Korg | `[x]` | **Filtros Bandpass + Envelope Follower + Pitch Tracker** |
 | **FX-CH-001** | Roland BBD Chorus | Juno-106 | `[x]` | Implementado en `ChorusPoolJuno.h` |
 | **ENV-ADSR-GEN** | Generic ADSR | OMEGA | `[x]` | Implementado |
 

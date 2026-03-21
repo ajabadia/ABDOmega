@@ -39,8 +39,10 @@
 - [x] **Neutral Input Layer (OmegaInput & Midi1Adapter)** (2026-03-20 14:00)
 - [x] **Build System Stabilization (NMake & v143 Isolation)** (2026-03-20 14:15)
 - [x] **Core Decoupling (JUCE-free omega_core)** (2026-03-20 14:20)
-- [ ] MS-20 Gritty Bass & FX.
-- [ ] Prophecy Physical Models (Brass/Reed/Pluck).
+- [x] **Prophecy Physical Models** (Brass/Reed/Pluck/VPM/Bowed) (2026-03-21 09:25)
+- [x] **MS-20 ESP & High-Fidelity**: Processor, ENV1, RingMod (2026-03-21 09:15)
+- [ ] **OSC-WT-001 (Wavetable - Waldorf style)**.
+- [ ] **OSC-FM-001 (FM - DX7 style)**.
 
 ### Phase 5: UI/UX Finalization [TODO]
 - [ ] Premium About Screen integration.
@@ -48,4 +50,4 @@
 - [ ] Dynamic PE Knob mapping visualizer.
 
 ---
-*Last Updated: 2026-03-20 14:20*
+*Last Updated: 2026-03-21 09:28*

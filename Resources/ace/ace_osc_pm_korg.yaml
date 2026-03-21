@@ -28,3 +28,111 @@ components:
       - id: feedback
         label: Feedback
         unit: norm
+
+  - id: OSC-PM-002
+    name: Prophecy Brass
+    family: Oscillator
+    engine: PhysicalModeling
+    modelId: ProphecyBrassOsc
+    origin: Korg Prophecy
+    status: active
+    version: 1
+    tags: [pm, korg, prophecy, moss, brass, metal]
+    parameters:
+      - id: lipTension
+        label: Lip Tension
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.5
+      - id: pressure
+        label: Pressure
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.3
+      - id: bell
+        label: Bell Resonance
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.5
+      - id: noise
+        label: Noise Level
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.1
+    modulationTargets:
+      - id: pressure
+        label: Pressure
+        unit: norm
+      - id: lipTension
+        label: Lip Tension
+        unit: norm
+
+  - id: OSC-PM-003
+    name: Prophecy Reed
+    family: Oscillator
+    engine: PhysicalModeling
+    modelId: ProphecyReedOsc
+    origin: Korg Prophecy
+    status: active
+    version: 1
+    tags: [pm, korg, prophecy, moss, reed, woodwind]
+    parameters:
+      - id: stiffness
+        label: Reed Stiffness
+        unit: norm
+        min: 0.05
+        max: 0.95
+        default: 0.5
+      - id: pressure
+        label: Breath Pressure
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.3
+      - id: toneHole
+        label: Tone Hole
+        unit: norm
+        min: 0.5
+        max: 2.0
+        default: 1.0
+    modulationTargets:
+      - id: pressure
+        label: Pressure
+        unit: norm
+
+  - id: OSC-VPM-001
+    name: Prophecy VPM
+    family: Oscillator
+    engine: PhaseModulation
+    modelId: ProphecyVpmOsc
+    origin: Korg Prophecy
+    status: active
+    version: 1
+    tags: [vpm, fm, korg, prophecy, moss]
+    parameters:
+      - id: depth
+        label: Mod Depth
+        unit: norm
+        min: 0.0
+        max: 5.0
+        default: 0.5
+      - id: feedback
+        label: Feedback
+        unit: norm
+        min: 0.0
+        max: 0.95
+        default: 0.2
+      - id: ratio
+        label: Ratio
+        unit: ratio
+        min: 0.25
+        max: 16.0
+        default: 1.0
+    modulationTargets:
+      - id: depth
+        label: Depth
+        unit: norm

@@ -24,11 +24,11 @@ En 0001-3.txt aterrizas la idea de no quedar encadenado al Juno:
 
 ACE (Architecture of Emulated Components): catálogo de osciladores/filtros/env/LFO/FX por id (OSC-VA-001, FLT-VA-003, etc.).
 
-Engines dedicados (Juno‑VA, MS‑20, JP‑supersaw, Prophecy/MOSS) que reutilizan bloques comunes.
+~~Engines dedicados (Juno‑VA, MS‑20, JP‑supersaw, Prophecy/MOSS) que reutilizan bloques comunes.~~ [SUPERADO POR ACE]
 
 Diseño del catálogo ACE en YAML/ValueTree y cómo se integra con VoiceArchitecture y VoiceFactory.
 
-Plan de MVP de familia: Roland Juno + Korg MS‑20 + JP‑8000 supersaw.
+~~Plan de MVP de familia: Roland Juno + Korg MS‑20 + JP‑8000 supersaw.~~ [COMPLETADO SPRINT 6]
 ​
 
 Este archivo es el bloque de “identidad sonora” y de cómo ACE se sienta encima del motor OMEGA.
@@ -40,7 +40,7 @@ Fase 0: cimientos (estructura de carpetas, CMake, AceCatalog MVP, OmegaPreset wr
 
 Fase 1: Engine VA ACE vertical (un Juno‑like completo pasando por todo el pipeline ACE→Engine).
 
-Fase 2: componentes híbridos (MS‑20, supersaw, presets híbridos).
+~~Fase 2: componentes híbridos (MS‑20, supersaw, presets híbridos).~~ [COMPLETADO]
 
 Fase 3: ModulationGraph + MPE.
 

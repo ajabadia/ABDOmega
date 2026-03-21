@@ -73,6 +73,13 @@ namespace Omega::Core::Input {
             case 21: return ModSource::Macro2;
             case 22: return ModSource::Macro3;
             case 23: return ModSource::Macro4;
+            // Prophecy PE Knobs & Ribbon
+            case 12: return ModSource::PE1;
+            case 13: return ModSource::PE2;
+            case 14: return ModSource::PE3;
+            case 15: return ModSource::PE4;
+            case 17: return ModSource::PE5;
+            case 16: return ModSource::Ribbon;
             default: return ModSource::Count;
         }
     }
