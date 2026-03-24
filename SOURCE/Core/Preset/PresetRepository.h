@@ -19,6 +19,8 @@ class PresetRepository {
 public:
     PresetRepository(const std::filesystem::path& rootPath);
     ~PresetRepository();
+    
+    std::vector<std::string> listPresets() const;
 
     /**
      * @brief Saves a new snapshot of the given preset.

@@ -11,6 +11,7 @@
 !/changelog.md
 !/build_no.txt
 !/CMakeLists.txt
+!/WebUI/
 !/.gitignore
 
 # Subdirectories of SOURCE/ and others should be handled by their own structure
@@ -19,6 +20,7 @@
 !/Resources/**
 !/DOCUMENTACION/**
 !/SCRIPTS/**
+!/WebUI/**
 
 # Exclude specific heavy or binary files even if they are in allowed folders
 *.exe

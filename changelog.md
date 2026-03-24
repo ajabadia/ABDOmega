@@ -12,6 +12,14 @@ Este archivo registra todos los cambios significativos, mejoras y correcciones d
     - **Top Menu Bar**: Estructura profesional con menús **FILE**, **EDIT** y **HELP**.
     - **About Modal**: Ventana informativa con estética "glassmorphism", créditos y metadata del sintetizador.
     - **Full Modular Rack**: El rack ahora carga por defecto el sintetizador completo (DCO, VCF, JP Filter, Korg VCF y Space Echo).
+- **Git-for-Sounds (Sprint 6)**:
+    - Integración de `Core::Preset::PresetRepository` en el `OmegaAudioProcessor`.
+    - Sistema de versionado con **Snapshots**, **History** y **Checkout** funcional vía RPC.
+    - Soporte para creación de ramas (Branching) y persistencia en formato YAML.
+- **Integrated Preset Browser**:
+    - Nuevo panel lateral en la WebUI para navegación de archivos de preset (`.yaml`).
+    - Visualización dinámica de la línea de tiempo de versiones (History) para cada sonido.
+    - Interfaz reactiva para guardar capturas (Snapshots) con autor y descripción.
 - **System Stability**:
     - Handler de **Exit** robusto ejecutado en el **Message Thread** para cierre limpio de la aplicación Standalone.
     - Consola de debug conmutable (Show/Hide) integrada en el menú Help.

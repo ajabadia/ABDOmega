@@ -63,7 +63,7 @@
 - [x] **OmegaUiBridge Modernization (Sprint 4)** (2026-03-24 00:10): High-fidelity JSON-RPC v1 protocol with **JUCE 8 Native Promises**.
 - [x] **WebView2 Stabilization**: Resolved initialization hangs and resource provider issues (2026-03-24 00:20).
 - [ ] **Engine C: Wavetable (OSC-WT-001)**: High-fidelity analysis and Waldorf-style playback.
-- [ ] **Git-for-Sounds (Sprint 6)**: Versioning, Snapshots, and Branching for presets.
+- [x] **Git-for-Sounds (Sprint 6)**: Versioning, Snapshots, and Branching for presets (2026-03-24 01:15).
 - [ ] **OSC-FM-001 (FM - DX7 style)**.
 
 ### Phase 5: UI/UX & Finalization [IN PROGRESS]
@@ -71,8 +71,8 @@
 - [x] **Professional Navigation Bar**: FILE, EDIT, HELP menus with functional Exit and Console toggle (2026-03-24 00:40).
 - [x] **About OMEGA Modal**: High-fidelity credits and synth metadata (2026-03-24 00:45).
 - [x] **Complete Synthesizer Rack**: DCO, VCF, JP/Korg Filters, and Space Echo default view (2026-03-24 01:00).
-- [ ] Preset Browser linking to WebUI.
+- [x] **Preset Browser linking to WebUI**: Integrated side panel with RPC browsing (2026-03-24 01:20).
 - [ ] Dynamic PE Knob mapping visualizer.
 
 ---
-*Last Updated: 2026-03-24 01:05*
+*Last Updated: 2026-03-24 01:25*

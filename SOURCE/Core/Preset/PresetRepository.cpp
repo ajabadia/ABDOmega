@@ -37,6 +37,25 @@ PresetRepository::PresetRepository(const std::filesystem::path& rootPath)
     : mRootPath(rootPath) {}
 
 PresetRepository::~PresetRepository() {}
+ 
+std::vector<std::string> PresetRepository::listPresets() const {
+    std::vector<std::string> presets;
+    if (!std::filesystem::exists(mRootPath)) return presets;
+
+    for (const auto& entry : std::filesystem::directory_iterator(mRootPath)) {
+        if (entry.is_regular_file()) {
+            auto path = entry.path();
+            if (path.extension() == ".yaml") {
+                std::string filename = path.stem().string();
+                // Exclude history files
+                if (filename.find(".history") == std::string::npos) {
+                    presets.push_back(filename);
+                }
+            }
+        }
+    }
+    return presets;
+}
 
 std::string PresetRepository::saveSnapshot(const OmegaPreset& preset, 
                                           const std::string& author,

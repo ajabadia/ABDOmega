@@ -8,6 +8,7 @@
 namespace Omega {
     namespace Core {
         namespace Ace { class AceCatalog; }
+        namespace Preset { class PresetRepository; }
     }
 
     namespace UI {
@@ -22,6 +23,7 @@ namespace Omega {
 
         OmegaUiBridge(Core::Preset::OmegaPreset& preset, 
                       Core::Ace::AceCatalog& catalog,
+                      Core::Preset::PresetRepository& repository,
                       juce::AudioProcessorValueTreeState& apvts);
         ~OmegaUiBridge() override;
 
@@ -50,12 +52,20 @@ namespace Omega {
         juce::var handleSavePreset(const juce::var& requestId, const juce::var& payload);
         juce::var handleUiReady(const juce::var& requestId, const juce::var& payload);
 
+        // [Git-for-Sounds] handlers
+        juce::var handleListPresets(const juce::var& requestId, const juce::var& payload);
+        juce::var handleGetHistory(const juce::var& requestId, const juce::var& payload);
+        juce::var handleSaveSnapshot(const juce::var& requestId, const juce::var& payload);
+        juce::var handleCheckout(const juce::var& requestId, const juce::var& payload);
+        juce::var handleCreateBranch(const juce::var& requestId, const juce::var& payload);
+
         // --- Helpers ---
         juce::String createResponse(const juce::var& type, const juce::var& requestId, const juce::var& error, const juce::var& payload = {});
         void notifyUi(const juce::var& notification);
 
         Core::Preset::OmegaPreset& mPreset;
         Core::Ace::AceCatalog& mCatalog;
+        Core::Preset::PresetRepository& mRepository;
         juce::AudioProcessorValueTreeState& mApvts;
         MessageCallback mUiCallback;
         std::function<void(const Core::Preset::OmegaPreset&)> mOnLoadPreset;

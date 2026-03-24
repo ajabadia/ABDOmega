@@ -1,5 +1,6 @@
 #include "OmegaUiBridge.h"
 #include "../Core/Preset/OmegaPreset.h"
+#include "../Core/Preset/PresetRepository.h"
 #include "../Core/Ace/AceCatalog.h"
 #include "../Core/Preset/JunoFactory.h"
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -9,8 +10,9 @@ namespace UI {
 
     OmegaUiBridge::OmegaUiBridge(Core::Preset::OmegaPreset& preset, 
                                  Core::Ace::AceCatalog& catalog,
+                                 Core::Preset::PresetRepository& repository,
                                  juce::AudioProcessorValueTreeState& apvts)
-        : mPreset(preset), mCatalog(catalog), mApvts(apvts)
+        : mPreset(preset), mCatalog(catalog), mRepository(repository), mApvts(apvts)
     {
         for (auto& param : mApvts.processor.getParameters())
         {
@@ -106,6 +108,18 @@ namespace UI {
             return handleSavePreset(requestId, payload);
         if (type.equalsIgnoreCase("uiReady"))
             return handleUiReady(requestId, payload);
+        
+        if (type.equalsIgnoreCase("listPresets"))
+            return handleListPresets(requestId, payload);
+        if (type.equalsIgnoreCase("getHistory"))
+            return handleGetHistory(requestId, payload);
+        if (type.equalsIgnoreCase("saveSnapshot"))
+            return handleSaveSnapshot(requestId, payload);
+        if (type.equalsIgnoreCase("checkout"))
+            return handleCheckout(requestId, payload);
+        if (type.equalsIgnoreCase("createBranch"))
+            return handleCreateBranch(requestId, payload);
+
         if (type.equalsIgnoreCase("exit"))
         {
             juce::MessageManager::callAsync ([] {
@@ -256,14 +270,85 @@ namespace UI {
     }
     juce::var OmegaUiBridge::handleUiReady(const juce::var& requestId, const juce::var& payload)
     {
-        // El frontend dice que está listo. Hacemos un "dump" del estado actual.
-        // Reutilizamos handleGetState para obtener el objeto de estado completo.
-        auto state = handleGetState(requestId, payload);
+        return handleGetState(requestId, payload);
+    }
+
+    juce::var OmegaUiBridge::handleListPresets(const juce::var&, const juce::var&)
+    {
+        auto presets = mRepository.listPresets();
+        juce::Array<juce::var> list;
+        for (const auto& p : presets)
+            list.add(juce::var(juce::String(p)));
+        return list;
+    }
+
+    juce::var OmegaUiBridge::handleGetHistory(const juce::var&, const juce::var& payload)
+    {
+        juce::String presetId = payload["presetId"].toString();
+        auto history = mRepository.getHistory(presetId.toStdString());
         
-        // Lo enviamos como una notificación "initialState" si queremos, 
-        // o simplemente devolvemos el estado como respuesta al comando uiReady.
-        // La especificación JSON-RPC v1 dice que devolvemos el resultado.
-        return state;
+        juce::DynamicObject::Ptr root = new juce::DynamicObject();
+        root->setProperty("presetId", juce::String(history.presetId));
+        root->setProperty("currentBranch", juce::String(history.currentBranch));
+        
+        juce::Array<juce::var> branches;
+        for (auto const& [name, hash] : history.branches) {
+            juce::DynamicObject::Ptr b = new juce::DynamicObject();
+            b->setProperty("name", juce::String(name));
+            b->setProperty("hash", juce::String(hash));
+            branches.add(juce::var(b.get()));
+        }
+        root->setProperty("branches", branches);
+
+        juce::Array<juce::var> snapshots;
+        for (const auto& v : history.snapshots) {
+            juce::DynamicObject::Ptr s = new juce::DynamicObject();
+            s->setProperty("hash", juce::String(v.hash));
+            s->setProperty("parent", juce::String(v.parentHash));
+            s->setProperty("author", juce::String(v.author));
+            s->setProperty("message", juce::String(v.message));
+            s->setProperty("timestamp", (juce::int64)v.timestamp);
+            snapshots.add(juce::var(s.get()));
+        }
+        root->setProperty("snapshots", snapshots);
+
+        return juce::var(root.get());
+    }
+
+    juce::var OmegaUiBridge::handleSaveSnapshot(const juce::var&, const juce::var& payload)
+    {
+        juce::String author = payload["author"].toString();
+        juce::String message = payload["message"].toString();
+        
+        std::string hash = mRepository.saveSnapshot(mPreset, author.toStdString(), message.toStdString());
+        return juce::var(juce::String(hash));
+    }
+
+    juce::var OmegaUiBridge::handleCheckout(const juce::var&, const juce::var& payload)
+    {
+        juce::String presetId = payload["presetId"].toString();
+        juce::String hash = payload["hash"].toString();
+        
+        Core::Preset::OmegaPreset loadedPreset;
+        if (mRepository.checkout(presetId.toStdString(), hash.toStdString(), loadedPreset))
+        {
+            if (mOnLoadPreset)
+                mOnLoadPreset(loadedPreset);
+            return juce::var("OK");
+        }
+        return juce::var("ERROR_CHECKOUT_FAILED");
+    }
+
+    juce::var OmegaUiBridge::handleCreateBranch(const juce::var&, const juce::var& payload)
+    {
+        juce::String presetId = payload["presetId"].toString();
+        juce::String branchName = payload["branchName"].toString();
+        juce::String fromHash = payload["fromHash"].toString();
+        
+        if (mRepository.createBranch(presetId.toStdString(), branchName.toStdString(), fromHash.toStdString()))
+            return juce::var("OK");
+            
+        return juce::var("ERROR_CREATE_BRANCH_FAILED");
     }
 
     juce::String OmegaUiBridge::createResponse(const juce::var& type, const juce::var& requestId, const juce::var& error, const juce::var& payload)

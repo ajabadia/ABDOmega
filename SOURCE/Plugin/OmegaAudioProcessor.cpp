@@ -7,8 +7,9 @@ namespace Omega::Plugin {
     OmegaAudioProcessor::OmegaAudioProcessor() 
         : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
           mValidator(mCatalog),
+          mPresetRepository("d:/desarrollos/ABDOmega/Resources/Presets"),
           mApvts(*this, nullptr, "PARAMETERS", createParameterLayout()),
-          mUiBridge(mCurrentPreset, mCatalog, mApvts)
+          mUiBridge(mCurrentPreset, mCatalog, mPresetRepository, mApvts)
     {
         // Link Bridge load callback
         mUiBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset& p) { this->loadPreset(p); });
