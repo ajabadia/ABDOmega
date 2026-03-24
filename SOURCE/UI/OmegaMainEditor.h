@@ -19,7 +19,7 @@ namespace Omega {
             addAndMakeVisible(mWebViewContainer);
             
             // Tamaño inicial del plugin
-            setSize(800, 600);
+            setSize(1600, 750);
             setResizable(true, true);
         }
 

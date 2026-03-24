@@ -1,6 +1,7 @@
 #include "OmegaAudioProcessor.h"
 #include "../UI/OmegaMainEditor.h"
 #include "../Core/Preset/JunoFactory.h"
+#include "../Core/ParameterMetadata.h"
 
 namespace Omega::Plugin {
 
@@ -9,7 +10,7 @@ namespace Omega::Plugin {
           mValidator(mCatalog),
           mPresetRepository("d:/desarrollos/ABDOmega/Resources/Presets"),
           mApvts(*this, nullptr, "PARAMETERS", createParameterLayout()),
-          mUiBridge(mCurrentPreset, mCatalog, mPresetRepository, mApvts)
+          mUiBridge(*this, mCurrentPreset, mCatalog, mPresetRepository, mApvts)
     {
         // Link Bridge load callback
         mUiBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset& p) { this->loadPreset(p); });
@@ -67,6 +68,15 @@ namespace Omega::Plugin {
 
         // Actualizar parámetros en tiempo real
         updateParameters();
+
+        // 0. Inyectar MIDI desde la UI
+        {
+            const juce::ScopedLock sl(mUiMidiLock);
+            if (!mUiMidiQueue.isEmpty()) {
+                midiMessages.addEvents(mUiMidiQueue, 0, buffer.getNumSamples(), 0);
+                mUiMidiQueue.clear();
+            }
+        }
 
         // 1. Traducir MIDI a OmegaInput
         mInput.clear();
@@ -189,88 +199,44 @@ namespace Omega::Plugin {
     juce::AudioProcessorValueTreeState::ParameterLayout OmegaAudioProcessor::createParameterLayout() {
         std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
         
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAMAINCUTOFF", 1), "Cutoff", 
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 0.0f, 0.3f), 2000.0f));
-        
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAMAINRESONANCE", 1), "Resonance", 0.0f, 1.0f, 0.1f));
+        auto& registry = Omega::Core::ParameterMetadataRegistry::getInstance();
+        registry.initializeDefaults();
 
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("LAYERACHORUSMODE", 1), "Chorus Mode", 
-            juce::StringArray{"Off", "I", "II", "III"}, 1));
-
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("LAYERAMAINHPF", 1), "HPF Position", 
-            juce::StringArray{"0 (Bass Boost)", "1 (Bypass)", "2", "3"}, 1));
-
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("LAYERAMAINVCAMODE", 1), "VCA Mode", 
-            juce::StringArray{"Env", "Gate"}, 0));
-
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAMAINANALOGDRIFT", 1), "Analog Drift", 0.0f, 1.0f, 0.1f));
-
-        // --- Hardware Fidelity / Modular Params ---
-        params.push_back(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID("LAYERAMAINSAWON", 1), "Saw On", true));
-        params.push_back(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID("LAYERAMAINPULSEON", 1), "Pulse On", true));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERASUBOSELEVEL", 1), "Sub Level", 0.0f, 1.0f, 0.5f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERANOISELEVEL", 1), "Noise Level", 0.0f, 1.0f, 0.05f));
-        
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("LAYERAPWMMODE", 1), "PWM Mode", juce::StringArray{"Manual", "LFO"}, 0));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAPWMAMOUNT", 1), "PWM Amount/Width", 0.0f, 1.0f, 0.5f));
-
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAVCFENVDEPTH", 1), "VCF Env Depth", 0.0f, 1.0f, 0.5f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAVCFMODDEPTH", 1), "VCF LFO Depth", 0.0f, 1.0f, 0.0f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAVCFKYBD", 1), "VCF Keytrack", 0.0f, 1.0f, 0.5f));
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("LAYERAVCFENVPOL", 1), "VCF Env Polarity", juce::StringArray{"Normal", "Inverted"}, 0));
-        
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERADCOMODDEPTH", 1), "DCO LFO Depth", 0.0f, 1.0f, 0.0f));
-
-        // --- JP-808X Specific Params ---
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAMAINJPDETUNE", 1), "JP Detune", 0.0f, 1.0f, 0.5f));
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("LAYERAMAINJPFILTERMODE", 1), "JP Filter Mode", 
-            juce::StringArray{"LP", "BP", "HP"}, 0));
-
-        // --- Korg Specific ---
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAKORGHPFDCUTOFF", 1), "Korg HP Cutoff", 
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 0.0f, 0.3f), 100.0f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAKORGHPFRESONANCE", 1), "Korg HP Res", 0.0f, 1.0f, 0.1f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAKORGGRIT", 1), "Korg Grit", 1.0f, 10.0f, 1.0f));
-
-        // --- Space Echo (FX-DL-002) ---
-        params.push_back(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID("LAYERAFXSPACEENABLE", 1), "Space Echo Enable", false));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAFXSPACESPEED", 1), "Tape Speed (Repeat Rate)", 0.0f, 1.0f, 0.5f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAFXSPACEINTENSITY", 1), "Intensity (Feedback)", 0.0f, 1.0f, 0.4f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAFXSPACEECHOVOL", 1), "Echo Volume", 0.0f, 1.0f, 0.5f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAFXSPACEREVERBVOL", 1), "Reverb Volume", 0.0f, 1.0f, 0.3f));
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            juce::ParameterID("LAYERAFXSPACEMODE", 1), "Mode (1-12)", 1, 12, 1));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAFXSPACEWOW", 1), "Wow & Flutter", 0.0f, 1.0f, 0.2f));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("LAYERAFXSPACEDRIVE", 1), "Tape Drive (Input)", 0.0f, 1.0f, 0.5f));
+        for (auto const& [id, desc] : registry.getAllParameters()) {
+            if (desc.unit == "Choice" || desc.unit == "Mode") {
+                // Choice/Int parameters
+                if (id == "LAYERACHORUSMODE") {
+                    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+                        juce::ParameterID(id, 1), desc.name, juce::StringArray{"Off", "I", "II", "III"}, (int)desc.defaultValue));
+                } else if (id == "LAYERAMAINHPF") {
+                    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+                        juce::ParameterID(id, 1), desc.name, juce::StringArray{"0 (Bass Boost)", "1 (Bypass)", "2", "3"}, (int)desc.defaultValue));
+                } else if (id == "LAYERAMAINVCAMODE") {
+                    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+                        juce::ParameterID(id, 1), desc.name, juce::StringArray{"Env", "Gate"}, (int)desc.defaultValue));
+                } else if (id == "LAYERAPWMMODE") {
+                    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+                        juce::ParameterID(id, 1), desc.name, juce::StringArray{"Manual", "LFO"}, (int)desc.defaultValue));
+                } else if (id == "LAYERAVCFENVPOL") {
+                    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+                        juce::ParameterID(id, 1), desc.name, juce::StringArray{"Normal", "Inverted"}, (int)desc.defaultValue));
+                } else if (id == "LAYERAMAINJPFILTERMODE") {
+                    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+                        juce::ParameterID(id, 1), desc.name, juce::StringArray{"LP", "BP", "HP"}, (int)desc.defaultValue));
+                } else if (id == "LAYERAFXSPACEMODE") {
+                    params.push_back(std::make_unique<juce::AudioParameterInt>(
+                        juce::ParameterID(id, 1), desc.name, (int)desc.minValue, (int)desc.maxValue, (int)desc.defaultValue));
+                }
+            } else if (desc.unit == "Bool") {
+                params.push_back(std::make_unique<juce::AudioParameterBool>(
+                    juce::ParameterID(id, 1), desc.name, desc.defaultValue > 0.5f));
+            } else {
+                // Float parameters
+                params.push_back(std::make_unique<juce::AudioParameterFloat>(
+                    juce::ParameterID(id, 1), desc.name, 
+                    juce::NormalisableRange<float>(desc.minValue, desc.maxValue, 0.0f, desc.skew), desc.defaultValue));
+            }
+        }
 
         return { params.begin(), params.end() };
     }
@@ -292,6 +258,14 @@ namespace Omega::Plugin {
     void OmegaAudioProcessor::changeProgramName(int index, const juce::String& newName) {}
     void OmegaAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {}
     void OmegaAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {}
+
+    void OmegaAudioProcessor::triggerNote(int midiNote, int velocity, bool isOn) {
+        const juce::ScopedLock sl(mUiMidiLock);
+        if (isOn)
+            mUiMidiQueue.addEvent(juce::MidiMessage::noteOn(1, midiNote, (juce::uint8)velocity), 0);
+        else
+            mUiMidiQueue.addEvent(juce::MidiMessage::noteOff(1, midiNote, (juce::uint8)velocity), 0);
+    }
 
 } // namespace Omega::Plugin
 

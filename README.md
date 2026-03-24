@@ -24,9 +24,10 @@ The project follow a "Modular-without-Cables" architecture, focusing on expressi
 - **Roland JP-8080 Elite**: Osciladores **Feedback** y **Supersaw**, **Cross-Modulation**, **JP-Formant Filter** y sistema de **Motion Control** integrado.
 - **Korg MS-20**: Filtro Korg35 LP/HP, **External Signal Processor (ESP)** con seguimiento de pitch/env y envolvente **ENV1** con Delay/Hold.
 - **Space Echo (RE-201)**: Emulación multi-cabezal con saturación de cinta magnética y reverb de muelles integrada en el rack modular.
-- **OmegaUiBridge (JUCE 8 Native)**: Sistema de comunicación de alta fidelidad basado en **JSON-RPC v1** aprovechando las **promesas nativas** de JUCE 8. Ofrece sincronización bidireccional instantánea y asíncrona entre el motor C++ y la WebUI.
-- **Modular WebUI**: Interfaz premium con rack dinámico (DCO, VCF, JP/KORG, FX), barra de navegación profesional, splash screen inteligente de 3 segundos y consola de depuración integrada.
-- **Build System**: Estabilización mediante `build_auto.bat` (CMake/Ninja) con tracking automático de builds y despliegue del ejecutable Standalone.
+- **Universal Metadata Architecture (Phase 6)**: Establecimiento del **ParameterMetadataRegistry** en C++ como única fuente de verdad. Centraliza rangos, unidades, nombres y mapeos MIDI/Modulalción, eliminando datos hardcoded en la WebUI.
+- **Dual-Rack Modular UI (Phase 8)**: Interfaz expandida con rack superior para utilidades (telemetría/control) y rack inferior para síntesis masiva. Diseño auto-configurable de 1600px.
+- **MIDI Trigger & Playback (Phase 9)**: Capacidad nativa para disparar notas desde la WebUI con sincronización de baja latencia mediante colas MIDI thread-safe en C++.
+- **Build System**: Estabilización mediante `build_auto.bat` (CMake/Ninja) con tracking automático de builds y despliegue del ejecutable Standalone (Build #43).
 
 ---
 *Built by ABD-IA*

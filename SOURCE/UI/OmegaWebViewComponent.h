@@ -15,10 +15,9 @@ namespace Omega {
     class OmegaWebViewComponent : public juce::Component {
     public:
         OmegaWebViewComponent(OmegaUiBridge& bridge)
-             : mBridge(bridge),
-               mWebView(juce::WebBrowserComponent::Options{}
-#if JUCE_USE_WIN_WEBVIEW2
-                        .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)                        .withWinWebView2Options(juce::WebBrowserComponent::Options::WinWebView2()
+             : mBridge(bridge),                mWebView(juce::WebBrowserComponent::Options{}
+                        .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+                        .withWinWebView2Options(juce::WebBrowserComponent::Options::WinWebView2()
                             .withUserDataFolder(juce::File::getSpecialLocation(juce::File::tempDirectory)
                                 .getChildFile("OmegaSynth_WebView2_V16_FINAL")))
                         .withNativeIntegrationEnabled(true)
@@ -28,19 +27,12 @@ namespace Omega {
                         .withInitialisationData("timestamp", OMEGA_BUILD_TIMESTAMP)
                         .withResourceProvider([this](const juce::String& url) -> std::optional<juce::WebBrowserComponent::Resource> {
                             juce::String path = url;
-                            
-                            // Robustly strip juce.localhost scheme and host
                             if (path.startsWith("https://juce.localhost/")) path = path.substring(23);
                             else if (path.startsWith("http://juce.localhost/")) path = path.substring(22);
                             else if (path.startsWith("/")) path = path.substring(1);
-
                             if (path.isEmpty() || path == "/") path = "index.html";
 
-                            juce::File exeDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
-                            juce::File webUiDir = exeDir.getChildFile("WebUI");
-                            if (!webUiDir.exists())
-                                webUiDir = juce::File("d:\\desarrollos\\ABDOmega\\WebUI");
-
+                            juce::File webUiDir("d:\\desarrollos\\ABDOmega\\WebUI");
                             juce::File file = webUiDir.getChildFile(path.replace("/", "\\"));
                             
                             if (file.existsAsFile())
@@ -49,79 +41,31 @@ namespace Omega {
                                     if (filename.endsWithIgnoreCase(".html")) return "text/html";
                                     if (filename.endsWithIgnoreCase(".css"))  return "text/css";
                                     if (filename.endsWithIgnoreCase(".js"))   return "application/javascript";
-                                    if (filename.endsWithIgnoreCase(".png"))  return "image/png";
-                                    if (filename.endsWithIgnoreCase(".svg"))  return "image/svg+xml";
                                     return "application/octet-stream";
                                 };
-
                                 juce::MemoryBlock mb;
                                 file.loadFileAsData(mb);
-                                
                                 std::vector<std::byte> data(mb.getSize());
                                 std::memcpy(data.data(), mb.getData(), mb.getSize());
-                                
-                                return juce::WebBrowserComponent::Resource {
-                                    std::move(data),
-                                    getMimeType(file.getFileName())
-                                };
+                                return juce::WebBrowserComponent::Resource { std::move(data), getMimeType(file.getFileName()) };
                             }
                             return std::nullopt;
                         })
-
                         .withNativeFunction ("emitEvent", [this] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
                             if (args.size() >= 2 && args[0].toString() == "omegaMessage")
-                            {
-                                juce::String jsonStr = juce::JSON::toString (args[1], true);
-                                juce::var response = mBridge.handleMessageFromUiAsVar (jsonStr);
-                                completion (response);
-                            }
+                                completion (mBridge.handleMessageFromUiAsVar (juce::JSON::toString (args[1], false)));
                             else
-                            {
                                 completion (juce::var::undefined());
-                            }
-                        })
-                        .withNativeFunction ("__juce__invoke", [this] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
-                            if (args.size() > 0)
-                            {
-                                juce::String jsonStr = juce::JSON::toString (args[0], true);
-                                juce::String response = mBridge.handleMessageFromUi (jsonStr);
-                                mWebView.evaluateJavascript ("window.handleOmegaMessage(" + response + ")", nullptr);
-                                completion (juce::var (response));
-                            }
-                            else
-                            {
-                                completion (juce::var::undefined());
-                            }
-                        })
-                        .withNativeFunction ("uiReady", [this] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
-                            juce::DynamicObject::Ptr msg = new juce::DynamicObject();
-                            msg->setProperty ("type", "uiReady");
-                            msg->setProperty ("requestId", args.size() > 0 ? args[0] : juce::var (0));
-                            juce::var response = mBridge.handleMessageFromUiAsVar (juce::JSON::toString (juce::var (msg.get()), true));
-                            completion (response);
                         })
                         .withNativeFunction ("getState", [this] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
-                            juce::DynamicObject::Ptr msg = new juce::DynamicObject();
-                            msg->setProperty ("type", "getState");
-                            msg->setProperty ("requestId", args.size() > 0 ? args[0] : juce::var (0));
-                            juce::var response = mBridge.handleMessageFromUiAsVar (juce::JSON::toString (juce::var (msg.get()), true));
-                            completion (response);
+                            completion (mBridge.handleMessageFromUiAsVar ("{\"type\":\"getState\",\"requestId\":" + (args.size() > 0 ? args[0].toString() : "0") + "}"));
                         })
-                        .withNativeFunction ("setParameter", [this] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
-                            if (args.size() >= 2) {
-                                juce::DynamicObject::Ptr msg = new juce::DynamicObject();
-                                msg->setProperty ("type", "setParam");
-                                juce::DynamicObject::Ptr payload = new juce::DynamicObject();
-                                payload->setProperty ("paramId", args[0].toString());
-                                payload->setProperty ("value", args[1]);
-                                msg->setProperty ("payload", juce::var (payload.get()));
-                                mBridge.handleMessageFromUi (juce::JSON::toString (juce::var (msg.get()), true));
-                            }
-                            completion (juce::var ("ok"));
+                        .withNativeFunction ("listPresets", [this] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
+                            completion (mBridge.handleMessageFromUiAsVar ("{\"type\":\"listPresets\",\"requestId\":" + (args.size() > 0 ? args[0].toString() : "0") + "}"));
                         })
                         .withKeepPageLoadedWhenBrowserIsHidden()
-#endif
                 )
+
         {
             addAndMakeVisible(mWebView);
             

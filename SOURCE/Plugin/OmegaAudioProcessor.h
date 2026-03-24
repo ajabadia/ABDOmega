@@ -6,6 +6,7 @@
 #include <memory>
 #include "../DSP/Engines/Juno/VirtualAnalogEngine.h"
 #include "../Core/Preset/OmegaPreset.h"
+#include "../Core/Preset/PresetRepository.h"
 #include "../Core/Ace/AceCatalog.h"
 #include "../Core/Ace/AceValidator.h"
 #include "Midi1InputAdapter.h"
@@ -51,6 +52,9 @@ namespace Omega::Plugin {
         void loadPreset(const Core::Preset::OmegaPreset& preset);
         static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+        // MIDI Triggering (Thread-safe)
+        void triggerNote(int midiNote, int velocity, bool isOn);
+
     private:
         void updateParameters() noexcept;
 
@@ -65,6 +69,7 @@ namespace Omega::Plugin {
         
         // State
         Core::Preset::OmegaPreset mCurrentPreset;
+        Core::Preset::PresetRepository mPresetRepository;
         juce::AudioProcessorValueTreeState mApvts;
         UI::OmegaUiBridge mUiBridge;
 
@@ -103,6 +108,9 @@ namespace Omega::Plugin {
             std::atomic<float>* spaceEchoWow = nullptr;
             std::atomic<float>* spaceEchoDrive = nullptr;
         } mParamCache;
+
+        juce::MidiBuffer mUiMidiQueue;
+        juce::CriticalSection mUiMidiLock;
         
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OmegaAudioProcessor)
     };

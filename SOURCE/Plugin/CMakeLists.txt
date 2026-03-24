@@ -30,6 +30,7 @@ target_sources(omega_plugin
 target_link_libraries(omega_plugin
     PRIVATE
         juce::juce_audio_utils
+        juce::juce_gui_extra
         omega_core
         omega_dsp
 )

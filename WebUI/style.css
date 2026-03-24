@@ -19,6 +19,70 @@ body, html {
     color: white;
 }
 
+.debug-console-header {
+    background: #333;
+    padding: 5px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    font-weight: bold;
+    border-bottom: 1px solid #444;
+}
+
+.console-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 5px;
+    transition: color 0.2s, transform 0.1s;
+}
+
+.icon-btn:hover {
+    color: #00f2ff;
+    transform: scale(1.1);
+}
+
+.icon-btn:active {
+    transform: scale(0.9);
+}
+
+#debug-console-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Scrollbar premium */
+#debug-console-content::-webkit-scrollbar {
+    width: 6px;
+}
+#debug-console-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+#debug-console-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+.log-entry {
+    margin-bottom: 2px;
+}
+.log-log { color: #0f0; }
+.log-warn { color: #ffaa00; }
+.log-error { color: #ff5555; }
+
 #splash-screen {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -87,33 +151,84 @@ body, html {
 
 .rack-container {
     display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    height: var(--rack-height);
+    flex-direction: column;
+    align-items: stretch;
+    width: 98vw;
+    margin: 60px auto 0 auto;
     background: #111;
     border: 4px solid #333;
     border-radius: 8px;
-    padding: 0;
     box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    overflow: hidden;
+    position: relative;
+    z-index: 100;
+}
+
+.rack-row {
+    display: flex;
+    flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
-    scroll-behavior: smooth;
+    background: rgba(0,0,0,0.3);
 }
 
-#side-panel {
-    width: 280px;
-    height: 100%;
-    background: #0d0d0d;
-    border-right: 1px solid #333;
+.rack-row.upper {
+    height: 220px;
+    border-bottom: 2px solid #222;
+    background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%);
+    display: flex;
+    align-items: center;
+}
+
+.rack-row.lower {
+    height: var(--rack-height);
+    flex-grow: 1;
+}
+
+/* Custom Scrollbar for Racks */
+.rack-row::-webkit-scrollbar {
+    height: 8px;
+}
+.rack-row::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.2);
+}
+.rack-row::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+.rack-row::-webkit-scrollbar-thumb:hover {
+    background: #444;
+}
+
+/* MODAL LAYOUT FOR PRESETS */
+.presets-modal-content {
+    width: 700px;
+    max-height: 80vh;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    font-size: 0.8rem;
 }
 
-#preset-browser-container, #version-control-container {
-    padding: 15px;
-    border-bottom: 1px solid #222;
+.presets-container {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    text-align: left;
+    height: 400px;
+    overflow: hidden;
+}
+
+#preset-browser-container {
+    flex: 1;
+    border-right: 1px solid #333;
+    overflow-y: auto;
+    padding-right: 15px;
+}
+
+#version-control-container {
+    flex: 2;
+    overflow-y: auto;
 }
 
 .preset-browser-header, .vc-header {
@@ -156,6 +271,15 @@ body, html {
     align-items: center;
     gap: 10px;
     transition: background 0.2s;
+}
+
+.top-bar-version {
+    margin-left: auto;
+    margin-right: 15px;
+    font-size: 11px;
+    color: #666;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: 0.5px;
 }
 
 .preset-list li:hover {
@@ -574,4 +698,178 @@ button.sq.active.juno-orange {
     background: var(--neon-cyan);
     color: #000;
     box-shadow: 0 0 20px var(--neon-cyan);
+}
+
+/* Telemetry Bar */
+.telemetry-bar {
+    height: 120px;
+    background: #080808;
+    border-top: 1px solid #222;
+    display: flex;
+    flex-direction: row;
+    padding: 10px 15px;
+    gap: 30px;
+    align-items: center;
+    overflow-x: auto;
+    position: relative;
+}
+
+.telemetry-header {
+    position: absolute;
+    top: -10px;
+    left: 20px;
+    background: #111;
+    padding: 2px 10px;
+    border: 1px solid #333;
+    font-size: 0.6rem;
+    color: var(--neon-cyan);
+    letter-spacing: 2px;
+    font-weight: bold;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0,242,255,0.1);
+}
+
+.telemetry-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.telemetry-label {
+    font-size: 0.6rem;
+    color: #555;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* Generic Oscilloscope Module */
+.oscilloscope-module {
+    width: 220px;
+    height: 180px !important;
+    border-left: 4px solid var(--neon-purple) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.oscilloscope-module .module-header {
+    background: linear-gradient(to right, rgba(157, 0, 255, 0.1), transparent);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 10px;
+}
+
+.osc-power-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: #444;
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-left: 10px;
+}
+
+.osc-power-btn.active {
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 5px rgba(0,242,255,0.5);
+}
+
+.osc-canvas-wrapper {
+    background: #050505 !important;
+    border: 1px solid #1a1a1a;
+    margin: 5px 10px !important;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.osc-footer {
+    padding: 2px 10px;
+    font-size: 0.5rem;
+    color: #444;
+    text-align: right;
+    font-family: monospace;
+    letter-spacing: 1px;
+}
+
+/* MIDI Trigger Module */
+.midi-trigger-module {
+    width: 250px;
+    height: 180px !important;
+    border-left: 4px solid var(--neon-emerald) !important;
+}
+
+.midi-trigger-module .module-header {
+    background: linear-gradient(to right, rgba(0, 255, 128, 0.1), transparent);
+}
+
+.trigger-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px !important;
+    justify-content: center;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.control-group label {
+    font-size: 0.5rem;
+    color: #555;
+    margin-bottom: 4px;
+}
+
+.control-group select {
+    background: #222;
+    border: 1px solid #444;
+    color: #ccc;
+    font-size: 0.7rem;
+    padding: 4px;
+    border-radius: 3px;
+    outline: none;
+}
+
+.trigger-btn {
+    width: 100%;
+    margin-top: 5px;
+    padding: 10px;
+    background: #222;
+    border: 1px solid var(--neon-emerald);
+    color: var(--neon-emerald);
+    font-weight: bold;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.trigger-btn:hover {
+    background: rgba(0, 255, 128, 0.1);
+    box-shadow: 0 0 10px rgba(0, 255, 128, 0.3);
+}
+
+.trigger-btn.active {
+    background: var(--neon-emerald);
+    color: #000;
+    box-shadow: 0 0 20px var(--neon-emerald);
+}
+
+:root {
+    --neon-purple: #9d00ff;
+    --neon-emerald: #00ff80;
 }

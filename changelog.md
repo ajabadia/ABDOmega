@@ -1,6 +1,45 @@
 # 📝 OMEGA Changelog
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
+ 
+## [1.4.0] - 2026-03-24
+### Added
+- **Dual-Rack Modular Architecture (Phase 8)**:
+    - Rediseño de la WebUI a un sistema de doble rack (Superior: utilidades, Inferior: síntesis).
+    - Módulos auto-inyectables con estética estandarizada y acentos neón.
+    - Área de trabajo expandida a **1600x750px** para visualización multimodular sin scroll.
+- **MIDI Trigger Module (Phase 9)**:
+    - Nuevo componente interactivo para disparo de notas MIDI desde la UI (Nota/Octava/Push).
+    - Implementada cola MIDI thread-safe en el motor DSP para inyección síncrona en el `processBlock`.
+- **Generic Modulation Telemetry**:
+    - Implementación de `ModuleOscilloscope` basado en Canvas con soporte para polling dinámico vía RPC.
+    - Soporte para visualización en tiempo real de LFOs y señales de control internas.
+
+## [1.3.0] - 2026-03-24
+### Added
+- **Universal Metadata Architecture (Phase 6)**:
+    - Implementación de `ParameterMetadataRegistry` en C++ como única fuente de verdad para descriptores de parámetros.
+    - Nuevo handler RPC `getMetadata` para servir rangos, unidades y nombres dinámicamente a la WebUI.
+    - Refactor de `OmegaAudioProcessor` y `Midi1InputAdapter` para consumir el registro centralizado.
+- **Dynamic WebUI Configuration**:
+    - Los módulos `ModuleJuno`, `ModuleJP`, `ModuleKorg` y `ModuleSpaceEcho` ahora son auto-configurables.
+    - Inyección automática de límites (`min`, `max`, `step`) y etiquetas desde los metadatos del motor.
+- **System Stability (Build #33)**:
+    - Unificación de namespaces a `Omega`.
+    - Resolución de conflictos en el bridge relacionados con `juce::Identifier` y `std::string`.
+    - Garantizada la seguridad lock-free en el acceso a metadatos durante el processBlock.
+
+## [1.2.1] - 2026-03-24
+### Added
+- **Visual Diagnostic Console**:
+    - Primera línea de consola con **Build #** y **Timestamp** real del ejecutable.
+    - Mapeo visual de **Bridge Keys** para depuración de funciones nativas expuestas.
+    - Registro de **RAW Response** antes del procesamiento de JS.
+- **Bridge Resilience (Mock Fallback)**:
+    - Implementado sistema de **Mocks** en `omega_rpc.js` que se activa automáticamente si el puente devuelve `undefined`.
+    - Garantizado que la UI de presets y estado inicial sea funcional incluso sin conexión estable con el motor.
+- **RPC v2 Protocol**:
+    - Implementación refinada con soporte para detección de puente y logs extendidos.
 
 ## [1.2.0] - 2026-03-24
 ### Added

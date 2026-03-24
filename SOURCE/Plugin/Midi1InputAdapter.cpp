@@ -1,5 +1,6 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "Midi1InputAdapter.h"
+#include "../Core/ParameterMetadata.h"
 
 namespace Omega::Core::Input {
 
@@ -13,8 +14,6 @@ namespace Omega::Core::Input {
             InputEvent event;
             event.sampleOffset = sampleOffset;
 
-            // Nota: Aquí se usa un NoteId simple basado en canal y número de nota.
-            // Para MPE avanzado esto se extendería.
             const int noteId = (msg.getChannel() << 8) | msg.getNoteNumber();
 
             if (msg.isNoteOn()) {
@@ -33,13 +32,12 @@ namespace Omega::Core::Input {
             else if (msg.isPitchWheel()) {
                 event.type = InputEventType::ChannelExpression;
                 event.data.channel.source = ModSource::PitchBend;
-                // Normalizar -1..1 (centro en 8192)
                 event.data.channel.value = (static_cast<float>(msg.getPitchWheelValue()) - 8192.0f) / 8192.0f;
                 output.addEvent(event);
             }
             else if (msg.isAftertouch()) {
                 event.type = InputEventType::PerNoteExpression;
-                event.data.perNote.noteId = noteId; // PolyAftertouch
+                event.data.perNote.noteId = noteId;
                 event.data.perNote.source = ModSource::NotePressure;
                 event.data.perNote.value = static_cast<float>(msg.getAfterTouchValue()) / 127.0f;
                 output.addEvent(event);
@@ -63,17 +61,21 @@ namespace Omega::Core::Input {
     }
 
     ModSource Midi1InputAdapter::mapCCtoSource(int ccNumber) const {
+        auto& registry = Omega::Core::ParameterMetadataRegistry::getInstance();
+        std::string paramId = registry.getParamIdFromCC(ccNumber);
+        
+        if (!paramId.empty()) {
+            const auto* desc = registry.getParameter(paramId);
+            if (desc && desc->modSource != ModSource::Count) {
+                return desc->modSource;
+            }
+        }
+
         switch (ccNumber) {
             case 1:  return ModSource::ModWheel;
             case 2:  return ModSource::Breath;
             case 11: return ModSource::Expression;
             case 64: return ModSource::Sustain;
-            // Macros estándar sugeridos en docs
-            case 20: return ModSource::Macro1;
-            case 21: return ModSource::Macro2;
-            case 22: return ModSource::Macro3;
-            case 23: return ModSource::Macro4;
-            // Prophecy PE Knobs & Ribbon
             case 12: return ModSource::PE1;
             case 13: return ModSource::PE2;
             case 14: return ModSource::PE3;

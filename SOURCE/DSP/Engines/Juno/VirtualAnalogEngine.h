@@ -34,7 +34,8 @@
 #include "../Korg/ProphecyArpeggiator.h"
 #include "../Korg/FilterPoolResonantBank.h"
 #include "../../Core/Modulation/EnvelopeMultiStage.h"
-#include "../../Core/Modulation/ModulationRuntime.h"
+#include "../../../Core/Modulation/ModulationRuntime.h"
+#include "../../../Core/Modulation/ModulationTelemetryHub.h"
 #include "../ISynthesisEngine.h"
 #include "../../../Core/Input/OmegaInput.h"
 
@@ -418,6 +419,10 @@ namespace Omega::DSP::Engines::Juno {
                     if (s < buffer.getNumSamples()) buffer.setSample(c, s, (c == 0) ? left : right);
                 }
             }
+
+            // --- Modulation Telemetry Tap ---
+            // Copy the state after the block processing is finished
+            Omega::Core::Modulation::ModulationTelemetryHub::getInstance().update(mModRuntime.getBuffers());
         }
 
         void getEnvelopeLevels(float& ampEnv, float& filterEnv) const noexcept override {

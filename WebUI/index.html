@@ -47,15 +47,13 @@
 
         function appendToConsole(type, ...args) {
             const div = document.createElement('div');
+            div.className = `log-entry log-${type}`;
             div.innerText = `[${type.toUpperCase()}] ` + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
-            if (type === 'error') div.style.color = "#ff5555";
-            else if (type === 'warn') div.style.color = "#ffaa00";
-            else div.style.color = "#0f0";
             
-            const consoleEl = document.getElementById('debug-console');
-            if (consoleEl) {
-                consoleEl.appendChild(div);
-                consoleEl.scrollTop = consoleEl.scrollHeight;
+            const contentEl = document.getElementById('debug-console-content');
+            if (contentEl) {
+                contentEl.appendChild(div);
+                contentEl.scrollTop = contentEl.scrollHeight;
             }
         }
 
@@ -80,6 +78,7 @@
             <div class="dropdown">
                 <a>Undo</a>
                 <a>Redo</a>
+                <a id="menu-presets">Presets...</a>
             </div>
         </div>
         <div class="menu-item">
@@ -89,6 +88,7 @@
                 <a id="menu-console">Console</a>
             </div>
         </div>
+        <div class="top-bar-version" id="top-bar-version">OMEGA v1.0.0 (Build 0)</div>
     </nav>
 
     <div id="splash-screen">
@@ -101,16 +101,11 @@
     </div>
 
     <div id="omega-rack" class="rack-container" style="display: none;">
-        <div id="side-panel">
-            <div id="preset-browser-container"></div>
-            <div id="version-control-container"></div>
+        <div id="upper-rack" class="rack-row upper">
+            <!-- Monitoring modules injected here -->
         </div>
-        <div id="module-rack">
-            <!-- Modules will be dynamically injected here -->
-            <div class="module loading-module">
-                <div class="led amber-pulsing"></div>
-                <p>OMEGA INITIALIZING...</p>
-            </div>
+        <div id="lower-rack" class="rack-row lower">
+            <!-- Core modules injected here -->
         </div>
     </div>
 
@@ -133,7 +128,30 @@
         </div>
     </div>
 
-    <div id="debug-console"></div>
+    <!-- Presets Modal -->
+    <div id="presets-modal" class="modal">
+        <div class="modal-content presets-modal-content">
+            <span class="close-btn" onclick="document.getElementById('presets-modal').style.display='none'">&times;</span>
+            <h2 class="modal-title">PRESET MANAGEMENT</h2>
+            <div class="presets-container">
+                <div id="preset-browser-container"></div>
+                <div id="version-control-container"></div>
+            </div>
+            <button class="modal-ok-btn" onclick="document.getElementById('presets-modal').style.display='none'">DONE</button>
+        </div>
+    </div>
+
+    <div id="debug-console" style="display: none;">
+        <div class="debug-console-header">
+            <span>CONSOLE</span>
+            <div class="console-actions">
+                <button id="close-console" title="Close Console" class="icon-btn">&#10006;</button>
+                <button id="copy-console" title="Copy to Clipboard" class="icon-btn">&#128203;</button>
+                <button id="clear-console" title="Clear Console" class="icon-btn">&#128465;</button>
+            </div>
+        </div>
+        <div id="debug-console-content"></div>
+    </div>
     <!-- UI Bridge & Module Manager -->
     <script src="omega_rpc.js"></script>
     <script src="components/ModuleJuno.js"></script>
@@ -141,6 +159,8 @@
     <script src="components/ModuleSpaceEcho.js"></script>
     <script src="components/PresetBrowser.js"></script>
     <script src="components/VersionControl.js"></script>
+    <script src="components/ModuleMidiTrigger.js"></script>
+    <script src="components/ModuleOscilloscope.js"></script>
     <script src="module_manager.js"></script>
     <script src="index.js"></script>
 </body>

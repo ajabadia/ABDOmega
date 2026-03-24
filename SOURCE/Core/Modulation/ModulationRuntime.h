@@ -78,6 +78,8 @@ namespace Omega::Core::Modulation {
         }
 
         float getSignalValue(uint8_t index) const { return mBuffers.values[index]; }
+        
+        const std::array<float, 64>& getBuffers() const { return mBuffers.values; }
 
         // Acceso para pruebas unitarias
         RuntimeNode& getRuntimeNode(int index) { return mNodes[index]; }

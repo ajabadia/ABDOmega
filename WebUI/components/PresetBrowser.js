@@ -21,12 +21,12 @@ class PresetBrowser {
                 <button class="refresh-btn" onclick="window.omegaPresetBrowser.refresh()">&#8635;</button>
             </div>
             <ul class="preset-list">
-                ${presets.map(p => `
-                    <li onclick="window.omegaPresetBrowser.select('${p}')">
+                ${Array.isArray(presets) ? presets.map(p => `
+                    <li onclick="window.omegaPresetBrowser.select('${p.replace(/\\/g, '/')}')">
                         <span class="preset-icon">&#127808;</span>
                         <span class="preset-name">${p}</span>
                     </li>
-                `).join('')}
+                `).join('') : '<li class="no-presets">No presets found</li>'}
             </ul>
         `;
     }
