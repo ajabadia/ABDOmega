@@ -4,7 +4,9 @@
 #include <vector>
 #include <map>
 
-namespace Omega::Core::Preset {
+namespace Omega {
+namespace Core {
+namespace Preset {
 
     struct LayerParams {
         float levelDb = 0.0f;
@@ -69,7 +71,7 @@ namespace Omega::Core::Preset {
         std::vector<AceComponent> filters;
         std::vector<AceComponent> envelopes;
         std::vector<AceComponent> lfos;
-        std::vector<AceComponent> fx;
+        std::vector<AceComponent> fxSlots;
     };
 
     struct Layer {
@@ -99,6 +101,13 @@ namespace Omega::Core::Preset {
         // Métodos de serialización
         static bool fromYaml(const std::string& yamlSource, OmegaPreset& outPreset);
         std::string toYaml() const;
+
+        /**
+         * @brief Calcula un hash SHA-256 único para el estado actual del preset.
+         */
+        std::string calculateHash() const;
     };
 
-} // namespace Omega::Core::Preset
+} // namespace Preset
+} // namespace Core
+} // namespace Omega

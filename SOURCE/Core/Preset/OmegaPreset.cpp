@@ -1,6 +1,8 @@
 #include "OmegaPreset.h"
 #include <yaml-cpp/yaml.h>
 #include <sstream>
+#include <juce_core/juce_core.h>
+#include <juce_cryptography/juce_cryptography.h>
 
 namespace YAML {
 
@@ -129,7 +131,9 @@ namespace YAML {
 
 } // namespace YAML
 
-namespace Omega::Core::Preset {
+namespace Omega {
+namespace Core {
+namespace Preset {
 
     bool OmegaPreset::fromYaml(const std::string& yamlSource, OmegaPreset& out) {
         try {
@@ -160,7 +164,8 @@ namespace Omega::Core::Preset {
                         if (va["filters"]) layer.voiceArch.filters = va["filters"].as<std::vector<AceComponent>>();
                         if (va["envelopes"]) layer.voiceArch.envelopes = va["envelopes"].as<std::vector<AceComponent>>();
                         if (va["lfos"]) layer.voiceArch.lfos = va["lfos"].as<std::vector<AceComponent>>();
-                        if (va["fx"]) layer.voiceArch.fx = va["fx"].as<std::vector<AceComponent>>();
+                        if (va["fxSlots"]) layer.voiceArch.fxSlots = va["fxSlots"].as<std::vector<AceComponent>>();
+                        else if (va["fx"]) layer.voiceArch.fxSlots = va["fx"].as<std::vector<AceComponent>>();
                     }
 
                     // Modulation Graph
@@ -206,7 +211,7 @@ namespace Omega::Core::Preset {
             out << YAML::Key << "filters" << YAML::Value << YAML::Node(l.voiceArch.filters);
             out << YAML::Key << "envelopes" << YAML::Value << YAML::Node(l.voiceArch.envelopes);
             out << YAML::Key << "lfos" << YAML::Value << YAML::Node(l.voiceArch.lfos);
-            out << YAML::Key << "fx" << YAML::Value << YAML::Node(l.voiceArch.fx);
+            out << YAML::Key << "fxSlots" << YAML::Value << YAML::Node(l.voiceArch.fxSlots);
             out << YAML::EndMap;
 
             out << YAML::Key << "modulationGraph" << YAML::BeginMap;
@@ -222,4 +227,13 @@ namespace Omega::Core::Preset {
         return out.c_str();
     }
 
-} // namespace Omega::Core::Preset
+    std::string OmegaPreset::calculateHash() const {
+        // We use juce::SHA256 for the implementation. 
+        std::string yaml = toYaml();
+        juce::SHA256 sha(yaml.data(), yaml.size());
+        return sha.toHexString().toStdString();
+    }
+
+} // namespace Preset
+} // namespace Core
+} // namespace Omega

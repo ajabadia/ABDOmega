@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <atomic>
+#include <memory>
 #include "../DSP/Engines/Juno/VirtualAnalogEngine.h"
 #include "../Core/Preset/OmegaPreset.h"
 #include "../Core/Ace/AceCatalog.h"
@@ -62,9 +64,9 @@ namespace Omega::Plugin {
         Core::Input::Midi1InputAdapter mMidiAdapter;
         
         // State
+        Core::Preset::OmegaPreset mCurrentPreset;
         juce::AudioProcessorValueTreeState mApvts;
         UI::OmegaUiBridge mUiBridge;
-        Core::Preset::OmegaPreset mCurrentPreset;
 
         // Parameter Cache (Lock-free access)
         struct ParamCache {

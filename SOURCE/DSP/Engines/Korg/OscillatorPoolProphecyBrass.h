@@ -12,8 +12,8 @@ namespace Omega {
 
     /**
      * @brief Oscilador de Metal (Brass) tipo Korg Prophecy.
-     * [ID]: OSC-PM-002 (MOSS Architecture)
-     * [Tech]: Waveguide Physical Modeling / Lip Reed.
+     * [ID]: OSC-PD-001 (Physical Device / MOSS)
+     * [Tech]: Waveguide Physical Modeling / Lip Reed with Cubic Non-linearity.
      */
     class OscillatorPoolProphecyBrass {
     public:
@@ -80,10 +80,13 @@ namespace Omega {
             // Diferencia de presión entre boca y tubo
             float deltaP = v.pressure - delayedSignal;
             
-            // Función no lineal de transferencia del labio
-            // El labio se abre/cierra según la presión y la tensión
-            float lipOpening = deltaP * (1.0f - v.lipTension);
-            float excitation = std::tanh(lipOpening * 2.0f) * v.pressure;
+            // Función no lineal de transferencia del labio mejorada (Cubic + Tanh)
+            // El labio se abre/cierra según la presión y la tensión, con saturación asimétrica
+            float x = deltaP * (1.1f - v.lipTension);
+            float x2 = x * x;
+            float x3 = x2 * x;
+            float lipOpening = x - (0.333f * x3); // Aproximación cúbica
+            float excitation = std::tanh(lipOpening * 2.5f) * v.pressure;
 
             // Añadir un poco de ruido de soplido (breath noise)
             if (v.noiseLevel > 0.0f) {

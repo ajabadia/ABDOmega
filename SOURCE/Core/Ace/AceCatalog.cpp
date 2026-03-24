@@ -128,6 +128,54 @@ namespace Omega::Core::Ace {
             },
             {}, 
             {{"speed", 0.5f}, {"intensity", 0.4f}, {"echo_vol", 0.5f}, {"reverb_vol", 0.3f}, {"mode", 1.0f}, {"wow_flutter", 0.2f}, {"drive", 0.0f}}});
+
+        // Korg Prophecy Unified Wind Model (OSC-PD-001)
+        registerComponent({"OSC-PD-001", "Prophecy Wind", "Oscillator", "KorgMOSS", "Korg", "Prophecy Wind Refined", "active", 1, {"brass", "reed", "wind", "moss"},
+            {{"tension", "Lip Tension", "norm", 0.0f, 1.0f, 0.5f}, {"pressure", "Pressure", "norm", 0.0f, 1.0f, 0.5f}, {"noise", "Noise Level", "norm", 0.0f, 1.0f, 0.1f}},
+            {}, {{"tension", 0.5f}, {"pressure", 0.5f}, {"noise", 0.1f}}});
+
+        // Korg Prophecy Noise+Comb (OSC-PM-009)
+        registerComponent({"OSC-PM-009", "Noise+Comb", "Oscillator", "KorgMOSS", "Korg", "Prophecy Noise+Comb", "active", 1, {"noise", "comb", "industrial"},
+            {{"noise", "Noise Level", "norm", 0.0f, 1.0f, 0.5f}, {"feedback", "Feedback", "norm", 0.0f, 1.0f, 0.8f}, {"cutoff", "Loop Cutoff", "norm", 0.01f, 0.99f, 0.5f}},
+            {}, {{"noise", 0.5f}, {"feedback", 0.8f}, {"cutoff", 0.5f}}});
+
+        registerComponent({"FLT-RES-001", "Resonant Bank", "Filter", "KorgMOSS", "Korg", "Prophecy Filter Bank", "active", 1, {"filter", "bank", "formant"},
+            {{"cutoff", "Master Cutoff", "hz", 20.0f, 20000.0f, 1000.0f}, {"spread", "Spread", "norm", 0.5f, 2.0f, 1.2f}, {"resonance", "Resonance", "norm", 0.0f, 1.0f, 0.5f}},
+            {}, {{"cutoff", 1000.0f}, {"spread", 1.2f}, {"resonance", 0.5f}}});
+
+        // Korg Prophecy Electric Piano Model (OSC-EP-001)
+        registerComponent({"OSC-EP-001", "MOSS EP", "Oscillator", "KorgMOSS", "Korg", "Electric Piano Physical Model", "active", 1, {"piano", "tine", "reed", "modeling"},
+            {{"hardness", "Hammer Hardness", "norm", 0.0f, 1.0f, 0.5f}},
+            {}, {{"hardness", 0.5f}}});
+
+        // Korg Prophecy Drawbar Organ Model (OSC-OR-001)
+        registerComponent({"OSC-OR-001", "MOSS Organ", "Oscillator", "KorgMOSS", "Korg", "Drawbar Organ Model", "active", 1, {"organ", "drawbar", "hammond"},
+            {{"drawbar1", "16'", "norm", 0.0f, 1.0f, 0.8f}, {"drawbar2", "5 1/3'", "norm", 0.0f, 1.0f, 0.0f}, {"drawbar3", "8'", "norm", 0.0f, 1.0f, 0.8f}},
+            {}, {{"drawbar1", 0.8f}, {"drawbar2", 0.0f}, {"drawbar3", 0.8f}}});
+
+        // Korg Prophecy Waveshaper (PRP-SH-001)
+        registerComponent({"PRP-SH-001", "MOSS Shaper", "Waveshaper", "KorgMOSS", "Korg", "Nonlinear Waveshaper", "active", 1, {"shaper", "dist", "fold"},
+            {{"drive", "Drive", "norm", 0.0f, 1.0f, 0.5f}, {"mix", "Mix", "norm", 0.0f, 1.0f, 1.0f}},
+            {}, {{"drive", 0.5f}, {"mix", 1.0f}}});
+
+        registerComponent({"OSC-PM-010", "JP Feedback", "Oscillator", "JP8080", "Roland", "JP-8080 Chaotic Feedback Saw", "active", 1, {"saw", "feedback", "metallic", "industrial"},
+            {{"feedback", "Feedback Amt", "norm", 0.0f, 1.0f, 0.6f}, {"speed", "Comb Speed", "norm", 0.0f, 1.0f, 0.5f}},
+            {}, {{"feedback", 0.6f}, {"speed", 0.5f}}});
+
+        // Roland JP-8080 Dual Oscillator (OSC-PM-011)
+        registerComponent({"OSC-PM-011", "JP Dual", "Oscillator", "JP8080", "Roland", "JP-8080 Dual Osc with X-MOD/Sync", "active", 1, {"fm", "sync", "dual", "va"},
+            {{"xmod", "X-Mod Depth", "norm", 0.0f, 1.0f, 0.0f}, {"detune", "OSC2 Detune", "semi", -24.0f, 24.0f, 0.0f}, {"sync", "Sync", "bool", 0.0f, 1.0f, 0.0f}},
+            {}, {{"xmod", 0.0f}, {"detune", 0.0f}, {"sync", 0.0f}}});
+
+        // Korg Prophecy Arpeggiator (ARP-PRP-001)
+        registerComponent({"ARP-PRP-001", "MOSS Arp", "Arpeggiator", "KorgMOSS", "Korg", "Prophecy Classic & User Arp", "active", 1, {"arp", "pattern", "user"},
+            {{"mode", "Mode", "enum", 0.0f, 5.0f, 0.0f}, {"range", "Octave Range", "int", 1.0f, 4.0f, 1.0f}},
+            {}, {{"mode", 0.0f}, {"range", 1.0f}}});
+
+        // OMEGA Motion Control (MOD-MOT-001)
+        registerComponent({"MOD-MOT-001", "Motion Control", "Modulation", "OMEGA", "ABD", "Real-time Parameter Recorder", "active", 1, {"motion", "recorder", "automation"},
+            {{"record", "Record", "bool", 0.0f, 1.0f, 0.0f}, {"play", "Play", "bool", 0.0f, 1.0f, 1.0f}},
+            {}, {{"record", 0.0f}, {"play", 1.0f}}});
     }
 
     void AceCatalog::buildFallbacks() {

@@ -1,4 +1,5 @@
 #include "OmegaAudioProcessor.h"
+#include "../UI/OmegaMainEditor.h"
 #include "../Core/Preset/JunoFactory.h"
 
 namespace Omega::Plugin {
@@ -7,8 +8,11 @@ namespace Omega::Plugin {
         : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
           mValidator(mCatalog),
           mApvts(*this, nullptr, "PARAMETERS", createParameterLayout()),
-          mUiBridge(mApvts)
+          mUiBridge(mCurrentPreset, mCatalog, mApvts)
     {
+        // Link Bridge load callback
+        mUiBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset& p) { this->loadPreset(p); });
+
         // Initialize Parameter Cache
         mParamCache.cutoff = mApvts.getRawParameterValue("LAYERAMAINCUTOFF");
         mParamCache.resonance = mApvts.getRawParameterValue("LAYERAMAINRESONANCE");
@@ -272,7 +276,7 @@ namespace Omega::Plugin {
 
     // --- JUCE Magic Impl ---
     juce::AudioProcessorEditor* OmegaAudioProcessor::createEditor() { 
-        return new juce::GenericAudioProcessorEditor(*this); 
+        return new UI::OmegaMainEditor(*this, mUiBridge); 
     }
     
     bool OmegaAudioProcessor::hasEditor() const { return true; }

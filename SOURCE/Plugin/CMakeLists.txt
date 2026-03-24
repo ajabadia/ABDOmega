@@ -6,11 +6,13 @@ juce_add_plugin(omega_plugin
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD TRUE
+    COPY_PLUGIN_AFTER_BUILD FALSE
     PLUGIN_MANUFACTURER_CODE ABDI
     PLUGIN_CODE Ome1
-    FORMATS Standalone
+    FORMATS Standalone VST3
+    VST3_CAN_REPLACE_VST2 FALSE
     PRODUCT_NAME "OMEGA Synth"
+    NEEDS_WEBVIEW2 TRUE
 )
 
 target_sources(omega_plugin
@@ -21,6 +23,8 @@ target_sources(omega_plugin
         Midi1InputAdapter.h
         ../UI/OmegaUiBridge.cpp
         ../UI/OmegaUiBridge.h
+        ../UI/OmegaMainEditor.h
+        ../UI/OmegaWebViewComponent.h
 )
 
 target_link_libraries(omega_plugin
@@ -28,4 +32,11 @@ target_link_libraries(omega_plugin
         juce::juce_audio_utils
         omega_core
         omega_dsp
+)
+
+target_compile_definitions(omega_plugin
+    PRIVATE
+        JUCE_USE_WIN_WEBVIEW2=1
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1
 )

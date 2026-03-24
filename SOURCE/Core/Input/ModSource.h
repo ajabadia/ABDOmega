@@ -25,6 +25,7 @@ namespace Omega::Core::Input {
         Sustain,            // Pedal de sustain (CC64)
         ChannelPressure,    // Aftertouch de canal
         Ribbon,             // Controlador de cinta (CC16)
+        VectorX, VectorY,   // Joystick vectorial (X/Y)
         
         // --- Performance Macros ---
         Macro1, Macro2, Macro3, Macro4,

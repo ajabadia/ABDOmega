@@ -22,7 +22,14 @@ namespace Omega::Core::Modulation {
 
         // Estado interno (ej: fase del LFO)
         union {
-            struct { float phase; float increment; } lfo;
+            struct { 
+                float phase; 
+                float increment; 
+                float smooth;      // Laguna coefficient (0.0 to 1.0)
+                float lastValue;   // Current smoothed output
+                float targetValue; // Target step value
+                uint8_t waveform;  // 0=Sine, 1=Saw, 2=Tri, 3=Square, 4=RandomStep
+            } lfo;
             struct { float current; float target; int samplesRemaining; } env;
             float raw[8];
         } state;

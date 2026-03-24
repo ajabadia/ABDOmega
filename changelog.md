@@ -1,0 +1,61 @@
+# 📝 OMEGA Changelog
+
+Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
+
+## [1.2.0] - 2026-03-24
+### Added
+- **JUCE 8 Bridge Modernization**:
+    - Migración total de `evaluateJavascript` a **Native Functions with Completion Handlers** (Promises).
+    - Eliminado el polling de callbacks; comunicación bidireccional instantánea y asíncrona.
+- **Premium UI Enhancements**:
+    - **Splash Screen Stabilization**: Introducida duración mínima de 3 segundos con fade-out al finalizar la sincronización del bridge.
+    - **Top Menu Bar**: Estructura profesional con menús **FILE**, **EDIT** y **HELP**.
+    - **About Modal**: Ventana informativa con estética "glassmorphism", créditos y metadata del sintetizador.
+    - **Full Modular Rack**: El rack ahora carga por defecto el sintetizador completo (DCO, VCF, JP Filter, Korg VCF y Space Echo).
+- **System Stability**:
+    - Handler de **Exit** robusto ejecutado en el **Message Thread** para cierre limpio de la aplicación Standalone.
+    - Consola de debug conmutable (Show/Hide) integrada en el menú Help.
+
+## [1.1.1] - 2026-03-22
+### Added
+- **OmegaUiBridge Refinement**:
+    - Implementación completa del protocolo **JSON-RPC v1** para comunicación High-Fidelity.
+    - Handlers robustos para `getState`, `setParam`, `listAceComponents`, `loadPreset` y `savePreset`.
+    - Arquitectura desacoplada mediante **Callbacks** para la carga de presets en el `OmegaAudioProcessor`.
+    - Sistema de notificaciones asíncronas para cambios de parámetros desde el motor DSP.
+- **MS-20 ESP (External Signal Processor)**: Implementación completa con filtros Bandpass, Pitch Tracker y Envelope Follower.
+- **MS-20 High-Fidelity**:
+    - Envolvente **ENV1** con fases especializadas de **Delay** y **Hold**.
+    - **Ring Modulation** entre VCO1 y VCO2.
+    - **PWM Modulable** para el oscilador base.
+- **Prophecy MOSS Part 2 (Z1 Territory)**: 
+    - Modelos físicos de viento (**Brass/Reed**) refinados con no-linealidades cúbicas.
+    - Nuevo oscilador **Noise + Resonant Comb** (`OSC-PM-009`) para texturas industriales.
+    - Modelado físico de **Electric Piano** (`OSC-EP-001`) y **Organ** (`OSC-OR-001`).
+    - **Multi-table Waveshapers** y **Variable Phase Modulation (VPM)**.
+    - **Resonant Filter Bank** de 6 picos y **Envolventes Multi-etapa** de 5 niveles.
+    - **Arpeggiador Prophecy** programable y **LFOs especializados** (Random Smooth/Step).
+- **JP-8080 Elite Suite**:
+    - **Feedback Oscillator** (`OSC-PM-010`): Sierra con realimentación de fase controlada por peine.
+    - **Cross-Modulation (X-MOD)**: Ruteo de audio-rate entre osciladores para FM exponencial.
+    - **JP-Formant Filter**: Modulador vocal basado en el banco de filtros del JP-8080.
+    - **Motion Control**: Sistema de grabación y reproducción de gestos de parámetros a audio-rate.
+- **Expression & Mapping**: Integración de **Vector Control** (X/Y) y **Ribbon** en el sistema de macros `ProphecyMacroContext`.
+- **Space Echo RE-201 (FX-DL-002)**: Emulación de alta fidelidad con 3 cabezales de cinta (ratios 1.0 : 1.9 : 2.9), saturación magnética y spring reverb tank.
+
+## [1.1.0] - 2026-03-20
+### Improved
+- **OmegaInput Layer**: Capa neutra de entrada MIDI separada del core de síntesis.
+- **Build System**: Estabilización con NMake y aislamiento de dependencias v143.
+- **Decoupling**: Reducción de la dependencia de JUCE en `omega_core`.
+
+## [1.0.0] - 2026-03-18
+### Added
+- **Juno Engine**: Implementación fiel de DCO (con drift y timer jitter) y filtro IR3109.
+- **JP-808X Family**: Supersaw optimizada y filtro JP.
+- **Modulation Graph**: Sistema de ruteo de audio-rate basado en grafos (Toposort).
+- **ACE Registry**: Catálogo modular de componentes emulados.
+- **OmegaPreset**: Sistema de serialización YAML robusto.
+
+---
+*Mantenido automáticamente por el `documentation-manager` skill.*

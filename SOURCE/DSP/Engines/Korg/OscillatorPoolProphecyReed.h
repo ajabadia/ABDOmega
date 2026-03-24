@@ -12,8 +12,8 @@ namespace Omega {
 
     /**
      * @brief Oscilador de Madera (Reed) tipo Korg Prophecy.
-     * [ID]: OSC-PM-003 (MOSS Architecture)
-     * [Tech]: Waveguide Physical Modeling / Woodwind Reed.
+     * [ID]: OSC-PD-001 (Physical Device / MOSS)
+     * [Tech]: Waveguide Physical Modeling / Woodwind Reed with Cubic Non-linearity.
      */
     class OscillatorPoolProphecyReed {
     public:
@@ -69,21 +69,22 @@ namespace Omega {
             auto& v = mVoices[voiceIndex];
             if (!v.active) return 0.0f;
 
-            // 1. Obtener señal retornada del tubo
+            // 1. Obtener señal retornada del tubo (reflexión)
             float currentLength = v.length * v.toneHolePos;
             int readIdx = (v.writeIdx - static_cast<int>(currentLength) + kMaxDelaySize) % kMaxDelaySize;
             float delayedSignal = v.delayLine[readIdx];
 
-            // 2. Modelo de Lengüeta (Reed)
-            // La lengüeta es una válvula controlada por la diferencia de presión
+            // 2. Modelo de Lengüeta mejorada (Reed Table con no-linealidad)
             float deltaP = v.breathPressure - delayedSignal;
             
-            // Función de cierre de la lengüeta (Reed Table)
-            // Si deltaP es muy alto, la lengüeta se cierra (clipping)
-            float reedSignal = deltaP * (1.0f - (deltaP * v.reedStiffness));
+            // Función de cierre de la lengüeta mejorada (Reed Table)
+            // Modelo no lineal que colapsa si la presión es excesiva (clipping dinámico)
+            float x = deltaP * v.reedStiffness;
+            float x2 = x * x;
+            float reedSignal = deltaP * (1.0f - x + (0.5f * x2)); 
             
-            // Soft clipping para redondear el timbre
-            float excitation = std::tanh(reedSignal * 1.5f);
+            // Soft clipping asimétrico para redondear el timbre tipo "reed"
+            float excitation = std::tanh(reedSignal * 1.8f);
 
             // 3. Loop de feedback y filtrado de pérdidas (Damping)
             float damping = 0.7f;

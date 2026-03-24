@@ -66,7 +66,7 @@ namespace Omega::Core::Ace {
         }
 
         // Validar FX
-        for (auto& fx : layer.voiceArch.fx) {
+        for (auto& fx : layer.voiceArch.fxSlots) {
             std::string scope = "Layer" + layer.id + "." + fx.slotName;
             checkComponent(scope, fx.componentId, "FX", engine, report);
         }

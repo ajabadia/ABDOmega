@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMEGA Modular Synth</title>
+    <style>
+        /* Immediate black background to prevent white flash */
+        html, body {
+            background-color: #000 !important;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            color: #fff;
+            font-family: sans-serif;
+        }
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 11px;
+            overflow-y: auto;
+            z-index: 10000;
+            border-top: 2px solid #333;
+            pointer-events: auto;
+            display: block;
+        }
+    </style>
+    <script>
+        window.onerror = function(msg, url, line) {
+            const div = document.createElement('div');
+            div.innerText = "ERROR: " + msg + " at " + url + ":" + line;
+            div.style.color = "red";
+            document.getElementById('debug-console').appendChild(div);
+            document.getElementById('debug-console').style.display = 'block';
+        };
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        function appendToConsole(type, ...args) {
+            const div = document.createElement('div');
+            div.innerText = `[${type.toUpperCase()}] ` + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+            if (type === 'error') div.style.color = "#ff5555";
+            else if (type === 'warn') div.style.color = "#ffaa00";
+            else div.style.color = "#0f0";
+            
+            const consoleEl = document.getElementById('debug-console');
+            if (consoleEl) {
+                consoleEl.appendChild(div);
+                consoleEl.scrollTop = consoleEl.scrollHeight;
+            }
+        }
+
+        console.log = (...args) => { originalLog.apply(console, args); appendToConsole('log', ...args); };
+        console.warn = (...args) => { originalWarn.apply(console, args); appendToConsole('warn', ...args); };
+        console.error = (...args) => { originalError.apply(console, args); appendToConsole('error', ...args); };
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="rack-bg">
+    <nav class="top-menu">
+        <div class="menu-item">
+            FILE
+            <div class="dropdown">
+                <a>New Preset</a>
+                <a>Save</a>
+                <a id="menu-exit">Exit</a>
+            </div>
+        </div>
+        <div class="menu-item">
+            EDIT
+            <div class="dropdown">
+                <a>Undo</a>
+                <a>Redo</a>
+            </div>
+        </div>
+        <div class="menu-item">
+            HELP
+            <div class="dropdown">
+                <a id="menu-about">About OMEGA...</a>
+                <a id="menu-console">Console</a>
+            </div>
+        </div>
+    </nav>
+
+    <div id="splash-screen">
+        <div class="splash-content">
+            <h1 class="splash-logo">OMEGA</h1>
+            <div class="splash-version">Version 1.0.0 - Build 2026.03.22</div>
+            <div class="splash-credit">Powered by ABD-SynthEngine</div>
+            <div class="splash-loading-bar"><div class="loading-progress"></div></div>
+        </div>
+    </div>
+
+    <div id="omega-rack" class="rack-container" style="display: none;">
+        <!-- Modules will be dynamically injected here -->
+        <div class="module loading-module">
+            <div class="led amber-pulsing"></div>
+            <p>OMEGA INITIALIZING...</p>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="about-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2 class="modal-title">OMEGA MODULAR SYNTH</h2>
+            <p class="modal-slogan">Advanced Binary-Dynamics Generation</p>
+            <div class="modal-info">
+                <p>Version: <span id="about-version">1.0.0</span></p>
+                <p>Build: <span id="about-build">0</span></p>
+                <p>Timestamp: <span id="about-timestamp"></span></p>
+            </div>
+            <div class="modal-credits">
+                <p>Design & Engineering: ABD-Team</p>
+                <p>Engine: OMEGA SynthEngine (High Fidelity)</p>
+            </div>
+            <button class="modal-ok-btn">OK</button>
+        </div>
+    </div>
+
+    <div id="debug-console"></div>
+    <!-- UI Bridge & Module Manager -->
+    <script src="omega_rpc.js"></script>
+    <script src="components/ModuleJuno.js"></script>
+    <script src="components/ModuleAdvanced.js"></script>
+    <script src="components/ModuleSpaceEcho.js"></script>
+    <script src="module_manager.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>

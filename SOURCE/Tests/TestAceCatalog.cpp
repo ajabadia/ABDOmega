@@ -25,7 +25,7 @@ TEST_CASE("AceCatalog loads from YAML resources", "[ace][catalog]")
     SECTION("Find Roland DCO") {
         auto* info = catalog->getComponent("OSC-VA-001");
         REQUIRE(info != nullptr);
-        CHECK(info->name == "Roland DCO");
+        CHECK(info->name == "Juno DCO");
         CHECK(info->family == "Oscillator");
         CHECK(info->engine == "VirtualAnalog");
         CHECK(info->parameters.size() >= 3);

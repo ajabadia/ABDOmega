@@ -7,9 +7,43 @@ namespace Omega::Core::Modulation {
         switch (node.type) {
             case 0: // LFO
             {
+                float baseValue = 0.0f;
+                float p = node.state.lfo.phase;
+                
+                switch (node.state.lfo.waveform) {
+                    case 0: // Sine
+                        baseValue = std::sin(p * 6.283185f);
+                        break;
+                    case 1: // Saw
+                        baseValue = p * 2.0f - 1.0f;
+                        break;
+                    case 2: // Triangle
+                        baseValue = (p < 0.5f) ? (p * 4.0f - 1.0f) : (3.0f - p * 4.0f);
+                        break;
+                    case 3: // Square
+                        baseValue = (p < 0.5f) ? 1.0f : -1.0f;
+                        break;
+                    case 4: // Random Step
+                    {
+                        // Update random value on phase reset
+                        float oldPhase = p - node.state.lfo.increment * numSamples;
+                        if (p < oldPhase || oldPhase < 0.0f) {
+                            node.state.lfo.targetValue = ((float)std::rand() / (float)RAND_MAX) * 2.0f - 1.0f;
+                        }
+                        baseValue = node.state.lfo.targetValue;
+                        break;
+                    }
+                }
+
+                // Apply Smoothing (One-pole lag)
+                // node.state.lfo.smooth is the lag coefficient (0.0 = no smooth, 0.999 = heavy smooth)
+                float sm = node.state.lfo.smooth;
+                node.state.lfo.lastValue = baseValue * (1.0f - sm) + node.state.lfo.lastValue * sm;
+                
+                mBuffers.values[node.outputIndex] = node.state.lfo.lastValue;
+                
                 node.state.lfo.phase += node.state.lfo.increment * numSamples;
-                if (node.state.lfo.phase > 1.0f) node.state.lfo.phase -= 1.0f;
-                mBuffers.values[node.outputIndex] = std::sin(node.state.lfo.phase * 6.283185f);
+                if (node.state.lfo.phase >= 1.0f) node.state.lfo.phase -= 1.0f;
                 break;
             }
             case 1: // Envelope

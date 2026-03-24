@@ -12,8 +12,8 @@ namespace Omega {
 
     /**
      * @brief Oscilador VPM (Variable Phase Modulation) tipo Korg Prophecy.
-     * [ID]: OSC-VPM-001 (MOSS Architecture)
-     * [Tech]: Carrier/Modulator Phase Modulation with Feedback.
+     * [ID]: OSC-PM-008 (MOSS Architecture)
+     * [Tech]: Carrier/Modulator with Waveshaping and Feedback.
      */
     class OscillatorPoolProphecyVpm {
     public:
@@ -65,21 +65,22 @@ namespace Omega {
             auto& v = mVoices[voiceIndex];
             if (!v.active) return 0.0f;
 
-            // 1. Modulator con Feedback
-            double modPhase = v.phaseModulator + (v.lastModOutput * v.feedback);
-            float modVal = (float)std::sin(modPhase * kTwoPi);
-            v.lastModOutput = modVal;
+            // 1. Modulator con Feedback y Waveshaping (VPM core)
+            // Calculamos la fase modulada por el feedback anterior
+            double modPhase = v.phaseModulator + (v.lastModOutput * v.feedback * 0.5f);
+            float modSine = (float)std::sin(modPhase * kTwoPi);
+            
+            // Waveshaper suave (Soft-Clip) para el modulador
+            float modShaped = std::tanh(modSine * 1.5f);
+            v.lastModOutput = modShaped;
 
-            // 2. Carrier con Phase Modulation
-            double carrierPhase = v.phaseCarrier + (modVal * v.modDepth);
+            // 2. Carrier con Phase Modulation desde el modulador moldeado
+            double carrierPhase = v.phaseCarrier + (modShaped * v.modDepth);
             float outVal = (float)std::sin(carrierPhase * kTwoPi);
 
-            // Actualizar fases
-            v.phaseCarrier += v.phaseDeltaCarrier;
-            if (v.phaseCarrier >= 1.0) v.phaseCarrier -= 1.0;
-
-            v.phaseModulator += v.phaseDeltaModulator;
-            if (v.phaseModulator >= 1.0) v.phaseModulator -= 1.0;
+            // Actualizar fases con wrapping
+            v.phaseCarrier = std::fmod(v.phaseCarrier + v.phaseDeltaCarrier, 1.0);
+            v.phaseModulator = std::fmod(v.phaseModulator + v.phaseDeltaModulator, 1.0);
 
             return outVal;
         }

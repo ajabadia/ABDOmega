@@ -28,10 +28,17 @@ target_include_directories(omega_core
         ${CMAKE_CURRENT_SOURCE_DIR}/Modulation
 )
 
+target_compile_definitions(omega_core
+    PRIVATE
+        JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
+)
+
 # ------------------------------------------------------------------------------
 # Dependencies
 # ------------------------------------------------------------------------------
 target_link_libraries(omega_core 
     PRIVATE 
         yaml-cpp
+        juce::juce_core
+        juce::juce_cryptography
 )

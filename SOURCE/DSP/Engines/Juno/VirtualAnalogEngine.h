@@ -11,7 +11,11 @@
 #include "../Korg/FilterPoolKorg35.h"
 #include "FilterPoolJunoIr3109.h"
 #include "../JP/OscillatorPoolJp8080.h"
+#include "../JP/OscillatorPoolJpFeedback.h"
+#include "../JP/OscillatorPoolJpDual.h"
 #include "../JP/FilterPoolJp8080.h"
+#include "../JP/FilterPoolJpFormant.h"
+#include "../../../Core/Modulation/MotionRecorder.h"
 #include "../Korg/OscillatorPoolProphecyPluck.h"
 #include "../Korg/OscillatorPoolProphecyBrass.h"
 #include "../Korg/OscillatorPoolProphecyReed.h"
@@ -19,11 +23,18 @@
 #include "../Korg/OscillatorPoolProphecyBowed.h"
 #include "../Korg/ProphecyMacroContext.h"
 #include "ChorusPoolJuno.h"
-#include "../Korg/SpaceEchoProcessor.h"
-#include "../Korg/KorgMs20Esp.h"
 #include "../../VA/EnvelopeAdsrVA.h"
 #include "../../VA/EnvelopeMs20.h"
-#include "../../../Core/Modulation/ModulationRuntime.h"
+#include "../../FX/Korg/SpaceEchoProcessor.h"
+#include "../Korg/KorgMs20Esp.h"
+#include "../Korg/OscillatorPoolProphecyNoiseComb.h"
+#include "../Korg/OscillatorPoolProphecyEP.h"
+#include "../Korg/OscillatorPoolProphecyOrgan.h"
+#include "../Korg/OscillatorPoolProphecyWaveshaper.h"
+#include "../Korg/ProphecyArpeggiator.h"
+#include "../Korg/FilterPoolResonantBank.h"
+#include "../../Core/Modulation/EnvelopeMultiStage.h"
+#include "../../Core/Modulation/ModulationRuntime.h"
 #include "../ISynthesisEngine.h"
 #include "../../../Core/Input/OmegaInput.h"
 
@@ -36,7 +47,7 @@ namespace Omega::DSP::Engines::Juno {
      */
     class VirtualAnalogEngine : public ISynthesisEngine {
     public:
-        enum class FilterType { JunoIR3109, Korg35, JP8080 };
+        enum class FilterType { JunoIR3109, Korg35, JP8080, JPFormant };
         enum class OscillatorMode { 
             JunoDco, 
             JpSuperSaw,
@@ -45,7 +56,17 @@ namespace Omega::DSP::Engines::Juno {
             ProphecyReed,
             ProphecyVpm,
             ProphecyBowed,
+            ProphecyNoiseComb,
+            ProphecyElectricPiano,
+            ProphecyOrgan,
+            JpFeedback,
+            JpDual,
             Jp8080Supersaw = JpSuperSaw 
+        };
+        
+        enum class FilterSlotMode {
+            Standard,
+            ResonantBank
         };
 
         VirtualAnalogEngine() {
@@ -75,6 +96,12 @@ namespace Omega::DSP::Engines::Juno {
             mBrassOsc.prepare(sampleRate);
             mReedOsc.prepare(sampleRate);
             mVpmOsc.prepare(sampleRate);
+            mNoiseCombOsc.prepare(sampleRate);
+            mResBankFlt.prepare(sampleRate);
+            mMultiStageEnv.prepare(sampleRate);
+            mJpFeedbackOsc.prepare(sampleRate);
+            mJpDualOsc.prepare(sampleRate);
+            mJpFormantFlt.prepare(sampleRate);
             
             ::juce::dsp::ProcessSpec spec { sampleRate, (::juce::uint32)samplesPerBlock, 1 };
             for (auto& f : mHpfFilters) f.prepare(spec);
@@ -129,20 +156,23 @@ namespace Omega::DSP::Engines::Juno {
         void setOscillatorMode(int voiceIndex, OscillatorMode mode) noexcept { 
             if (voiceIndex < 16) mOscModes[voiceIndex] = mode; 
         }
+
+        void setXModDepth(float depth) noexcept { mXModDepth = depth; }
+
+        void setFilterSlotMode(FilterSlotMode mode) noexcept { mFilterSlotMode = mode; }
+        
+        void setVectorControl(float x, float y) noexcept {
+            mProphecyMacros.vectorX = x;
+            mProphecyMacros.vectorY = y;
+        }
         
         void setJpDetune(float detune) noexcept { mJpDetune = detune; }
         void setJpSpread(float spread) noexcept { mJpSpread = spread; }
         void setJpFilterMode(int mode) noexcept { mJpFilterMode = mode; }
         
         void setSpaceEchoEnabled(bool e) noexcept { mSpaceEchoEnabled = e; }
-        void setSpaceEchoParams(float speed, float intensity, float echoVol, float revVol, int mode, float wf, float drive) noexcept {
-            mSpaceEchoSpeed = speed;
-            mSpaceEchoIntensity = intensity;
-            mSpaceEchoEchoVol = echoVol;
-            mSpaceEchoReverbVol = revVol;
-            mSpaceEchoMode = mode;
-            mSpaceEchoWowFlutter = wf;
-            mSpaceEchoDrive = drive;
+        void setSpaceEchoParams(const ::Omega::DSP::FX::SpaceEchoProcessor::Params& params) noexcept {
+            mSpaceEchoParams = params;
         }
 
         // --- Audio Processing ---
@@ -175,6 +205,28 @@ namespace Omega::DSP::Engines::Juno {
 
                 float mixedL = 0.0f;
                 float mixedR = 0.0f;
+
+                // 1. Tick Arpeggiator
+                if (mArpActive) {
+                    mArpCounter++;
+                    if (mArpCounter >= mArpIntervalSamples) {
+                        mArpCounter = 0;
+                        int vel = 100;
+                        int note = mProphecyArp.nextNote(vel);
+                        if (note >= 0) {
+                            handleNoteOn(note, (float)note, (float)vel / 127.0f);
+                        }
+                    }
+                }
+
+                // 2. Motion Control
+                if (mMotionRecorder.isRecording()) {
+                    mMotionRecorder.recordValue(mCurrentCutoff);
+                } else {
+                    // Playback (simplified override for demonstration)
+                    // float motionVal = mMotionRecorder.playValue();
+                    // if (motionVal != 0.0f) mCurrentCutoff = motionVal;
+                }
                 // 1. Aplicar Macros del Prophecy si el perfil es activo
                 // (Solo si estamos en un modo Prophecy o Korg)
                 float filterDrive = 1.0f;
@@ -193,6 +245,8 @@ namespace Omega::DSP::Engines::Juno {
                         float lfoVal = mModRuntime.getSignalValue(10); // LFO1
                         float dcoLfo = lfoVal * mDcoLfoDepth;
                         float pitchMod = mModRuntime.getSignalValue(3) + dcoLfo; 
+                        float pitchBend = mChannelModStates[static_cast<int>(::Omega::Core::Input::ModSource::PitchBend)];
+                        float voiceFreq = ::juce::MidiMessage::getMidiNoteInHertz(mActiveNotes[v] + (pitchBend * 2.0f) + (pitchMod / 1.0f));
                         
                         float targetPWM = mPwmAmount;
                         if (mPwmModeLfo) targetPWM = 0.5f + (lfoVal * mPwmAmount * 0.5f);
@@ -235,6 +289,30 @@ namespace Omega::DSP::Engines::Juno {
                             mVpmOsc.setVoiceParams(v, 0.5f + ribbon * 1.5f + pe3 * 1.0f, 0.2f, 1.0f);
                             oscL = mVpmOsc.process(v);
                             oscR = oscL;
+                        } else if (mOscModes[v] == OscillatorMode::ProphecyNoiseComb) {
+                            float air = mProphecyMacros.air;
+                            mNoiseCombOsc.setVoiceParams(v, 0.2f + air * 0.6f, 0.8f, 0.5f);
+                            oscL = mNoiseCombOsc.process(v);
+                            oscR = oscL;
+                        } else if (mOscModes[v] == OscillatorMode::JpFeedback) {
+                            float feedback = mChannelModStates[static_cast<int>(::Omega::Core::Input::ModSource::PE3)];
+                            float speed = mChannelModStates[static_cast<int>(::Omega::Core::Input::ModSource::PE4)];
+                            mJpFeedbackOsc.setVoiceParams(v, (float)voiceFreq, 0.4f + feedback * 0.5f, 0.2f + speed * 1.5f);
+                            oscL = mJpFeedbackOsc.process(v);
+                            oscR = oscL;
+                        } else if (mOscModes[v] == OscillatorMode::JpDual) {
+                            float xmod = mXModDepth; // Global or per-voice? Usually per-patch
+                            float mix = 0.5f; // Add parameter later
+                            float freq2 = (float)voiceFreq * std::pow(2.0f, mJpOsc2Detune / 12.0f);
+                            mJpDualOsc.setVoiceParams(v, (float)voiceFreq, freq2, xmod, mJpSync, mix);
+                            oscL = mJpDualOsc.process(v);
+                            oscR = oscL;
+                        } else if (mOscModes[v] == OscillatorMode::ProphecyElectricPiano) {
+                            oscL = mElectricPianoOsc.process(v);
+                            oscR = oscL;
+                        } else if (mOscModes[v] == OscillatorMode::ProphecyOrgan) {
+                            oscL = mOrganOsc.process(v, (float)voiceFreq);
+                            oscR = oscL;
                         } else if (mOscModes[v] == OscillatorMode::ProphecyBowed) {
                             float ribbon = mChannelModStates[static_cast<int>(::Omega::Core::Input::ModSource::Ribbon)] * modSensitivity;
                             float at = mChannelModStates[static_cast<int>(::Omega::Core::Input::ModSource::ChannelPressure)] * modSensitivity;
@@ -248,7 +326,17 @@ namespace Omega::DSP::Engines::Juno {
                             oscL = mOscPool.process(v, lfoVal); 
                             oscR = oscL;
                         }
-                        
+
+                        // Apply MOSS Waveshaper if in Prophecy mode
+                        if (mOscModes[v] >= OscillatorMode::ProphecyPluck && mOscModes[v] <= OscillatorMode::ProphecyOrgan) {
+                            Engines::Korg::OscillatorPoolProphecyWaveshaper::Params wp;
+                            wp.drive = mProphecyMacros.energy * 2.0f;
+                            wp.mix = mProphecyMacros.movement;
+                            wp.mode = mProphecyWaveshaperMode;
+                            oscL = mProphecyWaveshaper.process(v, oscL, wp);
+                            oscR = oscL;
+                        }
+
                         // Add Air (Noise) from Macro 3
                         float noise = airNoise * (((float)rand() / RAND_MAX) * 2.0f - 1.0f);
                         oscL += noise;
@@ -263,7 +351,11 @@ namespace Omega::DSP::Engines::Juno {
                         float filteredL = 0.0f;
                         float filteredR = 0.0f;
 
-                        if (mFilterType == FilterType::JunoIR3109) {
+                        if (mFilterSlotMode == FilterSlotMode::ResonantBank) {
+                            mResBankFlt.setVoiceParams(v, finalCutoff, 1.0f + mProphecyMacros.movement * 0.5f, mCurrentResonance);
+                            filteredL = mResBankFlt.process(v, oscL);
+                            filteredR = filteredL;
+                        } else if (mFilterType == FilterType::JunoIR3109) {
                             float pe1 = mChannelModStates[static_cast<int>(::Omega::Core::Input::ModSource::PE1)];
                             mJunoFlt.setVoiceParams(v, finalCutoff + pe1 * 4000.0f, mCurrentResonance);
                             filteredL = mJunoFlt.process(v, oscL);
@@ -285,6 +377,11 @@ namespace Omega::DSP::Engines::Juno {
                             } else {
                                 filteredR = filteredL;
                             }
+                        } else if (mFilterType == FilterType::JPFormant) {
+                            float vowelPos = mCurrentResonance; // Use Resonance knob for Vowel Pos
+                            mJpFormantFlt.setVowel(v, vowelPos);
+                            filteredL = mJpFormantFlt.process(v, oscL);
+                            filteredR = filteredL;
                         }
 
                         float hpfOutL = filteredL;
@@ -314,20 +411,7 @@ namespace Omega::DSP::Engines::Juno {
 
                 // FX-DL-002: Space Echo (RE-201)
                 if (mSpaceEchoEnabled) {
-                    ::Omega::DSP::FX::SpaceEchoProcessor::Params p;
-                    p.tapeSpeed = mSpaceEchoSpeed;
-                    p.intensity = mSpaceEchoIntensity;
-                    p.echoVol = mSpaceEchoEchoVol;
-                    p.reverbVol = mSpaceEchoReverbVol;
-                    p.mode = mSpaceEchoMode;
-                    p.wowFlutter = mSpaceEchoWowFlutter;
-                    p.tapeDrive = mSpaceEchoDrive;
-                    
-                    float lSmp[1] = { left };
-                    float rSmp[1] = { right };
-                    mSpaceEcho.process(lSmp, rSmp, 1, p);
-                    left = lSmp[0];
-                    right = rSmp[0];
+                    mSpaceEcho.process(&left, &right, 1, mSpaceEchoParams);
                 }
 
                 for (int c = 0; c < numChannels; ++c) {
@@ -339,8 +423,8 @@ namespace Omega::DSP::Engines::Juno {
         void getEnvelopeLevels(float& ampEnv, float& filterEnv) const noexcept override {
             ampEnv = 0.0f; filterEnv = 0.0f;
             int active = 0;
-            for (const auto& env : mAmpEnvelopes) {
-                if (env.isActive()) { ampEnv += env.getCurrentLevel(); active++; }
+            for (int i = 0; i < 16; ++i) {
+                if (mAmpEnvelopes[i].isActive()) { ampEnv += mAmpEnvelopes[i].getCurrentLevel(); active++; }
             }
             if (active > 0) ampEnv /= static_cast<float>(active);
         }
@@ -385,6 +469,8 @@ namespace Omega::DSP::Engines::Juno {
             mBrassOsc.trigger(v, freqHz);
             mReedOsc.trigger(v, freqHz);
             mVpmOsc.trigger(v, freqHz);
+            mElectricPianoOsc.trigger(v, velocity, freqHz, 0.5f);
+            mOrganOsc.trigger(v);
 
             mAmpEnvelopes[v].noteOn();
             mModEnvelopes[v].noteOn();
@@ -405,6 +491,15 @@ namespace Omega::DSP::Engines::Juno {
 
         void handleChannelExpression(::Omega::Core::Input::ModSource source, float value) {
             mChannelModStates[static_cast<int>(source)] = value;
+            
+            // OMEGA Prophecy Custom Mapping (Ribbon/Vector)
+            if (source == ::Omega::Core::Input::ModSource::Ribbon) {
+                mProphecyMacros.movement = value;
+            } else if (source == ::Omega::Core::Input::ModSource::VectorX) {
+                mProphecyMacros.energy = value;
+            } else if (source == ::Omega::Core::Input::ModSource::VectorY) {
+                mProphecyMacros.air = value;
+            }
         }
 
         void handleController(int ccNumber, float value) {
@@ -439,6 +534,7 @@ namespace Omega::DSP::Engines::Juno {
         Omega::DSP::Engines::Juno::FilterPoolJunoIr3109 mJunoFlt;
         Omega::DSP::Engines::Korg::FilterPoolKorg35 mKorg35Flt;
         Engines::JP::FilterPoolJp8080 mJpFilterPool;
+        Engines::JP::FilterPoolJpFormant mJpFormantFlt;
         ChorusPoolJuno mChorusPool;
         
         // Prophecy Pools
@@ -447,16 +543,37 @@ namespace Omega::DSP::Engines::Juno {
         Engines::Korg::OscillatorPoolProphecyReed mReedOsc;
         Engines::Korg::OscillatorPoolProphecyVpm mVpmOsc;
         Engines::Korg::OscillatorPoolProphecyBowed mBowedOsc;
+        Engines::Korg::OscillatorPoolProphecyNoiseComb mNoiseCombOsc;
+        Engines::Korg::OscillatorPoolProphecyEP mElectricPianoOsc;
+        Engines::Korg::OscillatorPoolProphecyOrgan mOrganOsc;
+        Engines::Korg::OscillatorPoolProphecyWaveshaper mProphecyWaveshaper;
+        Engines::Korg::ProphecyArpeggiator mProphecyArp;
+        Engines::Korg::FilterPoolResonantBank mResBankFlt;
+        ::Omega::DSP::Core::Modulation::EnvelopeMultiStage mMultiStageEnv;
+        Engines::JP::OscillatorPoolJpFeedback mJpFeedbackOsc;
+        Engines::JP::OscillatorPoolJpDual mJpDualOsc;
         Engines::Korg::KorgMs20Esp mMs20Esp;
+        
+        FilterSlotMode mFilterSlotMode = FilterSlotMode::Standard;
         
         FilterType mFilterType = FilterType::JunoIR3109;
         int mHpfPosition = 1;
         bool mVcaGateMode = false;
         float mCurrentResonance = 0.0f;
+        float mCurrentCutoff = 1000.0f; // Added for Motion Recording bitrot
         float mKorgHpCut = 100.0f;
         float mKorgHpRes = 0.0f;
         float mKorgGrit = 1.0f;
+        float mXModDepth = 0.0f;
+        float mJpOsc2Detune = 0.0f; // in semitones
+        bool mJpSync = false;
         Korg::ProphecyMacroContext::MacroState mProphecyMacros;
+        ::Omega::Core::Modulation::MotionRecorder mMotionRecorder;
+        Engines::Korg::OscillatorPoolProphecyWaveshaper::Mode mProphecyWaveshaperMode = Engines::Korg::OscillatorPoolProphecyWaveshaper::Fold;
+
+        bool mArpActive = false;
+        int mArpCounter = 0;
+        int mArpIntervalSamples = 44100 / 8; // 8th notes at 120bpm approx
 
         float mDcoLfoDepth = 0.0f;
         float mVcfEnvDepth = 0.0f;
@@ -469,9 +586,9 @@ namespace Omega::DSP::Engines::Juno {
         std::array<::juce::dsp::FirstOrderTPTFilter<float>, 16> mHpfFilters;
         std::array<::juce::dsp::IIR::Filter<float>, 16> mShelfFilters;
 
-        std::array<VA::EnvelopeAdsrVA, 16> mAmpEnvelopes;
-        std::array<VA::EnvelopeAdsrVA, 16> mModEnvelopes;
-        std::array<VA::EnvelopeMs20, 16> mMs20Envelopes;
+        std::array<::Omega::DSP::VA::EnvelopeAdsrVA, 16> mAmpEnvelopes;
+        std::array<::Omega::DSP::VA::EnvelopeAdsrVA, 16> mModEnvelopes;
+        std::array<::Omega::DSP::VA::EnvelopeMs20, 16> mMs20Envelopes;
         ::Omega::Core::Modulation::ModulationRuntime mModRuntime;
         float mLastHpfFreq = -1.0f;
 
@@ -485,13 +602,7 @@ namespace Omega::DSP::Engines::Juno {
 
         // Space Echo (RE-201) State
         bool mSpaceEchoEnabled = false;
-        float mSpaceEchoSpeed = 0.5f;
-        float mSpaceEchoIntensity = 0.4f;
-        float mSpaceEchoEchoVol = 0.5f;
-        float mSpaceEchoReverbVol = 0.3f;
-        int mSpaceEchoMode = 1;
-        float mSpaceEchoWowFlutter = 0.2f;
-        float mSpaceEchoDrive = 0.0f;
+        ::Omega::DSP::FX::SpaceEchoProcessor::Params mSpaceEchoParams;
         ::Omega::DSP::FX::SpaceEchoProcessor mSpaceEcho;
     };
 
