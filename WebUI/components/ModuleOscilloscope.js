@@ -3,40 +3,33 @@
  * Módulo de telemetría genérico y eficiente para el rack superior.
  */
 class ModuleOscilloscope {
-    constructor(id, container, signalIndex, label = "Monitor") {
-        this.id = id;
-        this.container = container;
-        this.signalIndex = signalIndex;
-        this.label = label;
-        this.active = true; // Power state
+    constructor(el, content) {
+        this.el = el;
+        this.content = content;
+        this.signalIndex = parseInt(el.dataset.signalIndex) || 0;
+        this.active = true;
         this.history = new Array(128).fill(0);
         
         this.init();
     }
 
     init() {
-        this.el = document.createElement('div');
-        this.el.className = 'module oscilloscope-module';
-        this.el.innerHTML = `
-            <div class="module-header">
-                <span>${this.label}</span>
+        this.content.className += ' osc-canvas-wrapper';
+        this.content.innerHTML = `
+            <canvas width="180" height="100"></canvas>
+            <div class="osc-power-controls">
                 <button class="osc-power-btn active" title="Toggle Power">⏻</button>
-            </div>
-            <div class="module-content osc-canvas-wrapper">
-                <canvas width="180" height="100"></canvas>
             </div>
             <div class="osc-footer">
                 <span class="osc-index">SIGNAL TAP: ${this.signalIndex}</span>
             </div>
         `;
         
-        this.canvas = this.el.querySelector('canvas');
+        this.canvas = this.content.querySelector('canvas');
         this.ctx = this.canvas.getContext('2d');
-        this.powerBtn = this.el.querySelector('.osc-power-btn');
+        this.powerBtn = this.content.querySelector('.osc-power-btn');
         
         this.powerBtn.onclick = () => this.togglePower();
-        
-        this.container.appendChild(this.el);
         this.drawEmpty();
     }
 
@@ -49,8 +42,11 @@ class ModuleOscilloscope {
     }
 
     update(data) {
-        if (!this.active || !data || !data.history) return;
-        this.history = data.history;
+        if (!this.active || !data) return;
+        const history = data.history || data.HISTORY;
+        if (!history) return;
+
+        this.history = history;
         this.draw();
     }
 

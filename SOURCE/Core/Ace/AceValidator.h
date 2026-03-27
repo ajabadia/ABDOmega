@@ -2,6 +2,7 @@
 
 #include "AceCatalog.h"
 #include "../../Core/Preset/OmegaPreset.h"
+#include <juce_data_structures/juce_data_structures.h>
 #include <vector>
 #include <string>
 
@@ -41,9 +42,9 @@ namespace Omega::Core::Ace {
     private:
         const AceCatalog& mCatalog;
 
-        void validateLayer(Preset::Layer& layer, ValidationReport& report) const;
+        void validateLayer(juce::ValueTree& layer, ValidationReport& report) const;
         void checkComponent(const std::string& scope,
-                            std::string& componentId,
+                            juce::ValueTree& componentNode,
                             const std::string& family,
                             const std::string& engine,
                             ValidationReport& report) const;

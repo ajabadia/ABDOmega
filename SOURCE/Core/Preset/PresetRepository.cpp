@@ -69,11 +69,12 @@ std::vector<std::string> PresetRepository::listPresets() const {
 std::string PresetRepository::saveSnapshot(const OmegaPreset& preset, 
                                           const std::string& author,
                                           const std::string& message) {
-    if (preset.id.empty()) return "";
+    std::string presetId = preset.getUuid().toStdString();
+    if (presetId.empty()) return "";
 
     std::string currentHash = preset.calculateHash();
     PresetHistory history;
-    loadHistory(preset.id, history);
+    loadHistory(presetId, history);
 
     // Don't save if it's the same as the current branch head
     std::string headHash = history.getHashForBranch(history.currentBranch);
@@ -92,7 +93,7 @@ std::string PresetRepository::saveSnapshot(const OmegaPreset& preset,
     history.branches[history.currentBranch] = currentHash;
 
     // Save snapshot file
-    auto snapshotPath = getSnapshotPath(preset.id, currentHash);
+    auto snapshotPath = getSnapshotPath(presetId, currentHash);
     std::filesystem::create_directories(snapshotPath.parent_path());
     
     std::ofstream fout(snapshotPath);
@@ -147,6 +148,10 @@ std::filesystem::path PresetRepository::getHistoryPath(const std::string& preset
 
 std::filesystem::path PresetRepository::getSnapshotPath(const std::string& presetId, const std::string& hash) const {
     return mRootPath / (presetId + ".snapshots") / (hash + ".yaml");
+}
+
+std::filesystem::path PresetRepository::getPresetPath(const std::string& presetId) const {
+    return mRootPath / (presetId + ".yaml");
 }
 
 bool PresetRepository::loadHistory(const std::string& presetId, PresetHistory& outHistory) const {

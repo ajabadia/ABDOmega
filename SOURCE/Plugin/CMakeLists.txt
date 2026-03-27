@@ -9,7 +9,7 @@ juce_add_plugin(omega_plugin
     COPY_PLUGIN_AFTER_BUILD FALSE
     PLUGIN_MANUFACTURER_CODE ABDI
     PLUGIN_CODE Ome1
-    FORMATS Standalone VST3
+    FORMATS Standalone
     VST3_CAN_REPLACE_VST2 FALSE
     PRODUCT_NAME "OMEGA Synth"
     NEEDS_WEBVIEW2 TRUE
@@ -19,8 +19,6 @@ target_sources(omega_plugin
     PRIVATE
         OmegaAudioProcessor.cpp
         OmegaAudioProcessor.h
-        Midi1InputAdapter.cpp
-        Midi1InputAdapter.h
         ../UI/OmegaUiBridge.cpp
         ../UI/OmegaUiBridge.h
         ../UI/OmegaMainEditor.h

@@ -23,10 +23,10 @@ namespace Omega {
     public:
         using MessageCallback = std::function<void(const juce::String&)>;
 
-        OmegaUiBridge(Plugin::OmegaAudioProcessor& processor,
+        OmegaUiBridge(Plugin::OmegaAudioProcessor* processor,
                       Core::Preset::OmegaPreset& preset, 
                       Core::Ace::AceCatalog& catalog,
-                      Core::Preset::PresetRepository& repository,
+                      Core::Preset::PresetRepository* repository,
                       juce::AudioProcessorValueTreeState& apvts);
         ~OmegaUiBridge() override;
 
@@ -35,6 +35,7 @@ namespace Omega {
          */
         juce::String handleMessageFromUi(const juce::String& jsonMessage);
         juce::var    handleMessageFromUiAsVar(const juce::String& jsonMessage);
+        juce::var    handleMessageFromUiAsVar(const juce::String& type, const juce::var& requestId, const juce::var& payload);
 
         /**
          * @brief Define el callback para enviar mensajes espontáneos a la UI.
@@ -63,17 +64,19 @@ namespace Omega {
         juce::var handleCreateBranch(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetMetadata(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetTelemetry(const juce::var& requestId, const juce::var& payload);
+        juce::var handleGetModConnections(const juce::var& requestId, const juce::var& payload);
         juce::var handleTriggerNote(const juce::var& requestId, const juce::var& payload);
 
         // --- Helpers ---
+        juce::var presetToVar(const Core::Preset::OmegaPreset& p);
         juce::String createResponse(const juce::var& type, const juce::var& requestId, const juce::var& error, const juce::var& payload = {});
         void notifyUi(const juce::var& notification);
 
         Core::Preset::OmegaPreset& mPreset;
         Core::Ace::AceCatalog& mCatalog;
-        Core::Preset::PresetRepository& mRepository;
+        Core::Preset::PresetRepository* mRepository;
         juce::AudioProcessorValueTreeState& mApvts;
-        Plugin::OmegaAudioProcessor& mProcessor;
+        Plugin::OmegaAudioProcessor* mProcessor;
         MessageCallback mUiCallback;
         std::function<void(const Core::Preset::OmegaPreset&)> mOnLoadPreset;
 

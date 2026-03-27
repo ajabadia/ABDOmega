@@ -7,10 +7,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const MIN_SPLASH_TIME = 3000;
     
     // Version & Build Metadata from C++
-    const initData = window.initialisationData || window.__JUCE__?.initialisationData || {};
+    const juceObj = window.__JUCE__ || {};
+    const initDataWrapper = juceObj.initialisationData || juceObj.initializationData || {};
+    const initData = (initDataWrapper.omega && initDataWrapper.omega.length > 0) ? initDataWrapper.omega[0] : (initDataWrapper.initialisationData ? initDataWrapper.initialisationData[0] : {});
+    
     const version = initData.version || "1.0.0";
     const build = initData.build || "??";
     const timestamp = initData.timestamp || "";
+
+    console.log(`[[VERSION] OMEGA BUILD #${build} (${timestamp || "DEV"})]`);
     
     // Diagnostic log to visual console
     if (window.appendToConsole) {
@@ -190,6 +195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.omegaVersionControl.refresh(state.preset.id);
             }
         }
+        
+        // --- Initialize Modulation Visualizer ---
+        if (window.ModulationVisualizer) {
+            window.omegaModVisualizer = new window.ModulationVisualizer();
+        }
 
         hideSplash();
 
@@ -208,11 +218,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const indices = activeOscs.map(o => o.signalIndex);
                 const data = await window.omegaRPC.send("getTelemetry", { indices });
                 
-                if (data && data.payload) {
-                    activeOscs.forEach(o => {
-                        const signalData = data.payload[o.signalIndex.toString()];
-                        if (signalData) o.update(signalData);
+                const tel = data;
+                if (tel) {
+                    window.omegaTelemetryCache = tel; // Cache for other components
+                    mgr.oscilloscopes.forEach(osc => {
+                        if (tel[osc.signalIndex]) { // Ensure signal data exists
+                            osc.update(tel[osc.signalIndex]);
+                        }
                     });
+                    if (mgr.midiViewer) mgr.midiViewer.update(tel);
                 }
             } catch (err) {
                 // Silently ignore telemetry errors

@@ -11,15 +11,26 @@ TEST_CASE("OmegaInput: Event Queue Management", "[Core][Input]") {
     
     SECTION("Clear and Add") {
         input.clear();
-        REQUIRE(input.getEvents().empty());
+        REQUIRE(input.isEmpty());
         
         InputEvent e;
         e.type = InputEventType::NoteOn;
         e.sampleOffset = 10;
-        input.addEvent(e);
+        bool success = input.addEvent(e);
         
-        REQUIRE(input.getEvents().size() == 1);
-        REQUIRE(input.getEvents()[0].sampleOffset == 10);
+        REQUIRE(success);
+        REQUIRE(input.size() == 1);
+        REQUIRE(input[0].sampleOffset == 10);
+    }
+
+    SECTION("Capacity and Overflow") {
+        input.clear();
+        InputEvent e;
+        for (size_t i = 0; i < KMaxEventsPerBlock; ++i) {
+            REQUIRE(input.addEvent(e));
+        }
+        REQUIRE(input.size() == KMaxEventsPerBlock);
+        REQUIRE_FALSE(input.addEvent(e)); // Debería fallar por estar lleno
     }
 }
 
@@ -30,14 +41,13 @@ TEST_CASE("Midi1InputAdapter: Translation Logic", "[Core][Input]") {
     
     SECTION("Note On Translation") {
         buffer.addEvent(juce::MidiMessage::noteOn(1, 60, 0.5f), 100);
-        adapter.process(buffer, output);
+        Midi1InputAdapter::process(buffer, output);
         
-        const auto& events = output.getEvents();
-        REQUIRE(events.size() == 1);
-        REQUIRE(events[0].type == InputEventType::NoteOn);
-        REQUIRE(events[0].sampleOffset == 100);
-        REQUIRE(events[0].data.noteOn.pitch == 60.0f);
-        REQUIRE(events[0].data.noteOn.velocity == Catch::Approx(0.5f).margin(0.01));
+        REQUIRE(output.size() == 1);
+        REQUIRE(output[0].type == InputEventType::NoteOn);
+        REQUIRE(output[0].sampleOffset == 100);
+        REQUIRE(output[0].data.noteOn.pitch == 60.0f);
+        REQUIRE(output[0].data.noteOn.velocity == Catch::Approx(0.5f).margin(0.01));
     }
     
     SECTION("Pitch Bend Translation") {
@@ -45,24 +55,22 @@ TEST_CASE("Midi1InputAdapter: Translation Logic", "[Core][Input]") {
         buffer.clear();
         // Pitch bend a la mitad (8192 es centro, 12288 es +0.5)
         buffer.addEvent(juce::MidiMessage::pitchWheel(1, 12288), 50);
-        adapter.process(buffer, output);
+        Midi1InputAdapter::process(buffer, output);
         
-        const auto& events = output.getEvents();
-        REQUIRE(events.size() == 1);
-        REQUIRE(events[0].type == InputEventType::ChannelExpression);
-        REQUIRE(events[0].data.channel.source == ModSource::PitchBend);
-        REQUIRE(events[0].data.channel.value == Catch::Approx(0.5f));
+        REQUIRE(output.size() == 1);
+        REQUIRE(output[0].type == InputEventType::ChannelExpression);
+        REQUIRE(output[0].data.channel.source == ModSource::PitchBend);
+        REQUIRE(output[0].data.channel.value == Catch::Approx(0.5f));
     }
 
     SECTION("CC Mapping") {
         output.clear();
         buffer.clear();
         buffer.addEvent(juce::MidiMessage::controllerEvent(1, 1, 127), 0); // Mod Wheel
-        adapter.process(buffer, output);
+        Midi1InputAdapter::process(buffer, output);
         
-        const auto& events = output.getEvents();
-        REQUIRE(events.size() == 1);
-        REQUIRE(events[0].data.channel.source == ModSource::ModWheel);
-        REQUIRE(events[0].data.channel.value == 1.0f);
+        REQUIRE(output.size() == 1);
+        REQUIRE(output[0].data.channel.source == ModSource::ModWheel);
+        REQUIRE(output[0].data.channel.value == 1.0f);
     }
 }

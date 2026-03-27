@@ -2,7 +2,9 @@
 
 #include "OmegaPreset.h"
 
-namespace Omega::Core::Preset {
+namespace Omega {
+namespace Core {
+namespace Preset {
 
     /**
      * @brief Factoría estática para presets de la familia Juno y sus híbridos.
@@ -14,9 +16,9 @@ namespace Omega::Core::Preset {
          */
         static OmegaPreset createJunoBasicPad() {
             OmegaPreset p;
-            p.id = "ACE-JUNO-BASIC-PAD";
-            p.name = "Classic Juno Pad";
-            p.author = "antigravity";
+            p.setUuid("ACE-JUNO-BASIC-PAD");
+            p.setName("Classic Juno Pad");
+            p.setAuthor("antigravity");
             
             Layer layer;
             layer.id = "A";
@@ -42,7 +44,31 @@ namespace Omega::Core::Preset {
             flt.componentId = "FLT-VA-001";
             layer.voiceArch.filters.push_back(flt);
             
-            p.layers.push_back(layer);
+            p.addLayer(layer);
+
+            // Modular Components (Phase 11 Refinement)
+            AceComponent adsr;
+            adsr.slotName = "ADSR 1";
+            adsr.componentId = "EG-STANDARD-001";
+            adsr.params["attack"] = 10.0f;
+            adsr.params["decay"] = 100.0f;
+            adsr.params["sustain"] = 0.5f;
+            adsr.params["release"] = 500.0f;
+            p.addEnvelope(adsr);
+
+            AceComponent vca;
+            vca.slotName = "VCA 1";
+            vca.componentId = "VCA-STANDARD-001";
+            vca.params["gain"] = 0.8f;
+            p.addAmplifier(vca);
+
+            AceComponent lfo;
+            lfo.slotName = "LFO 1";
+            lfo.componentId = "LFO-STANDARD-001";
+            lfo.params["rate"] = 5.0f;
+            lfo.params["wave"] = 0.0f; // Sine
+            p.addModulator(lfo);
+
             return p;
         }
 
@@ -51,9 +77,9 @@ namespace Omega::Core::Preset {
          */
         static OmegaPreset createJunoBrassA11() {
             OmegaPreset p;
-            p.id = "ACE-JUNO-BASIC-BRASS";
-            p.name = "Juno Brass A11";
-            p.author = "antigravity";
+            p.setUuid("ACE-JUNO-BASIC-BRASS");
+            p.setName("Juno Brass A11");
+            p.setAuthor("antigravity");
             
             Layer layer;
             layer.id = "A";
@@ -74,7 +100,7 @@ namespace Omega::Core::Preset {
             osc.params["sub"] = 0.3f;
             layer.voiceArch.oscillators.push_back(osc);
             
-            p.layers.push_back(layer);
+            p.addLayer(layer);
             return p;
         }
 
@@ -84,9 +110,9 @@ namespace Omega::Core::Preset {
          */
         static OmegaPreset createJunoMs20Hybrid() {
             OmegaPreset p;
-            p.id = "ACE-HYBRID-JUNO-MS20";
-            p.name = "Hybrid Juno + MS20 Filter";
-            p.author = "antigravity";
+            p.setUuid("ACE-HYBRID-JUNO-MS20");
+            p.setName("Hybrid Juno + MS20 Filter");
+            p.setAuthor("antigravity");
             
             Layer layer;
             layer.id = "A";
@@ -110,9 +136,141 @@ namespace Omega::Core::Preset {
             flt.params["drive"] = 2.0f;
             layer.voiceArch.filters.push_back(flt);
             
-            p.layers.push_back(layer);
+            p.addLayer(layer);
+            return p;
+        }
+        /**
+         * @brief ACE-TEST-MONO
+         * Minimal monophonic path for basic verification.
+         */
+        static OmegaPreset createMonoTestPreset() {
+            OmegaPreset p;
+            p.setUuid("ACE-TEST-MONO");
+            p.setName("MONO TEST (SAW)");
+            p.setAuthor("antigravity");
+            
+            Layer layer;
+            layer.id = "A";
+            layer.name = "Test Core";
+            layer.params.cutoff = 5000.0f;
+            layer.params.resonance = 0.1f;
+            layer.params.hpfPos = 1; // Bypass
+            layer.params.sawOn = true;
+            layer.params.pulseOn = false;
+            layer.params.subLevel = 0.5f;
+            layer.params.noiseLevel = 0.0f;
+            layer.params.vcfEnvDepth = 0.0f;
+            layer.params.vcaGateMode = false; // Use ADSR
+            
+            AceComponent osc;
+            osc.slotName = "Osc1";
+            osc.componentId = "OSC-VA-001";
+            layer.voiceArch.oscillators.push_back(osc);
+            
+            p.addLayer(layer);
+
+            // ADSRExponencial Standard
+            AceComponent adsr;
+            adsr.slotName = "ADSR 1";
+            adsr.componentId = "EG-STANDARD-001";
+            adsr.params["attack"] = 1.0f;
+            adsr.params["decay"] = 100.0f;
+            adsr.params["sustain"] = 0.8f;
+            adsr.params["release"] = 100.0f;
+            p.addEnvelope(adsr);
+
+            // VCA Standard
+            AceComponent vca;
+            vca.slotName = "VCA 1";
+            vca.componentId = "VCA-STANDARD-001";
+            vca.params["gain"] = 0.8f;
+            p.addAmplifier(vca);
+
+            return p;
+        }
+
+        /**
+         * @brief ACE-SUPER-MINIMAL
+         * Only ONE oscillator module for absolute isolation.
+         */
+        static OmegaPreset createSuperMinimalTest() {
+            OmegaPreset p;
+            p.setUuid("ACE-SUPER-MINIMAL");
+            p.setName("DEBUG: SINGLE DCO");
+            p.setAuthor("antigravity");
+            
+            Layer layer;
+            layer.id = "A";
+            layer.name = "Debug Layer";
+            layer.params.sawOn = true;
+            
+            AceComponent osc;
+            osc.slotName = "DEBUG-OSC";
+            osc.componentId = "OSC-VA-001";
+            layer.voiceArch.oscillators.push_back(osc);
+            
+            p.addLayer(layer);
+            return p;
+        }
+
+        /**
+         * @brief ACE-VERIFY-DYNAMIC
+         * Minimal preset for verifying dynamic rack rendering.
+         * Upper: MIDI Monitor ONLY.
+         * Lower: ADSR ONLY.
+         */
+        static OmegaPreset createVerificationPreset() {
+            OmegaPreset p;
+            p.setUuid("ACE-VERIFY-DYNAMIC");
+            p.setName("VERIFICATION: MINIMAL");
+            p.setAuthor("antigravity");
+            
+            // Upper Rack: MIDI-MON ONLY
+            AceComponent midiMon;
+            midiMon.slotName = "MIDI MONITOR";
+            midiMon.componentId = "MIDI-MON";
+            midiMon.slotType = "midi-mon";
+            p.addAuxiliary(midiMon);
+
+            AceComponent osci;
+            osci.slotName = "GLOBAL WAVE";
+            osci.componentId = "OSCILLOSCOPE";
+            osci.slotType = "osci";
+            p.addAuxiliary(osci);
+
+            // Lower Rack: ADSR 1 ONLY
+            AceComponent adsr;
+            adsr.slotName = "ADSR 1";
+            adsr.componentId = "EG-STANDARD-001";
+            adsr.params["attack"] = 1.0f;
+            adsr.params["decay"] = 100.0f;
+            adsr.params["sustain"] = 0.8f;
+            adsr.params["release"] = 100.0f;
+            p.addEnvelope(adsr);
+            
+            // Add a layer with Prophecy architecture
+            Layer l;
+            l.id = "A";
+            l.name = "Prophecy Core";
+            l.params.sawOn = true;
+            l.params.pulseOn = false;
+            
+            AceComponent osc;
+            osc.slotName = "PROPHECY OSC";
+            osc.componentId = "OSC-KORG-P";
+            l.voiceArch.oscillators.push_back(osc);
+            
+            AceComponent flt;
+            flt.slotName = "KORG FILTER";
+            flt.componentId = "FLT-VA-003"; // This triggers Korg35 model
+            l.voiceArch.filters.push_back(flt);
+            
+            p.addLayer(l);
+
             return p;
         }
     };
 
-} // namespace Omega::Core::Preset
+} // namespace Preset
+} // namespace Core
+} // namespace Omega

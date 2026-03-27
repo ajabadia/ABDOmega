@@ -8,47 +8,37 @@
 #include "../Core/ParameterMetadata.h"
 #include "../Core/Modulation/ModulationTelemetryHub.h"
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "../Core/Modulation/MidiMonitor.h"
 #include <fstream>
 #include <chrono>
 
 static void logToFile(const std::string& msg) {
-    // Usar una ruta más universal y segura
-    std::ofstream f("C:/temp/OMEGA_RPC_LOG.txt", std::ios::app);
-    if (!f.is_open()) {
-        // Fallback al directorio actual si C:/temp no existe
-        f.open("OMEGA_RPC_LOG.txt", std::ios::app);
-    }
-    
-    if (f.is_open()) {
-        auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        struct tm timeinfo;
-        localtime_s(&timeinfo, &now);
-        char buffer[80];
-        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
-        f << "[" << buffer << "] " << msg << std::endl;
-    }
+    juce::File logFile = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getSiblingFile("OMEGA_BOOT_LOG.txt");
+    logFile.appendText("[" + juce::Time::getCurrentTime().toString(true, true) + "] " + msg + "\n");
 }
 
 namespace Omega {
 namespace UI {
 
-    OmegaUiBridge::OmegaUiBridge(Plugin::OmegaAudioProcessor& processor,
+    OmegaUiBridge::OmegaUiBridge(Plugin::OmegaAudioProcessor* processor,
                                  Core::Preset::OmegaPreset& preset, 
                                  Core::Ace::AceCatalog& catalog,
-                                 Core::Preset::PresetRepository& repository,
+                                 Core::Preset::PresetRepository* repository,
                                  juce::AudioProcessorValueTreeState& apvts)
         : mPreset(preset), mCatalog(catalog), mRepository(repository), mApvts(apvts), mProcessor(processor)
     {
-        for (auto& param : mApvts.processor.getParameters())
+        logToFile("OmegaUiBridge: Initializing...");
+        for (auto& param : mProcessor->getParameters())
         {
             if (auto* p = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
                 mApvts.addParameterListener(p->getParameterID(), this);
         }
+        logToFile("OmegaUiBridge: Parameter listeners ENABLED for Build 58");
     }
 
     OmegaUiBridge::~OmegaUiBridge()
     {
-        for (auto& param : mApvts.processor.getParameters())
+        for (auto& param : mProcessor->getParameters())
         {
             if (auto* p = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
                 mApvts.removeParameterListener(p->getParameterID(), this);
@@ -57,6 +47,7 @@ namespace UI {
 
     juce::String OmegaUiBridge::handleMessageFromUi(const juce::String& jsonMessage)
     {
+        logToFile("Bridge: Received message: " + jsonMessage.toStdString());
         auto json = juce::JSON::parse(jsonMessage);
         
         if (json.isUndefined() || !json.isObject())
@@ -104,14 +95,70 @@ namespace UI {
         return createResponse("state", requestId, {}, resultPayload);
     }
 
+    juce::var OmegaUiBridge::handleMessageFromUiAsVar(const juce::String& type, const juce::var& requestId, const juce::var& payload)
+    {
+        juce::var result;
+        if (type.equalsIgnoreCase("getState"))
+            result = handleGetState(requestId, payload);
+        else if (type.equalsIgnoreCase("setParam"))
+            result = handleSetParam(requestId, payload);
+        else if (type.equalsIgnoreCase("listAceComponents"))
+            result = handleListAceComponents(requestId, payload);
+        else if (type.equalsIgnoreCase("loadPreset"))
+            result = handleLoadPreset(requestId, payload);
+        else if (type.equalsIgnoreCase("savePreset"))
+            result = handleSavePreset(requestId, payload);
+        else if (type.equalsIgnoreCase("uiReady"))
+            result = handleUiReady(requestId, payload);
+        else if (type.equalsIgnoreCase("listPresets"))
+            result = handleListPresets(requestId, payload);
+        else if (type.equalsIgnoreCase("getHistory"))
+            result = handleGetHistory(requestId, payload);
+        else if (type.equalsIgnoreCase("saveSnapshot"))
+            result = handleSaveSnapshot(requestId, payload);
+        else if (type.equalsIgnoreCase("checkout"))
+            result = handleCheckout(requestId, payload);
+        else if (type.equalsIgnoreCase("createBranch"))
+            result = handleCreateBranch(requestId, payload);
+        else if (type.equalsIgnoreCase("getMetadata"))
+            result = handleGetMetadata(requestId, payload);
+        else if (type.equalsIgnoreCase("getTelemetry"))
+            result = handleGetTelemetry(requestId, payload);
+        else if (type.equalsIgnoreCase("getModConnections"))
+            result = handleGetModConnections(requestId, payload);
+        else if (type.equalsIgnoreCase("triggerNote"))
+            result = handleTriggerNote(requestId, payload);
+        else if (type.equalsIgnoreCase("exit"))
+        {
+            juce::MessageManager::callAsync ([] {
+                if (auto* app = juce::JUCEApplication::getInstance())
+                    app->systemRequestedQuit();
+                else
+                    juce::MessageManager::getInstance()->stopDispatchLoop();
+            });
+            result = juce::var("OK");
+        }
+        else
+            result = juce::var("UNKNOWN_TYPE: " + type);
+
+        juce::DynamicObject::Ptr response = new juce::DynamicObject();
+        response->setProperty("type", type);
+        response->setProperty("requestId", requestId);
+        response->setProperty("payload", result);
+        
+        juce::var finalVar(response.get());
+        logToFile("NativeBridge -> UI: " + juce::JSON::toString(finalVar, false).toStdString());
+        return finalVar;
+    }
+
     juce::var OmegaUiBridge::handleMessageFromUiAsVar(const juce::String& jsonMessage)
     {
-        logToFile("UI -> C++: " + jsonMessage.toStdString());
+        logToFile("Bridge: Received [" + jsonMessage.toStdString() + "]");
         auto json = juce::JSON::parse(jsonMessage);
         
         if (json.isUndefined() || !json.isObject())
         {
-            logToFile("C++ ERROR: Invalid JSON");
+            logToFile("Bridge ERROR: Invalid JSON or not an object");
             juce::DynamicObject::Ptr err = new juce::DynamicObject();
             err->setProperty("message", "Invalid JSON or Object expected");
             return juce::var(err.get());
@@ -148,6 +195,8 @@ namespace UI {
             result = handleGetMetadata(requestId, payload);
         else if (type.equalsIgnoreCase("getTelemetry"))
             result = handleGetTelemetry(requestId, payload);
+        else if (type.equalsIgnoreCase("getModConnections"))
+            result = handleGetModConnections(requestId, payload);
         else if (type.equalsIgnoreCase("triggerNote"))
             result = handleTriggerNote(requestId, payload);
         else if (type.equalsIgnoreCase("exit"))
@@ -205,19 +254,14 @@ namespace UI {
         }
     }
 
-    juce::var OmegaUiBridge::handleGetState(const juce::var&, const juce::var&)
+    juce::var OmegaUiBridge::handleGetState(const juce::var& requestId, const juce::var&)
     {
         juce::DynamicObject::Ptr root = new juce::DynamicObject();
         
         // 1. Preset Snapshot
-        juce::DynamicObject::Ptr presetObj = new juce::DynamicObject();
-        presetObj->setProperty("id", juce::String(mPreset.id));
-        presetObj->setProperty("name", juce::String(mPreset.name));
-        presetObj->setProperty("engine", juce::String(mPreset.engine));
-        
         // 2. Macro Params Snapshot
         juce::DynamicObject::Ptr params = new juce::DynamicObject();
-        for (auto* param : mApvts.processor.getParameters())
+        for (auto* param : mProcessor->getParameters())
         {
             auto* pWithId = dynamic_cast<juce::AudioProcessorParameterWithID*>(param);
             auto* pRanged = dynamic_cast<juce::RangedAudioParameter*>(param);
@@ -228,10 +272,12 @@ namespace UI {
             }
         }
         
-        root->setProperty("preset", juce::var(presetObj.get()));
+        root->setProperty("preset", presetToVar(mPreset));
         root->setProperty("params", juce::var(params.get()));
-        
-        return juce::var(root.get());
+
+        juce::var stateVar(root.get());
+        logToFile("Bridge: getState Response size: " + std::to_string(juce::JSON::toString(stateVar).length()));
+        return stateVar;
     }
 
     juce::var OmegaUiBridge::handleSetParam(const juce::var&, const juce::var& payload)
@@ -272,10 +318,17 @@ namespace UI {
     {
         juce::String presetId = payload["presetId"].toString();
         
-        // MVP: Resolver el preset desde la factoría. 
-        // En el futuro esto consultará un PresetManager real.
+        // 1. Intentar cargar desde el repositorio (Git-for-Sounds layer)
         Omega::Core::Preset::OmegaPreset newPreset;
-        
+        if (mRepository != nullptr) {
+            auto path = mRepository->getPresetPath(presetId.toStdString());
+            if (newPreset.loadFromYaml(path.string())) {
+                if (mOnLoadPreset) mOnLoadPreset(newPreset);
+                return juce::var("OK");
+            }
+        }
+
+        // 2. Fallback a factoría para presets core
         if (presetId == "ACE-JUNO-BASIC-PAD")
             newPreset = Omega::Core::Preset::JunoFactory::createJunoBasicPad();
         else if (presetId == "ACE-JUNO-BASIC-BRASS")
@@ -300,7 +353,7 @@ namespace UI {
         juce::DynamicObject::Ptr result = new juce::DynamicObject();
         result->setProperty("status", "SUCCESS_STUB");
         result->setProperty("name", name);
-        result->setProperty("presetId", juce::String(mPreset.id));
+        result->setProperty("presetId", mPreset.getUuid());
         
         return juce::var(result.get());
     }
@@ -311,7 +364,7 @@ namespace UI {
 
     juce::var OmegaUiBridge::handleListPresets(const juce::var&, const juce::var&)
     {
-        auto presets = mRepository.listPresets();
+        auto presets = mRepository->listPresets();
         
         // --- EMERGENCY TEST: Add a virtual preset if empty ---
         if (presets.empty()) {
@@ -329,7 +382,7 @@ namespace UI {
     juce::var OmegaUiBridge::handleGetHistory(const juce::var&, const juce::var& payload)
     {
         juce::String presetId = payload["presetId"].toString();
-        auto history = mRepository.getHistory(presetId.toStdString());
+        auto history = mRepository->getHistory(presetId.toStdString());
         
         juce::DynamicObject::Ptr root = new juce::DynamicObject();
         root->setProperty("presetId", juce::String(history.presetId));
@@ -364,7 +417,7 @@ namespace UI {
         juce::String author = payload["author"].toString();
         juce::String message = payload["message"].toString();
         
-        std::string hash = mRepository.saveSnapshot(mPreset, author.toStdString(), message.toStdString());
+        std::string hash = mRepository->saveSnapshot(mPreset, author.toStdString(), message.toStdString());
         return juce::var(juce::String(hash));
     }
 
@@ -374,7 +427,7 @@ namespace UI {
         juce::String hash = payload["hash"].toString();
         
         Core::Preset::OmegaPreset loadedPreset;
-        if (mRepository.checkout(presetId.toStdString(), hash.toStdString(), loadedPreset))
+        if (mRepository->checkout(presetId.toStdString(), hash.toStdString(), loadedPreset))
         {
             if (mOnLoadPreset)
                 mOnLoadPreset(loadedPreset);
@@ -389,7 +442,7 @@ namespace UI {
         juce::String branchName = payload["branchName"].toString();
         juce::String fromHash = payload["fromHash"].toString();
         
-        if (mRepository.createBranch(presetId.toStdString(), branchName.toStdString(), fromHash.toStdString()))
+        if (mRepository->createBranch(presetId.toStdString(), branchName.toStdString(), fromHash.toStdString()))
             return juce::var("OK");
             
         return juce::var("ERROR_CREATE_BRANCH_FAILED");
@@ -435,6 +488,7 @@ namespace UI {
             d->setProperty("unit", juce::String(desc.unit));
             d->setProperty("skew", desc.skew);
             d->setProperty("group", juce::String(desc.groupId));
+            d->setProperty("telemetryIndex", desc.telemetryIndex);
             paramsMap->setProperty(juce::String(id), juce::var(d.get()));
         }
         
@@ -447,6 +501,7 @@ namespace UI {
         juce::DynamicObject::Ptr result = new juce::DynamicObject();
         
         auto requestedIndices = payload["indices"];
+        if (requestedIndices.isUndefined()) requestedIndices = payload["INDICES"];
         
         if (requestedIndices.isArray()) {
             for (int i = 0; i < requestedIndices.size(); ++i) {
@@ -471,7 +526,49 @@ namespace UI {
                  result->setProperty(juce::String(idx), juce::var(data.get()));
             }
         }
+        
+        // --- Add MIDI Events ---
+        auto midiEvents = Core::Modulation::MidiMonitor::getInstance().getRecentEvents(16);
+        juce::Array<juce::var> midiArray;
+        for (const auto& e : midiEvents) {
+            juce::DynamicObject::Ptr ev = new juce::DynamicObject();
+            ev->setProperty("type", (int)e.type);
+            ev->setProperty("ch", (int)e.channel);
+            ev->setProperty("d1", (int)e.data1);
+            ev->setProperty("d2", (int)e.data2);
+            ev->setProperty("ts", e.timestamp);
+            midiArray.add(juce::var(ev.get()));
+        }
+        result->setProperty("midi", midiArray);
 
+        return juce::var(result.get());
+    }
+
+    juce::var OmegaUiBridge::handleGetModConnections(const juce::var&, const juce::var&)
+    {
+        juce::DynamicObject::Ptr result = new juce::DynamicObject();
+        
+        // Mapeo básico para el visualizador (esto se volverá dinámico con el ModulationGraph)
+        // Por ahora hardcoding de los mappings estándar de OMEGA para el MVP
+        juce::Array<juce::var> mappings;
+        
+        auto addMap = [&](int targetIndex, int sourceIndex, float weight, const char* label) {
+            juce::DynamicObject::Ptr m = new juce::DynamicObject();
+            m->setProperty("target", targetIndex);
+            m->setProperty("source", sourceIndex);
+            m->setProperty("weight", weight);
+            m->setProperty("label", juce::String(label));
+            mappings.add(juce::var(m.get()));
+        };
+
+        // LFO 1 -> Cutoff (Standard mapping)
+        addMap(8, 10, 0.4f, "VCF LFO");
+        // ENV 1 -> Cutoff
+        addMap(8, 20, 0.6f, "VCF ENV");
+        // LFO 1 -> DCO Pitch
+        addMap(0, 10, 0.1f, "Vibrato");
+
+        result->setProperty("mappings", mappings);
         return juce::var(result.get());
     }
 
@@ -481,8 +578,65 @@ namespace UI {
         int velocity = (int)payload["velocity"];
         bool isOn = (bool)payload["on"];
         
-        mProcessor.triggerNote(note, velocity, isOn);
+        mProcessor->triggerNote(note, velocity, isOn);
         return juce::var("OK");
+    }
+
+    juce::var OmegaUiBridge::presetToVar(const Core::Preset::OmegaPreset& p)
+    {
+        if (!p.isValid()) return juce::var();
+
+        juce::DynamicObject::Ptr root = new juce::DynamicObject();
+        root->setProperty("id", p.getUuid());
+        root->setProperty("name", p.getName());
+        root->setProperty("author", p.getAuthor());
+        root->setProperty("engine", p.getEngine());
+        
+        auto componentToVar = [](const juce::ValueTree& c) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            obj->setProperty("slotName", c.getProperty(Core::Preset::IDs::slotName).toString());
+            obj->setProperty("componentId", c.getProperty(Core::Preset::IDs::componentId).toString());
+            
+            juce::DynamicObject::Ptr params = new juce::DynamicObject();
+            auto pTree = c.getChildWithName(Core::Preset::IDs::params);
+            if (pTree.isValid()) {
+                for (int i = 0; i < pTree.getNumProperties(); ++i) {
+                    auto name = pTree.getPropertyName(i).toString();
+                    params->setProperty(name, pTree.getProperty(name));
+                }
+            }
+            obj->setProperty("params", juce::var(params.get()));
+            
+            return juce::var(obj.get());
+        };
+
+        juce::Array<juce::var> layers;
+        for (int i = 0; i < p.getNumLayers(); ++i) {
+            auto l = p.getLayerTree(i);
+            juce::DynamicObject::Ptr lObj = new juce::DynamicObject();
+            lObj->setProperty("name", l.getProperty(Core::Preset::IDs::name).toString());
+            
+            auto arch = l.getChildWithName(Core::Preset::IDs::architecture);
+            juce::DynamicObject::Ptr archObj = new juce::DynamicObject();
+            
+            auto mapComponents = [&](const juce::Identifier& type) {
+                juce::Array<juce::var> arr;
+                auto list = arch.getChildWithName(type);
+                for (int j = 0; j < list.getNumChildren(); ++j) arr.add(componentToVar(list.getChild(j)));
+                return arr;
+            };
+
+            archObj->setProperty("oscillators", mapComponents("oscillators"));
+            archObj->setProperty("filters", mapComponents("filters"));
+            archObj->setProperty("fxSlots", mapComponents("fxSlots"));
+            
+            lObj->setProperty("voiceArch", juce::var(archObj.get()));
+            layers.add(juce::var(lObj.get()));
+        }
+        root->setProperty("layers", layers);
+        
+        // Similar para envelopes, amplifiers, etc si se desea exponer todo el árbol
+        return juce::var(root.get());
     }
 
 } // namespace UI

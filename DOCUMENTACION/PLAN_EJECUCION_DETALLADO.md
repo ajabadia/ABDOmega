@@ -4,39 +4,43 @@ Este plan detalla los pasos técnicos necesarios para cerrar la brecha entre el 
 
 ---
 
-## ✅ Sprint 1: Dinamización del Catálogo ACE
+## [/] Sprint 1: Dinamización del Catálogo ACE
 **Objetivo:** Eliminar el hardcoding en `AceCatalog.h` y habilitar la carga desde recursos YAML.
 
-1. **Infraestructura YAML:** [x]
+1. **Infraestructura YAML:** [/]
    - [x] Integrar `yaml-cpp`.
    - [x] Implementar `AceCatalog::createFromResources(std::string path)`.
-2. **Migración de Datos:** [x]
-   - [x] Mover los registros de `registerDefaults()` a los archivos `.yaml` en `Resources/ace/`.
-3. **Validación:** [x]
-   - [x] Test unitario `TestAceCatalog` verificado con carga dinámica.
+   - [ ] Eliminar fallback de `registerDefaults()` hardcoded.
+2. **Migración de Datos:** [/]
+   - [ ] Mover todos los registros de `registerDefaults()` a los archivos `.yaml` en `Resources/ace/`.
+3. **Validación:** [ ]
+   - [ ] Test unitario `TestAceCatalog` verificado con catálogo 100% dinámico.
 
 ---
 
-## ✅ Sprint 2: Expresión Neutra (OmegaInput)
+## [/] Sprint 2: Expresión Neutra (OmegaInput)
 **Objetivo:** Desvincular el motor DSP de MIDI 1.0 y habilitar la base para MPE/MIDI 2.0.
 
-1. **Capa de Entrada:** [x]
+1. **Capa de Entrada:** [/]
    - [x] Crear `SOURCE/Core/Input/OmegaInput.h` con structs para eventos agnósticos.
+   - [ ] Refactorizar `OmegaInput` para ser audio‑thread safe (buffer fijo/lock‑free).
    - [x] Implementar `SOURCE/Plugin/Midi1InputAdapter.h` como puente con JUCE.
-2. **Refactor de Motor:** [x]
+2. **Refactor de Motor:** [/]
    - [x] Actualizar `ISynthesisEngine` y `VirtualAnalogEngine` para consumir `OmegaInput`.
+   - [ ] Sincronizar herencia en voces para soporte MPE completo.
 
 ---
 
-## ✅ Sprint 3: KORG ERA (MS-20 & Prophecy)
+## [/] Sprint 3: KORG ERA (MS-20 & Prophecy)
 **Objetivo:** Implementación de modelos de síntesis clásicos de los 90.
 
 1. **MS-20 (Korg35):** [x]
    - [x] Filtro Sallen-Key TPT con lazo de saturación no lineal ("Grit").
-2. **Prophecy (MOSS):** [x]
-   - [x] Oscilador de modelado físico (*Digital Waveguide/Karplus-Strong*).
-3. **Validación:** [x]
-   - [x] 105 aserciones de test unitario pasadas correctamente.
+2. **Prophecy (MOSS):** [/]
+   - [x] Osciladores Brass, Wind, EP, Organ, Noise+Comb, Waveshaper y Arp implementados.
+   - [ ] Integración final en `ProphecyEngine` y validación de parámetros ACE.
+3. **Validación:** [ ]
+   - [ ] Tests unitarios exhaustivos para cada modelo Prophecy.
 
 ---
 
@@ -72,6 +76,6 @@ Este plan detalla los pasos técnicos necesarios para cerrar la brecha entre el 
 ---
 
 ## 📈 Resumen de Prioridades
-1. **Completado:** Sprint 1, 2 y 3 (Motor, Entrada y Modelado Korg).
-2. **En Proceso:** Sprint 4 (Infraestructura de comunicación con la UI).
-3. **Próximo:** Sprint 5 (Visualización Premium con WebView).
+1. **En Revisión:** Sprint 1, 2 y 3 (Buscando paridad 100% entre diseño y código SOURCE).
+2. **En Proceso:** Sprint 4 (OmegaUiBridge e infra de comunicación JSON‑RPC).
+3. **Próximo:** Sprint 6 (Git-for-Sounds / OmegaPreset Facade) y Sprint 5 (WebView).

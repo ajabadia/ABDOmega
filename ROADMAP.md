@@ -63,6 +63,14 @@
 - [x] **OmegaUiBridge Modernization (Sprint 4)** (2026-03-24 00:10): High-fidelity JSON-RPC v1 protocol with **JUCE 8 Native Promises**.
 - [x] **WebView2 Stabilization**: Resolved initialization hangs and resource provider issues (2026-03-24 00:20).
 - [x] **Git-for-Sounds (Sprint 6)**: Versioning, Snapshots, and Branching for presets (2026-03-24 09:50).
+- [x] **OMEGA 2-Week Surgical Maintenance Plan** (2026-03-26 10:20):
+    - [x] **Real-Time Safety Audit**: Lock-free `OmegaInput` and `ModulationRuntime` (Zero-alloc/Zero-lock).
+    - [x] **Service Layer Facades**: Implementation of `EngineConfigManager` and `PresetService`.
+    - [x] **JUCE Decoupling**: Refactor of `OmegaAudioProcessor` for clean delegation.
+    - [x] **Performance Benchmarking**: Integrated `PerformanceMonitor` for audio-thread profiling.
+- [x] **VA/ACE MVP 0.1: Flagship Synthesis** (2026-03-26 10:40):
+    - [x] **ValueTree & Atomic Config Refit**: Complete migration of `OmegaPreset` and `EngineConfig` to JUCE 8 `ValueTree` (2026-03-27 12:45).
+- [x] **DSP Engine Synchronization**: Refactored `VirtualAnalogEngine` and `ISynthesisEngine` for atomic configuration swaps.
 - [ ] **Engine C: Wavetable (OSC-WT-001)**: High-fidelity analysis and Waldorf-style playback.
 - [ ] **OSC-FM-001 (FM - DX7 style)**.
 
@@ -71,7 +79,7 @@
 - [x] **Professional Navigation Bar**: FILE, EDIT, HELP menus with functional Exit and Console toggle (2026-03-24 00:40).
 - [x] **About OMEGA Modal**: High-fidelity credits and synth metadata (2026-03-24 00:45).
 - [x] **Complete Synthesizer Rack**: DCO, VCF, JP/Korg Filters, and Space Echo default view (2026-03-24 01:00).
-- [x] **Preset Browser & Mock Fallback**: Side panel integration with resilient RPC mocking (2026-03-24 09:55).
+- [x] **Korg MS-20 Branding & Telemetry Phase**: Resolved uppercase JSON-RPC key mismatch and implemented dedicated black panel aesthetic for Korg35 (2026-03-26 02:15).
 - [ ] Dynamic PE Knob mapping visualizer.
 
 ### Phase 6: Architectural Maturity & Universal Metadata [DONE]
@@ -81,6 +89,8 @@
 - [x] **Modulation Telemetry**: High-speed data canal for real-time modulation visualization in the WebUI (2026-03-24 11:10).
 - [x] **Phase 8: Dual-Rack Modular UI**: Refactored to vertical flex-column with Utility/Synthesis racks (2026-03-24 11:15).
 - [x] **Phase 9: MIDI Trigger Module**: Real-time note injection via thread-safe C++ bridge (2026-03-24 11:25).
+- [x] **Phase 10: Brand-Based Source Tree Reorganization**: Standardized specialist modules under Roland, Korg, and Modular hierarchies with consistent namespace resolution (2026-03-24 13:45).
+- [x] **Phase 11: Zero-Core-Errors Achievement**: Project-wide clean build (Exit Code 0) after complex symbolic reconciliation (2026-03-24 13:50).
 
 ---
-*Last Updated: 2026-03-24 11:27*
+*Last Updated: 2026-03-27 12:45*

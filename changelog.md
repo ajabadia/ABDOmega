@@ -2,6 +2,46 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
  
+## [1.6.1] - 2026-03-27
+### Fixed
+- **ValueTree Serialization**: Resolved `std::string` type mismatches in `OmegaPreset` and implemented robust `juce::var` wrapping.
+- **Linker Stability**: Fixed unresolved external symbols in `OmegaPreset` (`addLayer`) and `PresetRepository` (`getPresetPath`).
+- **DSP Core Synchronization**: Corrected `VirtualAnalogEngine` inheritance from `ISynthesisEngine` and synchronized `renderNextBlock` signatures.
+- **Bridge Reliability**: Fixed obsolete member access in `OmegaUiBridge` (migrated `id` to `getUuid()`).
+
+### Improved
+- **Configuration Engine**: Centralized `EngineConfig` and `VoiceConfig` structures to prevent redefinition errors and ensure atomic swap safety.
+- **Header Integrity**: Standardized includes and guards across `omega_core` and `omega_dsp`.
+
+## [1.6.0] - 2026-03-26
+### Added
+- **VA/ACE MVP 0.1 Milestone**:
+    - **Atomic Snapshot Engine**: Implementation of `EngineConfig` and atomic swap mechanism for sample-accurate, lock-free preset switching.
+    - **Flagship Presets**: Created `Juno_Pad.yaml`, `MS20_Bass.yaml`, and `Hybrid_Pad.yaml` using high-fidelity ACE components.
+    - **Korg MS-20 Fidelity**: Added `OSC-VA-002` (VCO) to the ACE catalog.
+- **Unified Validation Layer**:
+    - `AceValidator` fully migrated to `juce::ValueTree` API for robust preset repair and fallback handling.
+
+### Improved
+- **Architectural Decoupling**: Segregated `EngineTypes.h` and `EngineConfig.h` to eliminate circular dependencies between the service and DSP layers.
+
+## [1.5.0] - 2026-03-26
+### Added
+- **PerformanceMonitor Utility**: Lightweight, lock-free profiling for the audio thread using atomics and high-resolution ticks.
+- **Service Layer Specification**: New official documentation in `DOCUMENTACION/OFICIAL/service_layer_spec.md`.
+- **Instrumentation**: Benchmarking hooks in `VirtualAnalogEngine` and `ModulationRuntime` for real-time latency tracking.
+
+### Improved
+- **Architectural Decoupling (2-Week Surgical Plan)**:
+    - **EngineConfigManager**: Centralized engine configuration and parameter mapping facade.
+    - **PresetService**: Orchestrated preset lifecycle management, separating file I/O from the synthesis core.
+    - **OmegaAudioProcessor Refactor**: Reduced plugin wrapper complexity by ~40% through service delegation.
+- **Real-Time Safety & Performance**:
+    - **Lock-Free Input**: `OmegaInput` now uses fixed-size event buffers, eliminating heap allocations in the process block.
+    - **ValueTree Serialization**: `OmegaUiBridge` refactored to use the new `ValueTree`-based `OmegaPreset` API, ensuring consistent state across the stack.
+
+## [1.4.1] - 2026-03-26
+
 ## [1.4.0] - 2026-03-24
 ### Added
 - **Dual-Rack Modular Architecture (Phase 8)**:

@@ -11,7 +11,6 @@ add_executable(omegatests
     TestUiBridge.cpp
     TestPresetGit.cpp
     TestKorg35Refined.cpp
-    ../Plugin/Midi1InputAdapter.cpp
     ../Plugin/OmegaAudioProcessor.cpp
     ../UI/OmegaUiBridge.cpp
 )
@@ -37,6 +36,7 @@ target_include_directories(omegatests
 target_compile_definitions(omegatests
     PRIVATE
         JUCE_USE_WIN_WEBVIEW2=0
+        OMEGA_UNIT_TESTS=1
 )
 
 include(Catch)

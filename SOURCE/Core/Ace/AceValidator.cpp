@@ -4,18 +4,29 @@ namespace Omega::Core::Ace {
 
     ValidationReport AceValidator::validateAndRepairPreset(Preset::OmegaPreset& preset) const {
         ValidationReport report;
-        for (auto& layer : preset.layers) {
+        if (!preset.isValid()) {
+            report.status = ValidationStatus::Invalid;
+            return report;
+        }
+
+        for (int i = 0; i < preset.getNumLayers(); ++i) {
+            auto layer = preset.getLayerTree(i);
             validateLayer(layer, report);
         }
         return report;
     }
 
     void AceValidator::checkComponent(const std::string& scope,
-                                      std::string& componentId,
+                                      juce::ValueTree& componentNode,
                                       const std::string& family,
                                       const std::string& engine,
                                       ValidationReport& report) const {
-        if (mCatalog.getComponent(componentId) != nullptr)
+        if (!componentNode.isValid()) return;
+
+        juce::String cid = componentNode.getProperty(Preset::IDs::componentId).toString();
+        std::string sId = cid.toStdString();
+
+        if (mCatalog.getComponent(sId) != nullptr)
             return;
 
         std::string fb = mCatalog.getFallbackId(family, engine);
@@ -25,51 +36,44 @@ namespace Omega::Core::Ace {
 
         if (!fb.empty()) {
             issue.severity = ValidationStatus::Degraded;
-            issue.message = "Component " + componentId + " no encontrado, usando fallback " + fb;
-            componentId = fb;
+            issue.message = "Component " + sId + " no encontrado, usando fallback " + fb;
+            componentNode.setProperty(Preset::IDs::componentId, juce::String(fb), nullptr);
+            
             if (report.status == ValidationStatus::Ok)
                 report.status = ValidationStatus::Degraded;
         } else {
             issue.severity = ValidationStatus::Invalid;
-            issue.message = "Component " + componentId + " no encontrado y no hay fallback disponible";
+            issue.message = "Component " + sId + " no encontrado y no hay fallback disponible";
             report.status = ValidationStatus::Invalid;
         }
 
         report.issues.push_back(issue);
     }
 
-    void AceValidator::validateLayer(Preset::Layer& layer, ValidationReport& report) const {
-        const std::string engine = "VirtualAnalog"; // Default engine para el MVP
+    void AceValidator::validateLayer(juce::ValueTree& layer, ValidationReport& report) const {
+        auto arch = layer.getChildWithName(Preset::IDs::architecture);
+        if (!arch.isValid()) return;
 
-        // Validar Osciladores
-        for (auto& osc : layer.voiceArch.oscillators) {
-            std::string scope = "Layer" + layer.id + "." + osc.slotName;
-            checkComponent(scope, osc.componentId, "Oscillator", engine, report);
-        }
+        juce::String layerIdStr = layer.getProperty(Preset::IDs::id).toString();
 
-        // Validar Filtros
-        for (auto& flt : layer.voiceArch.filters) {
-            std::string scope = "Layer" + layer.id + "." + flt.slotName;
-            checkComponent(scope, flt.componentId, "Filter", engine, report);
-        }
+        // Helper para validar colecciones de componentes (osciladores, filtros, etc.)
+        auto validateCollection = [&](const juce::Identifier& folderName, const std::string& family) {
+            auto folder = arch.getChildWithName(folderName);
+            if (folder.isValid()) {
+                for (int i = 0; i < folder.getNumChildren(); ++i) {
+                    auto component = folder.getChild(i);
+                    juce::String slotNameStr = component.getProperty(Preset::IDs::slotName).toString();
+                    std::string scope = "Layer" + layerIdStr.toStdString() + "." + family + "." + slotNameStr.toStdString();
+                    checkComponent(scope, component, family, "VirtualAnalog", report);
+                }
+            }
+        };
 
-        // Validar Envelopes
-        for (auto& env : layer.voiceArch.envelopes) {
-            std::string scope = "Layer" + layer.id + "." + env.slotName;
-            checkComponent(scope, env.componentId, "Envelope", engine, report);
-        }
-
-        // Validar LFOs
-        for (auto& lfo : layer.voiceArch.lfos) {
-            std::string scope = "Layer" + layer.id + "." + lfo.slotName;
-            checkComponent(scope, lfo.componentId, "LFO", engine, report);
-        }
-
-        // Validar FX
-        for (auto& fx : layer.voiceArch.fxSlots) {
-            std::string scope = "Layer" + layer.id + "." + fx.slotName;
-            checkComponent(scope, fx.componentId, "FX", engine, report);
-        }
+        validateCollection(juce::Identifier("oscillators"), "Oscillator");
+        validateCollection(juce::Identifier("filters"), "Filter");
+        validateCollection(juce::Identifier("envelopes"), "Envelope");
+        validateCollection(juce::Identifier("lfos"), "LFO");
+        validateCollection(juce::Identifier("fxSlots"), "FX");
     }
 
 } // namespace Omega::Core::Ace

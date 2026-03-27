@@ -28,14 +28,21 @@ namespace Omega::Core::Modulation {
          */
         void update(const std::array<float, kMaxSignals>& currentValues) {
             for (int i = 0; i < kMaxSignals; ++i) {
-                float val = currentValues[i];
-                mLatestValues[i].store(val, std::memory_order_relaxed);
-                
-                // Update history (circular)
-                int pos = mWritePos[i].load(std::memory_order_relaxed);
-                mHistory[i][pos] = val;
-                mWritePos[i].store((pos + 1) % kHistoryLength, std::memory_order_release);
+                pushSignal(i, currentValues[i]);
             }
+        }
+
+        /**
+         * @brief Empuja un valor individual a una de las celdas de telemetría.
+         */
+        void pushSignal(int i, float val) {
+            if (i < 0 || i >= kMaxSignals) return;
+            mLatestValues[i].store(val, std::memory_order_relaxed);
+            
+            // Update history (circular) - Atomic store
+            int pos = mWritePos[i].load(std::memory_order_relaxed);
+            mHistory[i][pos].store(val, std::memory_order_relaxed);
+            mWritePos[i].store((pos + 1) % kHistoryLength, std::memory_order_release);
         }
 
         /**
@@ -54,7 +61,7 @@ namespace Omega::Core::Modulation {
             
             int pos = mWritePos[signalIndex].load(std::memory_order_acquire);
             for (int i = 0; i < kHistoryLength; ++i) {
-                targetBuffer[i] = mHistory[signalIndex][(pos + i) % kHistoryLength];
+                targetBuffer[i] = mHistory[signalIndex][(pos + i) % kHistoryLength].load(std::memory_order_relaxed);
             }
         }
 
@@ -63,12 +70,12 @@ namespace Omega::Core::Modulation {
             for (int i = 0; i < kMaxSignals; ++i) {
                 mLatestValues[i].store(0.0f);
                 mWritePos[i].store(0);
-                mHistory[i].fill(0.0f);
+                for (auto& h : mHistory[i]) h.store(0.0f);
             }
         }
 
         std::array<std::atomic<float>, kMaxSignals> mLatestValues;
-        std::array<std::array<float, kHistoryLength>, kMaxSignals> mHistory;
+        std::array<std::array<std::atomic<float>, kHistoryLength>, kMaxSignals> mHistory;
         std::array<std::atomic<int>, kMaxSignals> mWritePos;
     };
 

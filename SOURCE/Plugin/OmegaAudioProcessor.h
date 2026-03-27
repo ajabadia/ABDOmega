@@ -2,15 +2,17 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 #include <atomic>
 #include <memory>
-#include "../DSP/Engines/Juno/VirtualAnalogEngine.h"
+#include "../DSP/Engines/Modular/VirtualAnalogEngine.h"
 #include "../Core/Preset/OmegaPreset.h"
 #include "../Core/Preset/PresetRepository.h"
 #include "../Core/Ace/AceCatalog.h"
-#include "../Core/Ace/AceValidator.h"
-#include "Midi1InputAdapter.h"
 #include "../Core/Input/OmegaInput.h"
+#include "../Core/Input/Midi1InputAdapter.h"
+#include "../Core/Service/EngineConfigManager.h"
+#include "../Core/Service/PresetService.h"
 #include "../UI/OmegaUiBridge.h"
 
 
@@ -21,10 +23,10 @@ namespace Omega::Plugin {
      * [Architecture]: Coordina el motor DSP, el sistema de presets ACE y el grafo de modulación.
      * [AudioThreadSafety]: Renderizado lock-free en processBlock.
      */
-    class OmegaAudioProcessor : public juce::AudioProcessor {
+    class OmegaAudioProcessor : public juce::AudioProcessor, private juce::Timer {
     public:
         OmegaAudioProcessor();
-        ~OmegaAudioProcessor() override = default;
+        ~OmegaAudioProcessor() override;
 
         // --- JUCE Overrides ---
         void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -56,6 +58,7 @@ namespace Omega::Plugin {
         void triggerNote(int midiNote, int velocity, bool isOn);
 
     private:
+        void timerCallback() override;
         void updateParameters() noexcept;
 
         // ACE System
@@ -63,14 +66,16 @@ namespace Omega::Plugin {
         Core::Ace::AceValidator mValidator;
         
         // Audio Engine & Input
-        DSP::Engines::Juno::VirtualAnalogEngine mEngine;
+        DSP::Engines::Modular::VirtualAnalogEngine mEngine;
         Core::Input::OmegaInput mInput;
-        Core::Input::Midi1InputAdapter mMidiAdapter;
         
         // State
         Core::Preset::OmegaPreset mCurrentPreset;
         Core::Preset::PresetRepository mPresetRepository;
         juce::AudioProcessorValueTreeState mApvts;
+        // High-Level Facades
+        Core::Service::EngineConfigManager mEngineConfig;
+        Core::Service::PresetService mPresetService;
         UI::OmegaUiBridge mUiBridge;
 
         // Parameter Cache (Lock-free access)
@@ -97,6 +102,19 @@ namespace Omega::Plugin {
             std::atomic<float>* korgHpCutoff = nullptr;
             std::atomic<float>* korgHpRes = nullptr;
             std::atomic<float>* korgGrit = nullptr;
+
+            // ADSR
+            std::atomic<float>* mainAttack = nullptr;
+            std::atomic<float>* mainDecay = nullptr;
+            std::atomic<float>* mainSustain = nullptr;
+            std::atomic<float>* mainRelease = nullptr;
+
+            // VCA
+            std::atomic<float>* mainVcaGain = nullptr;
+
+            // LFO
+            std::atomic<float>* mainLfoRate = nullptr;
+            std::atomic<float>* mainLfoWave = nullptr;
 
             // Space Echo
             std::atomic<float>* spaceEchoEnabled = nullptr;

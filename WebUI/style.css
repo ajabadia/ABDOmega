@@ -355,6 +355,8 @@ body, html {
     position: relative;
     box-shadow: inset 0 0 15px rgba(255,255,255,0.05), 5px 5px 15px rgba(0,0,0,0.5);
     border: 1px solid #222;
+    min-width: 80px;
+    width: auto;
 }
 
 .module-header {
@@ -401,7 +403,15 @@ body, html {
     gap: 15px;
     height: 100%;
     box-sizing: border-box;
-    width: 250px; /* Default module width */
+    width: fit-content;
+    min-width: 60px;
+}
+
+.param-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
 }
 
 .param-row {
@@ -424,6 +434,18 @@ body, html {
     text-transform: uppercase;
     font-weight: bold;
     text-shadow: 1px 1px 2px black;
+}
+
+.silver-panel {
+    background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+    border: 1px solid #999;
+    color: #222 !important;
+}
+
+.ms20-panel {
+    background: #0a0a0a !important;
+    border: 2px solid #333;
+    color: #eee !important;
 }
 
 /* Custom Controls - Juno Style */
@@ -801,6 +823,19 @@ button.sq.active.juno-orange {
     letter-spacing: 1px;
 }
 
+/* MIDI Viewer specific */
+.midi-viewer-module {
+    width: 200px;
+    background: #0a0a0a;
+    border-left: 4px solid var(--neon-cyan) !important;
+}
+
+.midi-log-wrapper {
+    background: #000;
+    margin: 5px 10px !important;
+    height: 100px;
+}
+
 /* MIDI Trigger Module */
 .midi-trigger-module {
     width: 250px;
@@ -872,4 +907,71 @@ button.sq.active.juno-orange {
 :root {
     --neon-purple: #9d00ff;
     --neon-emerald: #00ff80;
+}
+
+/* Vertical Knob Control */
+.knob-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 0;
+}
+
+.knob-control label {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.knob {
+    width: 36px;
+    height: 36px;
+    background: radial-gradient(circle at center, #444 0%, #222 70%, #111 100%);
+    border-radius: 50%;
+    border: 2px solid #333;
+    position: relative;
+    cursor: ns-resize;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.5), inset 0 0 5px rgba(255,255,255,0.1);
+}
+
+.knob-marker {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    width: 2px;
+    height: 10px;
+    background-color: #fff;
+    transform-origin: bottom center;
+    transform: translateX(-50%) rotate(var(--knob-angle, -135deg));
+    border-radius: 2px;
+    box-shadow: 0 0 5px rgba(255,255,255,0.5);
+}
+
+/* Silver Metallic Theme (Korg style) */
+.silver-metallic {
+    background: linear-gradient(135deg, #e0e0e0 0%, #b0b0b0 50%, #808080 100%) !important;
+    border: 1px solid #666 !important;
+    box-shadow: inset 0 0 10px rgba(255,255,255,0.5), 2px 2px 5px rgba(0,0,0,0.3) !important;
+}
+
+.knob.silver {
+    background: radial-gradient(circle at center, #fff 0%, #ccc 60%, #999 100%) !important;
+    border-color: #777 !important;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2), inset 0 0 2px rgba(255,255,255,0.8) !important;
+}
+
+.knob-marker.silver {
+    background-color: #333 !important;
+    box-shadow: none !important;
+}
+
+label.silver {
+    color: #333 !important;
+    font-weight: 800 !important;
+}
+
+.dark-text {
+    color: #222 !important;
 }

@@ -60,6 +60,7 @@
         console.log = (...args) => { originalLog.apply(console, args); appendToConsole('log', ...args); };
         console.warn = (...args) => { originalWarn.apply(console, args); appendToConsole('warn', ...args); };
         console.error = (...args) => { originalError.apply(console, args); appendToConsole('error', ...args); };
+
     </script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -155,12 +156,16 @@
     <!-- UI Bridge & Module Manager -->
     <script src="omega_rpc.js"></script>
     <script src="components/ModuleJuno.js"></script>
+    <script src="components/ModuleStandard.js"></script>
     <script src="components/ModuleAdvanced.js"></script>
     <script src="components/ModuleSpaceEcho.js"></script>
+    <script src="components/ModuleKorg.js"></script>
     <script src="components/PresetBrowser.js"></script>
     <script src="components/VersionControl.js"></script>
     <script src="components/ModuleMidiTrigger.js"></script>
+    <script src="components/ModuleMidiViewer.js"></script>
     <script src="components/ModuleOscilloscope.js"></script>
+    <script src="components/ModulationVisualizer.js"></script>
     <script src="module_manager.js"></script>
     <script src="index.js"></script>
 </body>

@@ -14,20 +14,27 @@ The project follow a "Modular-without-Cables" architecture, focusing on expressi
 - `/SOURCE/DSP`: Core DSP algorithms (VA, Physical Models).
 - `/SOURCE/Core`: Agnostic library (Ace, Modulation, Input Buffers).
 - `/SOURCE/Plugin`: JUCE Processor and Bridge/Adapter layers.
+- `/SOURCE/Core/Service`: High-level facades (`EngineConfigManager`, `PresetService`).
+
+## 🏗️ Architecture: The Service Layer Pattern
+OMEGA has transitioned to a **Service-Oriented Architecture** to ensure long-term maintainability and JUCE-decoupling:
+
+- **EngineConfigManager**: The architectural bridge that translates high-level parameters and `OmegaPreset` ValueTrees into low-level DSP execution.
+- **PresetService**: A dedicated lifecycle manager for loading, saving, and versioning sounds, keeping file I/O out of the audio thread.
+- **Real-Time Safety**: Core components (`OmegaInput`, `ModulationRuntime`) are strictly allocation-free and lock-free, guaranteed by our `PerformanceMonitor` instrumentation.
+- **Universal Metadata**: A single source of truth in C++ serves ranges, units, and UI labels via JSON-RPC, ensuring 100% synchronization with the WebUI.
 
 ## 🛠 Active Features
+- **VA/ACE MVP 0.1: Flagship Synthesis**:
+    - **Atomic Snapshot Engine**: Real-time safe, lock-free preset switching via `EngineConfig` atomic swaps. High-resolution parameter reconciliation between the Service Layer and DSP core.
+    - **Triple Flagship Presets**: Curated high-fidelity sounds including **Juno 106 Pad** (pure Roland chain), **MS-20 Aggressive Bass** (Korg-35 chain), and **Hybrid MS20-JP Pad** (multi-layer branding).
+    - **ACE Catalog Expansion**: Integrated `OSC-VA-002` (Korg MS-20 VCO) with 100% `ValueTree`-based validation and automatic repair logic.
 - **Agnostic Input Layer**: `OmegaInput` system provides a neutral event buffer, decoupling DSP from MIDI protocols.
-- **ACE Core**: Dynamic component architecture (Catalog & Validator) fully integrated.
 - **Juno High-Fidelity**: Emulación de hardware con cuantización de timer Intel 8253 (8MHz), modelo de drift analógico de 3 niveles y chorus BBD.
-- **Modulation System**: Sample-accurate graph processing (Graph-to-Runtime) implemented.
-- **Korg Prophecy & Z1 (MOSS)**: Modelos físicos de cuerda, metales, caña, VPM, **EP (Electric Piano)** y **Drawbar Organ**. Sistema de macros **Energy, Movement, Air y Expressivity** con Arpeggiador programable y LFOs de alta resolución.
-- **Roland JP-8080 Elite**: Osciladores **Feedback** y **Supersaw**, **Cross-Modulation**, **JP-Formant Filter** y sistema de **Motion Control** integrado.
-- **Korg MS-20**: Filtro Korg35 LP/HP, **External Signal Processor (ESP)** con seguimiento de pitch/env y envolvente **ENV1** con Delay/Hold.
+- **Korg Prophecy & Z1 (MOSS)**: Modelos físicos de cuerda, metales, caña, VPM, **EP (Electric Piano)** e **Drawbar Organ**.
+- **Roland JP-8080 Elite Suite**: Osciladores **Feedback** y **Supersaw**, **Cross-Modulation**, **JP-Formant Filter** y **Motion Control**.
 - **Space Echo (RE-201)**: Emulación multi-cabezal con saturación de cinta magnética y reverb de muelles integrada en el rack modular.
-- **Universal Metadata Architecture (Phase 6)**: Establecimiento del **ParameterMetadataRegistry** en C++ como única fuente de verdad. Centraliza rangos, unidades, nombres y mapeos MIDI/Modulalción, eliminando datos hardcoded en la WebUI.
-- **Dual-Rack Modular UI (Phase 8)**: Interfaz expandida con rack superior para utilidades (telemetría/control) y rack inferior para síntesis masiva. Diseño auto-configurable de 1600px.
-- **MIDI Trigger & Playback (Phase 9)**: Capacidad nativa para disparar notas desde la WebUI con sincronización de baja latencia mediante colas MIDI thread-safe en C++.
-- **Build System**: Estabilización mediante `build_auto.bat` (CMake/Ninja) con tracking automático de builds y despliegue del ejecutable Standalone (Build #43).
+- **Build System**: Estabilización mediante `build_auto.bat` (CMake/Ninja) con tracking automático de builds y despliegue del ejecutable Standalone (**Build #104**).
 
 ---
 *Built by ABD-IA*

@@ -1,0 +1,31 @@
+preset:
+  metadata:
+    name: "MS-20 Aggressive Bass"
+    author: "ABD"
+    category: "Bass"
+    tags: ["Analog", "Korg", "Aggressive"]
+    engine: "VirtualAnalog"
+    masterGainDb: -2.0
+  layers:
+    - id: "A"
+      name: "MS-20 Layer"
+      active: true
+      gainDb: 0.0
+      architecture:
+        oscillators:
+          - slotName: "Osc1"
+            componentId: "OSC-VA-002" # Korg MS-20 VCO
+        filters:
+          - slotName: "Filter1"
+            componentId: "FLT-VA-003" # Korg-35 Filter
+        envelopes:
+          - slotName: "AmpEnv"
+            componentId: "ENV-ADSR-GEN"
+      params:
+        cutoff: 500.0
+        resonance: 0.6
+        grit: 1.5
+        attack: 10.0
+        decay: 150.0
+        sustain: 0.4
+        release: 50.0

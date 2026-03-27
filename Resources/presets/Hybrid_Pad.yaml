@@ -1,0 +1,51 @@
+preset:
+  metadata:
+    name: "Hybrid MS20 JP Pad"
+    author: "ABD"
+    category: "Pad"
+    tags: ["Hybrid", "Korg", "Roland", "Epic"]
+    engine: "VirtualAnalog"
+    masterGainDb: -4.0
+  layers:
+    - id: "A"
+      name: "MS-20 Filtered"
+      active: true
+      gainDb: -3.0
+      architecture:
+        oscillators:
+          - slotName: "Osc1"
+            componentId: "OSC-VA-002" # Korg MS-20 VCO
+        filters:
+          - slotName: "Filter1"
+            componentId: "FLT-VA-003" # Korg-35 Filter
+        envelopes:
+          - slotName: "AmpEnv"
+            componentId: "ENV-ADSR-GEN"
+      params:
+        cutoff: 800.0
+        resonance: 0.3
+        grit: 0.8
+        attack: 200.0
+        release: 1500.0
+    - id: "B"
+      name: "JP Supersaw"
+      active: true
+      gainDb: -6.0
+      architecture:
+        oscillators:
+          - slotName: "Osc1"
+            componentId: "OSC-VA-004" # Roland JP Supersaw
+        filters:
+          - slotName: "Filter1"
+            componentId: "FLT-VA-008" # Roland JP Filter
+        envelopes:
+          - slotName: "AmpEnv"
+            componentId: "ENV-ADSR-GEN"
+        fxSlots:
+          - slotName: "FX1"
+            componentId: "FX-CH-001" # Juno Chorus
+      params:
+        cutoff: 2000.0
+        resonance: 0.1
+        attack: 400.0
+        release: 2000.0

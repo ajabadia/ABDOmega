@@ -1,41 +1,37 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "OmegaWebViewComponent.h"
+#include <juce_gui_basics/juce_gui_basics.h>
 #include "../Plugin/OmegaAudioProcessor.h"
+#include "OmegaWebViewComponent.h"
 
 namespace Omega {
     namespace UI {
 
-    /**
-     * @brief Editor principal de OMEGA.
-     * [Architecture]: Actúa como ventana de JUCE para el WebView.
-     */
     class OmegaMainEditor : public juce::AudioProcessorEditor {
     public:
         OmegaMainEditor(Plugin::OmegaAudioProcessor& p, OmegaUiBridge& bridge)
-            : AudioProcessorEditor(&p), mWebViewContainer(bridge)
+            : AudioProcessorEditor(&p),
+              mWebView(bridge)
         {
-            addAndMakeVisible(mWebViewContainer);
-            
-            // Tamaño inicial del plugin
-            setSize(1600, 750);
-            setResizable(true, true);
+            addAndMakeVisible(mWebView);
+            setSize(1200, 800);
         }
+
+        ~OmegaMainEditor() override {}
 
         void resized() override
         {
-            mWebViewContainer.setBounds(getLocalBounds());
+            mWebView.setBounds(getLocalBounds());
         }
 
         void paint(juce::Graphics& g) override
         {
-            // Fondo oscuro premium mientras carga el WebView
-            g.fillAll(juce::Colours::black);
+            g.fillAll(juce::Colours::black); 
         }
 
     private:
-        OmegaWebViewComponent mWebViewContainer;
+        OmegaWebViewComponent mWebView;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OmegaMainEditor)
     };

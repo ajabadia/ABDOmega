@@ -1,18 +1,48 @@
 #include "OmegaAudioProcessor.h"
+#ifndef OMEGA_UNIT_TESTS
 #include "../UI/OmegaMainEditor.h"
+#endif
 #include "../Core/Preset/JunoFactory.h"
 #include "../Core/ParameterMetadata.h"
+#include <set>
+#include <string>
+#include "../Core/Modulation/MidiMonitor.h"
 
 namespace Omega::Plugin {
+    
+    static void logToFile(const std::string& msg) {
+        static juce::CriticalSection gLogLock;
+        const juce::ScopedLock sl(gLogLock);
+        juce::File logFile = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getSiblingFile("OMEGA_BOOT_LOG.txt");
+        logFile.appendText("[" + juce::Time::getCurrentTime().toString(true, true) + "] " + msg + "\n");
+    }
+
+    // Helper to check and log null parameters
+    static bool isNull(std::atomic<float>* p, const char* name) {
+        if (p == nullptr) {
+            static std::set<std::string> loggedOnce;
+            std::string key(name);
+            if (loggedOnce.find(key) == loggedOnce.end()) {
+                logToFile("CRITICAL: Parameter NOT FOUND: " + key);
+                loggedOnce.insert(key);
+            }
+            return true;
+        }
+        return false;
+    }
 
     OmegaAudioProcessor::OmegaAudioProcessor() 
         : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
           mValidator(mCatalog),
           mPresetRepository("d:/desarrollos/ABDOmega/Resources/Presets"),
           mApvts(*this, nullptr, "PARAMETERS", createParameterLayout()),
-          mUiBridge(*this, mCurrentPreset, mCatalog, mPresetRepository, mApvts)
+          mEngineConfig(mEngine, mCatalog),
+          mPresetService(mCatalog),
+          mUiBridge(this, mCurrentPreset, mCatalog, &mPresetRepository, mApvts)
     {
-        // Link Bridge load callback
+        logToFile("OmegaAudioProcessor: Constructor Start");
+        // ... (resto de inicialización de mParamCache)
+        startTimer(2000); // 2 seconds watchdog
         mUiBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset& p) { this->loadPreset(p); });
 
         // Initialize Parameter Cache
@@ -35,9 +65,18 @@ namespace Omega::Plugin {
         mParamCache.dcoLfoDepth = mApvts.getRawParameterValue("LAYERADCOMODDEPTH");
         mParamCache.jpDetune = mApvts.getRawParameterValue("LAYERAMAINJPDETUNE");
         mParamCache.jpFilterMode = mApvts.getRawParameterValue("LAYERAMAINJPFILTERMODE");
-        mParamCache.korgHpCutoff = mApvts.getRawParameterValue("LAYERAKORGHPFDCUTOFF");
+        mParamCache.korgHpCutoff = mApvts.getRawParameterValue("LAYERAKORGHPFCUTOFF");
         mParamCache.korgHpRes = mApvts.getRawParameterValue("LAYERAKORGHPFRESONANCE");
         mParamCache.korgGrit = mApvts.getRawParameterValue("LAYERAKORGGRIT");
+
+        // --- ADSR / VCA / LFO Cache ---
+        mParamCache.mainAttack = mApvts.getRawParameterValue("LAYERAMAINATTACK");
+        mParamCache.mainDecay = mApvts.getRawParameterValue("LAYERAMAINDECAY");
+        mParamCache.mainSustain = mApvts.getRawParameterValue("LAYERAMAINSUSTAIN");
+        mParamCache.mainRelease = mApvts.getRawParameterValue("LAYERAMAINRELEASE");
+        mParamCache.mainVcaGain = mApvts.getRawParameterValue("LAYERAMAINVCAGAIN");
+        mParamCache.mainLfoRate = mApvts.getRawParameterValue("LAYERAMAINLFORATE");
+        mParamCache.mainLfoWave = mApvts.getRawParameterValue("LAYERAMAINLFOWAVE");
         
         // --- Space Echo Cache ---
         mParamCache.spaceEchoEnabled = mApvts.getRawParameterValue("LAYERAFXSPACEENABLE");
@@ -50,16 +89,32 @@ namespace Omega::Plugin {
         mParamCache.spaceEchoDrive = mApvts.getRawParameterValue("LAYERAFXSPACEDRIVE");
 
         // Carga inicial del preset de factoría
-        loadPreset(Core::Preset::JunoFactory::createJunoBasicPad());
+        logToFile("OmegaAudioProcessor: Loading initial preset (VERIFICATION)...");
+        loadPreset(Core::Preset::JunoFactory::createVerificationPreset());
+        logToFile("OmegaAudioProcessor: Constructor End");
+    }
+
+    OmegaAudioProcessor::~OmegaAudioProcessor() {
+        logToFile("OmegaAudioProcessor: Destructor called");
     }
 
     void OmegaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
-        mEngine.prepare(sampleRate, samplesPerBlock);
+        logToFile("OmegaAudioProcessor: prepareToPlay (SR: " + std::to_string(sampleRate) + ", Block: " + std::to_string(samplesPerBlock) + ")");
+        // --- REESTABLECIDO EN BUILD 57 ---
+        mEngine.prepare (sampleRate, samplesPerBlock);
+        
+        logToFile("OmegaAudioProcessor: prepareToPlay END");
     }
 
-    void OmegaAudioProcessor::releaseResources() {}
+    void OmegaAudioProcessor::releaseResources() {
+        static std::atomic<bool> logged(false);
+        if (!logged.exchange(true)) logToFile("OmegaAudioProcessor: releaseResources called");
+    }
 
     void OmegaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
+        static std::atomic<bool> firstBeat(true);
+        if (firstBeat.exchange(false)) logToFile("OmegaAudioProcessor: processBlock FIRST BEAT");
+        
         juce::ScopedNoDenormals noDenormals;
         
         // Limpiar canales extra
@@ -80,74 +135,47 @@ namespace Omega::Plugin {
 
         // 1. Traducir MIDI a OmegaInput
         mInput.clear();
-        mMidiAdapter.process(midiMessages, mInput);
+        Core::Input::Midi1InputAdapter::process(midiMessages, mInput);
+        
+        // --- Monitor MIDI events for UI ---
+        for (const auto metadata : midiMessages) {
+            auto msg = metadata.getMessage();
+            Core::Modulation::MidiMonitor::getInstance().pushEvent(msg);
+        }
+
+        if (!midiMessages.isEmpty()) {
+            static int midiLogCounter = 0;
+            if (midiLogCounter++ % 100 == 0) logToFile("AUDIO: processBlock MIDI EVENTS: " + std::to_string(midiMessages.getNumEvents()));
+        }
 
         // 2. Renderizado del motor (ACE dynamic bridge)
+        // --- REESTABLECIDO EN BUILD 57 ---
         mEngine.renderNextBlock(buffer, mInput);
+
+        // Sanity Check for silence
+        float magnitude = buffer.getMagnitude(0, buffer.getNumSamples());
+        if (magnitude > 0.0001f) {
+            static int signalLogCounter = 0;
+            if (signalLogCounter++ % 500 == 0) logToFile("AUDIO: Signal detected! Mag: " + std::to_string(magnitude));
+        }
+    }
+
+    void OmegaAudioProcessor::timerCallback() {
+        static std::atomic<bool> logged(false);
+        if (!logged.exchange(true)) logToFile("WATCHDOG: Message Thread ALIVE");
     }
 
     void OmegaAudioProcessor::updateParameters() noexcept {
-        float cutoff = mParamCache.cutoff->load();
-        float resonance = mParamCache.resonance->load();
-        int chorusMode = (int)mParamCache.chorusMode->load();
-        int hpfPos = (int)mParamCache.hpfPos->load();
-        bool vcaGate = (int)mParamCache.vcaMode->load() == 1;
-        float drift = mParamCache.drift->load();
-
-        bool sawOn = mParamCache.sawOn->load() > 0.5f;
-        bool pulseOn = mParamCache.pulseOn->load() > 0.5f;
-        float subLevel = mParamCache.subLevel->load();
-        float noiseLevel = mParamCache.noiseLevel->load();
-        bool pwmModeLfo = (int)mParamCache.pwmMode->load() == 1;
-        float pwmAmount = mParamCache.pwmAmount->load();
-
-        float vcfEnvDepth = mParamCache.vcfEnvDepth->load();
-        float vcfLfoDepth = mParamCache.vcfLfoDepth->load();
-        float vcfKybd = mParamCache.vcfKybd->load();
-        bool vcfInv = (int)mParamCache.vcfEnvPol->load() == 1;
-        float dcoLfoDepth = mParamCache.dcoLfoDepth->load();
-        
-        float jpDetune = mParamCache.jpDetune->load();
-        int jpFilterMode = (int)mParamCache.jpFilterMode->load();
-        float korgHpCut = mParamCache.korgHpCutoff->load();
-        float korgHpRes = mParamCache.korgHpRes->load();
-        float korgGrit = mParamCache.korgGrit->load();
-
-        // Pushing to Engine
-        mEngine.setHpfPosition(hpfPos);
-        mEngine.setVcaModeGate(vcaGate);
-        mEngine.setPWMMode(pwmModeLfo);
-        mEngine.setPWMAmount(pwmAmount);
-        mEngine.setVcfEnvDepth(vcfEnvDepth);
-        mEngine.setVcfLfoDepth(vcfLfoDepth);
-        mEngine.setVcfKeyTracking(vcfKybd);
-        mEngine.setVcfEnvPolarity(vcfInv);
-        mEngine.setDcoLfoDepth(dcoLfoDepth);
-        mEngine.setJpDetune(jpDetune);
-        mEngine.setJpFilterMode(jpFilterMode);
-
-        for (int v = 0; v < 16; ++v) {
-            mEngine.setVoiceParams(v, cutoff, resonance, korgHpCut, korgHpRes, korgGrit);
-            mEngine.setDriftAmount(v, drift); 
-            mEngine.setSawEnabled(v, sawOn);
-            mEngine.setPulseEnabled(v, pulseOn);
-            mEngine.setSubLevel(v, subLevel);
-            mEngine.setNoiseLevel(v, noiseLevel);
+        for (auto const& [id, valuePtr] : {
+            std::pair{"LAYERAMAINCUTOFF", mParamCache.cutoff},
+            {"LAYERAMAINRESONANCE", mParamCache.resonance},
+            {"LAYERAMAINVCAGAIN", mParamCache.mainVcaGain}
+            // ... Mapear el resto de parámetros críticos aquí
+        }) {
+            if (valuePtr != nullptr) {
+                mEngineConfig.updateParameter(id, valuePtr->load());
+            }
         }
-        
-        mEngine.setFxParams(chorusMode, 0.5f);
-
-        // --- Space Echo Sync ---
-        mEngine.setSpaceEchoEnabled(mParamCache.spaceEchoEnabled->load() > 0.5f);
-        mEngine.setSpaceEchoParams({
-            mParamCache.spaceEchoSpeed->load(),
-            mParamCache.spaceEchoIntensity->load(),
-            mParamCache.spaceEchoEchoVol->load(),
-            mParamCache.spaceEchoReverbVol->load(),
-            (int)mParamCache.spaceEchoMode->load(),
-            mParamCache.spaceEchoWow->load(),
-            mParamCache.spaceEchoDrive->load()
-        });
     }
 
     void OmegaAudioProcessor::loadPreset(const Core::Preset::OmegaPreset& preset) {
@@ -156,47 +184,30 @@ namespace Omega::Plugin {
         
         mCurrentPreset = validatedPreset;
 
-        // [Innovation]: Mapeo dinámico de ACE Components al motor activo
-        // Para este MVP, forzamos VirtualAnalogEngine pero permitimos elegir filtros vía ACE IDs.
-        for (const auto& layer : mCurrentPreset.layers) {
-            // Oscillator Mapping
-            if (!layer.voiceArch.oscillators.empty()) {
-                if (layer.voiceArch.oscillators[0].componentId == "OSC-VA-004") {
-                    for (int v = 0; v < 16; ++v)
-                        mEngine.setOscillatorMode(v, DSP::Engines::Juno::VirtualAnalogEngine::OscillatorMode::JpSuperSaw);
-                } else {
-                    for (int v = 0; v < 16; ++v)
-                        mEngine.setOscillatorMode(v, DSP::Engines::Juno::VirtualAnalogEngine::OscillatorMode::JunoDco);
-                }
-            }
+        // 1. Delegar configuración del motor a la fachada
+        mEngineConfig.applyPreset(mCurrentPreset);
 
-            // Filter Mapping
-            if (!layer.voiceArch.filters.empty()) {
-                const auto& fid = layer.voiceArch.filters[0].componentId;
-                if (fid == "FLT-VA-003") {
-                    mEngine.setFilterType(DSP::Engines::Juno::VirtualAnalogEngine::FilterType::Korg35);
-                } else if (fid == "FLT-VA-008") {
-                    mEngine.setFilterType(DSP::Engines::Juno::VirtualAnalogEngine::FilterType::JP8080);
-                } else {
-                    mEngine.setFilterType(DSP::Engines::Juno::VirtualAnalogEngine::FilterType::JunoIR3109);
+        // 2. SINCRONIZACION DE PARAMETROS (Build 64)
+        // Notificar al APVTS para que la UI se actualice
+        if (mCurrentPreset.getNumLayers() > 0) {
+            auto layer = mCurrentPreset.getLayerTree(0);
+            auto params = layer.getChildWithName(Core::Preset::IDs::params);
+            
+            auto setVal = [&](const juce::String& id, const juce::Identifier& prop) {
+                if (auto* p = mApvts.getParameter(id)) {
+                    float val = params.getProperty(prop);
+                    p->setValueNotifyingHost(p->getNormalisableRange().convertTo0to1(val));
                 }
-            }
+            };
 
-            // FX Mapping (Dynamic ACE)
-            if (!layer.voiceArch.fxSlots.empty()) {
-                const auto& fxId = layer.voiceArch.fxSlots[0].componentId;
-                if (fxId == "FX-DL-002") {
-                    mEngine.setSpaceEchoEnabled(true);
-                } else {
-                    mEngine.setSpaceEchoEnabled(false);
-                }
-            } else {
-                mEngine.setSpaceEchoEnabled(false);
-            }
+            setVal("LAYERAMAINCUTOFF", "cutoff");
+            setVal("LAYERAMAINRESONANCE", "resonance");
+            // ... resto de mapeado APVTS
         }
     }
 
     juce::AudioProcessorValueTreeState::ParameterLayout OmegaAudioProcessor::createParameterLayout() {
+        logToFile("OmegaAudioProcessor: createParameterLayout START");
         std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
         
         auto& registry = Omega::Core::ParameterMetadataRegistry::getInstance();
@@ -223,7 +234,11 @@ namespace Omega::Plugin {
                 } else if (id == "LAYERAMAINJPFILTERMODE") {
                     params.push_back(std::make_unique<juce::AudioParameterChoice>(
                         juce::ParameterID(id, 1), desc.name, juce::StringArray{"LP", "BP", "HP"}, (int)desc.defaultValue));
-                } else if (id == "LAYERAFXSPACEMODE") {
+                } else if (id == "LAYERAFXSPACEMODE" || id == "LAYERAMAINLFOWAVE") {
+                    params.push_back(std::make_unique<juce::AudioParameterInt>(
+                        juce::ParameterID(id, 1), desc.name, (int)desc.minValue, (int)desc.maxValue, (int)desc.defaultValue));
+                } else {
+                    // Fallback para otros Choice/Mode
                     params.push_back(std::make_unique<juce::AudioParameterInt>(
                         juce::ParameterID(id, 1), desc.name, (int)desc.minValue, (int)desc.maxValue, (int)desc.defaultValue));
                 }
@@ -238,23 +253,46 @@ namespace Omega::Plugin {
             }
         }
 
+        logToFile("OmegaAudioProcessor: createParameterLayout END (" + std::to_string(params.size()) + " parameters)");
         return { params.begin(), params.end() };
     }
 
     // --- JUCE Magic Impl ---
     juce::AudioProcessorEditor* OmegaAudioProcessor::createEditor() { 
+        logToFile("OmegaAudioProcessor: createEditor called");
+#ifndef OMEGA_UNIT_TESTS
         return new UI::OmegaMainEditor(*this, mUiBridge); 
+#else
+        return nullptr;
+#endif
     }
     
-    bool OmegaAudioProcessor::hasEditor() const { return true; }
-    const juce::String OmegaAudioProcessor::getName() const { return "OMEGA Synth"; }
-    bool OmegaAudioProcessor::acceptsMidi() const { return true; }
-    bool OmegaAudioProcessor::producesMidi() const { return false; }
+    bool OmegaAudioProcessor::hasEditor() const { 
+        logToFile("OmegaAudioProcessor: hasEditor called");
+        return true; 
+    }
+    const juce::String OmegaAudioProcessor::getName() const { 
+        // Solo loguear una vez para no inundar
+        static std::atomic<bool> logged(false);
+        if (!logged.exchange(true)) logToFile("OmegaAudioProcessor: getName called");
+        return "OMEGA Synth"; 
+    }
+    bool OmegaAudioProcessor::acceptsMidi() const { 
+        static std::atomic<bool> logged(false);
+        if (!logged.exchange(true)) logToFile("OmegaAudioProcessor: acceptsMidi called");
+        return true; 
+    }
+    bool OmegaAudioProcessor::producesMidi() const { 
+        static std::atomic<bool> logged(false);
+        if (!logged.exchange(true)) logToFile("OmegaAudioProcessor: producesMidi called");
+        return true; 
+    }
+
     double OmegaAudioProcessor::getTailLengthSeconds() const { return 0.0; }
     int OmegaAudioProcessor::getNumPrograms() { return 1; }
     int OmegaAudioProcessor::getCurrentProgram() { return 0; }
     void OmegaAudioProcessor::setCurrentProgram(int index) {}
-    const juce::String OmegaAudioProcessor::getProgramName(int index) { return {}; }
+    const juce::String OmegaAudioProcessor::getProgramName(int index) { return "Default"; }
     void OmegaAudioProcessor::changeProgramName(int index, const juce::String& newName) {}
     void OmegaAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {}
     void OmegaAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {}
@@ -274,5 +312,13 @@ namespace Omega::Plugin {
  * Deber estar fuera del namespace para ser visible por el wrapper de JUCE.
  */
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
-    return new Omega::Plugin::OmegaAudioProcessor();
+    static void (*logExt)(const std::string&) = [](const std::string& msg) {
+        juce::File logFile = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getSiblingFile("OMEGA_BOOT_LOG.txt");
+        logFile.appendText("[" + juce::Time::getCurrentTime().toString(true, true) + "] createPluginFilter: " + msg + "\n");
+    };
+
+    logExt("Start");
+    auto* p = new Omega::Plugin::OmegaAudioProcessor();
+    logExt("End");
+    return p;
 }

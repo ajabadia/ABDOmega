@@ -41,4 +41,5 @@ target_link_libraries(omega_core
         yaml-cpp
         juce::juce_core
         juce::juce_cryptography
+        juce::juce_data_structures
 )

@@ -1,237 +1,264 @@
 #include "OmegaPreset.h"
 #include <yaml-cpp/yaml.h>
-#include <sstream>
-#include <juce_core/juce_core.h>
 #include <juce_cryptography/juce_cryptography.h>
-
-namespace YAML {
-
-    // --- LayerParams Serialization ---
-    template<>
-    struct convert<Omega::Core::Preset::LayerParams> {
-        static Node encode(const Omega::Core::Preset::LayerParams& rhs) {
-            Node node;
-            node["levelDb"] = rhs.levelDb;
-            node["pan"] = rhs.pan;
-            node["cutoff"] = rhs.cutoff;
-            node["resonance"] = rhs.resonance;
-            node["hpfPos"] = rhs.hpfPos;
-            node["vcaGateMode"] = rhs.vcaGateMode;
-            node["analogDrift"] = rhs.analogDrift;
-            
-            node["sawOn"] = rhs.sawOn;
-            node["pulseOn"] = rhs.pulseOn;
-            node["subLevel"] = rhs.subLevel;
-            node["noiseLevel"] = rhs.noiseLevel;
-            node["pwmModeLfo"] = rhs.pwmModeLfo;
-            node["pwmAmount"] = rhs.pwmAmount;
-            
-            node["vcfEnvDepth"] = rhs.vcfEnvDepth;
-            node["vcfLfoDepth"] = rhs.vcfLfoDepth;
-            node["vcfKybd"] = rhs.vcfKybd;
-            node["vcfEnvInv"] = rhs.vcfEnvInv;
-            node["dcoLfoDepth"] = rhs.dcoLfoDepth;
-            return node;
-        }
-
-        static bool decode(const Node& node, Omega::Core::Preset::LayerParams& rhs) {
-            if (!node.IsMap()) return false;
-            
-            #define LOAD_OPT(key, var) if (node[key]) var = node[key].as<decltype(var)>()
-            LOAD_OPT("levelDb", rhs.levelDb);
-            LOAD_OPT("pan", rhs.pan);
-            LOAD_OPT("cutoff", rhs.cutoff);
-            LOAD_OPT("resonance", rhs.resonance);
-            LOAD_OPT("hpfPos", rhs.hpfPos);
-            LOAD_OPT("vcaGateMode", rhs.vcaGateMode);
-            LOAD_OPT("analogDrift", rhs.analogDrift);
-            
-            LOAD_OPT("sawOn", rhs.sawOn);
-            LOAD_OPT("pulseOn", rhs.pulseOn);
-            LOAD_OPT("subLevel", rhs.subLevel);
-            LOAD_OPT("noiseLevel", rhs.noiseLevel);
-            LOAD_OPT("pwmModeLfo", rhs.pwmModeLfo);
-            LOAD_OPT("pwmAmount", rhs.pwmAmount);
-            
-            LOAD_OPT("vcfEnvDepth", rhs.vcfEnvDepth);
-            LOAD_OPT("vcfLfoDepth", rhs.vcfLfoDepth);
-            LOAD_OPT("vcfKybd", rhs.vcfKybd);
-            LOAD_OPT("vcfEnvInv", rhs.vcfEnvInv);
-            LOAD_OPT("dcoLfoDepth", rhs.dcoLfoDepth);
-            #undef LOAD_OPT
-
-            return true;
-        }
-    };
-
-    // --- AceComponent Serialization ---
-    template<>
-    struct convert<Omega::Core::Preset::AceComponent> {
-        static Node encode(const Omega::Core::Preset::AceComponent& rhs) {
-            Node node;
-            node["slotType"] = rhs.slotType;
-            node["slotName"] = rhs.slotName;
-            node["componentId"] = rhs.componentId;
-            node["enabled"] = rhs.enabled;
-            if (!rhs.params.empty()) node["params"] = rhs.params;
-            return node;
-        }
-
-        static bool decode(const Node& node, Omega::Core::Preset::AceComponent& rhs) {
-            if (!node["componentId"]) return false;
-            rhs.componentId = node["componentId"].as<std::string>();
-            if (node["slotType"]) rhs.slotType = node["slotType"].as<std::string>();
-            if (node["slotName"]) rhs.slotName = node["slotName"].as<std::string>();
-            if (node["enabled"]) rhs.enabled = node["enabled"].as<bool>();
-            if (node["params"]) rhs.params = node["params"].as<std::map<std::string, float>>();
-            return true;
-        }
-    };
-
-    // --- Modulation Serialization ---
-    template<>
-    struct convert<Omega::Core::Preset::ModGraphNodeData> {
-        static Node encode(const Omega::Core::Preset::ModGraphNodeData& rhs) {
-            Node node;
-            node["id"] = rhs.id;
-            node["type"] = rhs.type;
-            node["name"] = rhs.name;
-            if (!rhs.params.empty()) node["params"] = rhs.params;
-            return node;
-        }
-        static bool decode(const Node& node, Omega::Core::Preset::ModGraphNodeData& rhs) {
-            if (!node["id"] || !node["type"]) return false;
-            rhs.id = node["id"].as<uint32_t>();
-            rhs.type = node["type"].as<std::string>();
-            if (node["name"]) rhs.name = node["name"].as<std::string>();
-            if (node["params"]) rhs.params = node["params"].as<std::map<std::string, float>>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<Omega::Core::Preset::ModGraphConnectionData> {
-        static Node encode(const Omega::Core::Preset::ModGraphConnectionData& rhs) {
-            Node node;
-            node["source"] = rhs.sourceNode;
-            node["dest"] = rhs.destNode;
-            node["input"] = (int)rhs.destInput;
-            node["amount"] = rhs.amount;
-            return node;
-        }
-        static bool decode(const Node& node, Omega::Core::Preset::ModGraphConnectionData& rhs) {
-            if (!node["source"] || !node["dest"]) return false;
-            rhs.sourceNode = node["source"].as<uint32_t>();
-            rhs.destNode = node["dest"].as<uint32_t>();
-            if (node["input"]) rhs.destInput = (uint8_t)node["input"].as<int>();
-            if (node["amount"]) rhs.amount = node["amount"].as<float>();
-            return true;
-        }
-    };
-
-} // namespace YAML
+#include <sstream>
 
 namespace Omega {
 namespace Core {
 namespace Preset {
+    using namespace IDs;
+    
+    OmegaPreset::OmegaPreset() : mState(OMEGAPRESET) {
+        setUuid(juce::Uuid().toString());
+    }
+
+    OmegaPreset::OmegaPreset(const juce::ValueTree& tree) : mState(tree) {}
+
+    OmegaPreset::OmegaPreset(const OmegaPreset& other) : mState(other.mState.createCopy()) {}
+
+    OmegaPreset& OmegaPreset::operator=(const OmegaPreset& other) {
+        mState = other.mState.createCopy();
+        return *this;
+    }
+
+    OmegaPreset OmegaPreset::createEmpty() {
+        return OmegaPreset();
+    }
+
+    OmegaPreset OmegaPreset::createDefault() {
+        OmegaPreset p;
+        p.setName("Default Preset");
+        p.setAuthor("OMEGA");
+        p.setEngine("VirtualAnalog");
+        p.setMasterGainDb(-3.0f);
+        p.addLayer("Main Layer");
+        return p;
+    }
+
+    OmegaPreset OmegaPreset::createDefaultVirtualAnalog() {
+        OmegaPreset p = createDefault();
+        // Personalización extra para VA si fuera necesario
+        return p;
+    }
 
     bool OmegaPreset::fromYaml(const std::string& yamlSource, OmegaPreset& out) {
         try {
             YAML::Node root = YAML::Load(yamlSource);
             if (!root.IsDefined() || root.IsNull()) return false;
-
-            if (root["id"]) out.id = root["id"].as<std::string>();
-            if (root["name"]) out.name = root["name"].as<std::string>();
-            if (root["author"]) out.author = root["author"].as<std::string>();
-            if (root["engine"]) out.engine = root["engine"].as<std::string>();
-            if (root["global"] && root["global"]["masterGainDb"]) 
-                out.masterGainDb = root["global"]["masterGainDb"].as<float>();
-
-            if (root["layers"] && root["layers"].IsSequence()) {
-                out.layers.clear();
-                for (auto lNode : root["layers"]) {
-                    Layer layer;
-                    if (lNode["id"]) layer.id = lNode["id"].as<std::string>();
-                    if (lNode["name"]) layer.name = lNode["name"].as<std::string>();
-                    if (lNode["polyphony"]) layer.polyphony = lNode["polyphony"].as<int>();
-                    
-                    if (lNode["layerParams"]) layer.params = lNode["layerParams"].as<LayerParams>();
-
-                    // Voice Architecture
-                    if (lNode["voiceArchitecture"]) {
-                        auto va = lNode["voiceArchitecture"];
-                        if (va["oscillators"]) layer.voiceArch.oscillators = va["oscillators"].as<std::vector<AceComponent>>();
-                        if (va["filters"]) layer.voiceArch.filters = va["filters"].as<std::vector<AceComponent>>();
-                        if (va["envelopes"]) layer.voiceArch.envelopes = va["envelopes"].as<std::vector<AceComponent>>();
-                        if (va["lfos"]) layer.voiceArch.lfos = va["lfos"].as<std::vector<AceComponent>>();
-                        if (va["fxSlots"]) layer.voiceArch.fxSlots = va["fxSlots"].as<std::vector<AceComponent>>();
-                        else if (va["fx"]) layer.voiceArch.fxSlots = va["fx"].as<std::vector<AceComponent>>();
-                    }
-
-                    // Modulation Graph
-                    if (lNode["modulationGraph"]) {
-                        auto mg = lNode["modulationGraph"];
-                        if (mg["nodes"]) layer.modulationGraph.nodes = mg["nodes"].as<std::vector<ModGraphNodeData>>();
-                        if (mg["connections"]) layer.modulationGraph.connections = mg["connections"].as<std::vector<ModGraphConnectionData>>();
-                    }
-
-                    out.layers.push_back(layer);
-                }
-            }
-            return true;
+            
+            out.mState = yamlToValueTree(root);
+            return out.isValid();
         } catch (...) {
             return false;
         }
     }
 
+    bool OmegaPreset::loadFromYaml(const std::string& filePath) {
+        juce::File f(filePath);
+        if (!f.existsAsFile()) return false;
+        return fromYaml(f.loadFileAsString().toStdString(), *this);
+    }
+
+    bool OmegaPreset::saveToYaml(const std::string& filePath) const {
+        juce::File f(filePath);
+        if (!f.getParentDirectory().exists()) f.getParentDirectory().createDirectory();
+        return f.replaceWithText(toYaml());
+    }
+
     std::string OmegaPreset::toYaml() const {
-        YAML::Emitter out;
-        out << YAML::BeginMap;
-        out << YAML::Key << "omegapresetVersion" << YAML::Value << 1;
-        out << YAML::Key << "id" << YAML::Value << id;
-        out << YAML::Key << "name" << YAML::Value << name;
-        out << YAML::Key << "author" << YAML::Value << author;
-        out << YAML::Key << "engine" << YAML::Value << engine;
-        
-        out << YAML::Key << "global" << YAML::BeginMap;
-        out << YAML::Key << "masterGainDb" << YAML::Value << masterGainDb;
-        out << YAML::EndMap;
-
-        out << YAML::Key << "layers" << YAML::BeginSeq;
-        for (const auto& l : layers) {
-            out << YAML::BeginMap;
-            out << YAML::Key << "id" << YAML::Value << l.id;
-            out << YAML::Key << "name" << YAML::Value << l.name;
-            out << YAML::Key << "polyphony" << YAML::Value << l.polyphony;
-            
-            out << YAML::Key << "layerParams" << YAML::Value << YAML::Node(l.params);
-
-            out << YAML::Key << "voiceArchitecture" << YAML::BeginMap;
-            out << YAML::Key << "oscillators" << YAML::Value << YAML::Node(l.voiceArch.oscillators);
-            out << YAML::Key << "filters" << YAML::Value << YAML::Node(l.voiceArch.filters);
-            out << YAML::Key << "envelopes" << YAML::Value << YAML::Node(l.voiceArch.envelopes);
-            out << YAML::Key << "lfos" << YAML::Value << YAML::Node(l.voiceArch.lfos);
-            out << YAML::Key << "fxSlots" << YAML::Value << YAML::Node(l.voiceArch.fxSlots);
-            out << YAML::EndMap;
-
-            out << YAML::Key << "modulationGraph" << YAML::BeginMap;
-            out << YAML::Key << "nodes" << YAML::Value << YAML::Node(l.modulationGraph.nodes);
-            out << YAML::Key << "connections" << YAML::Value << YAML::Node(l.modulationGraph.connections);
-            out << YAML::EndMap;
-
-            out << YAML::EndMap;
+        if (!mState.isValid()) return "";
+        try {
+            YAML::Emitter out;
+            out << valueTreeToYaml(mState);
+            return out.c_str();
+        } catch (...) {
+            return "";
         }
-        out << YAML::EndSeq;
-        out << YAML::EndMap;
-
-        return out.c_str();
     }
 
     std::string OmegaPreset::calculateHash() const {
-        // We use juce::SHA256 for the implementation. 
         std::string yaml = toYaml();
         juce::SHA256 sha(yaml.data(), yaml.size());
         return sha.toHexString().toStdString();
+    }
+
+    // --- Typed API ---
+    juce::String OmegaPreset::getUuid() const { return mState[IDs::id].toString(); }
+    void OmegaPreset::setUuid(const juce::String& uuid) { mState.setProperty(IDs::id, uuid, nullptr); }
+    juce::String OmegaPreset::getName() const { return mState[IDs::name].toString(); }
+    void OmegaPreset::setName(const juce::String& name) { mState.setProperty(IDs::name, name, nullptr); }
+    juce::String OmegaPreset::getAuthor() const { return mState[IDs::author].toString(); }
+    void OmegaPreset::setAuthor(const juce::String& author) { mState.setProperty(IDs::author, author, nullptr); }
+    juce::String OmegaPreset::getEngine() const { return mState[IDs::engine].toString(); }
+    void OmegaPreset::setEngine(const juce::String& engine) { mState.setProperty(IDs::engine, engine, nullptr); }
+    float OmegaPreset::getMasterGainDb() const { return (float)mState.getProperty(IDs::masterGainDb, 0.0f); }
+    void OmegaPreset::setMasterGainDb(float db) { mState.setProperty(IDs::masterGainDb, db, nullptr); }
+
+    int OmegaPreset::getNumLayers() const {
+        return mState.getChildWithName(IDs::layers).getNumChildren();
+    }
+
+    juce::ValueTree OmegaPreset::getLayerTree(int index) const {
+        return mState.getChildWithName(IDs::layers).getChild(index);
+    }
+
+    void OmegaPreset::addLayer(const Layer& layer) {
+        juce::ValueTree layers = mState.getOrCreateChildWithName(IDs::layers, nullptr);
+        juce::ValueTree l(IDs::LAYER);
+        l.setProperty(IDs::id, juce::String(layer.id), nullptr);
+        l.setProperty(IDs::name, juce::String(layer.name), nullptr);
+        
+        juce::ValueTree params(IDs::params);
+        #define SET_PARAM(name) params.setProperty(IDs::name, layer.params.name, nullptr)
+        SET_PARAM(levelDb); SET_PARAM(pan); SET_PARAM(cutoff); SET_PARAM(resonance);
+        SET_PARAM(hpfPos); SET_PARAM(vcaGateMode); SET_PARAM(analogDrift);
+        SET_PARAM(sawOn); SET_PARAM(pulseOn); SET_PARAM(subLevel); SET_PARAM(noiseLevel);
+        SET_PARAM(vcfEnvDepth); SET_PARAM(vcfLfoDepth); SET_PARAM(vcfKybd);
+        SET_PARAM(vcfEnvInv); SET_PARAM(dcoLfoDepth); SET_PARAM(pwmModeLfo);
+        SET_PARAM(pwmAmount);
+        #undef SET_PARAM
+        l.addChild(params, -1, nullptr);
+
+        juce::ValueTree arch(IDs::architecture);
+        auto mapComp = [&](const juce::Identifier& cat, const std::vector<AceComponent>& comps) {
+            juce::ValueTree catNode(cat);
+            for (const auto& c : comps) {
+                juce::ValueTree cn(IDs::COMPONENT);
+                cn.setProperty(IDs::slotName, juce::String(c.slotName), nullptr);
+                cn.setProperty(IDs::componentId, juce::String(c.componentId), nullptr);
+                if (!c.slotType.empty()) cn.setProperty(IDs::slotType, juce::String(c.slotType), nullptr);
+                juce::ValueTree cp(IDs::params);
+                for (auto const& [k, v] : c.params) cp.setProperty(juce::Identifier(k), v, nullptr);
+                cn.addChild(cp, -1, nullptr);
+                catNode.addChild(cn, -1, nullptr);
+            }
+            arch.addChild(catNode, -1, nullptr);
+        };
+
+        mapComp(IDs::oscillators, layer.voiceArch.oscillators);
+        mapComp(IDs::filters, layer.voiceArch.filters);
+        mapComp(IDs::amplifiers, layer.voiceArch.amplifiers);
+        mapComp(IDs::envelopes, layer.voiceArch.envelopes);
+        mapComp(IDs::lfos, layer.voiceArch.lfos);
+        mapComp(IDs::modulators, layer.voiceArch.modulators);
+        mapComp(IDs::auxiliary, layer.voiceArch.auxiliary);
+
+        l.addChild(arch, -1, nullptr);
+        layers.addChild(l, -1, nullptr);
+    }
+
+    void OmegaPreset::addLayer(const juce::String& name) {
+        Layer l;
+        l.name = name.toStdString();
+        addLayer(l);
+    }
+
+    void OmegaPreset::addEnvelope(const AceComponent& comp) { addComponent(comp, IDs::envelopes); }
+    void OmegaPreset::addAmplifier(const AceComponent& comp) { addComponent(comp, IDs::amplifiers); }
+    void OmegaPreset::addModulator(const AceComponent& comp) { addComponent(comp, IDs::modulators); }
+    void OmegaPreset::addAuxiliary(const AceComponent& comp) { addComponent(comp, IDs::auxiliary); }
+
+    void OmegaPreset::addComponent(const AceComponent& c, const juce::Identifier& cat) {
+        juce::ValueTree catNode = mState.getOrCreateChildWithName(cat, nullptr);
+        juce::ValueTree cn(IDs::COMPONENT);
+        cn.setProperty(IDs::slotName, juce::String(c.slotName), nullptr);
+        cn.setProperty(IDs::componentId, juce::String(c.componentId), nullptr);
+        if (!c.slotType.empty()) cn.setProperty(IDs::slotType, juce::String(c.slotType), nullptr);
+        juce::ValueTree cp(IDs::params);
+        for (auto const& [k, v] : c.params) cp.setProperty(juce::Identifier(k), v, nullptr);
+        cn.addChild(cp, -1, nullptr);
+        catNode.addChild(cn, -1, nullptr);
+    }
+
+    void OmegaPreset::removeLayer(int index) {
+        mState.getChildWithName(IDs::layers).removeChild(index, nullptr);
+    }
+
+    // --- Conversion Logic ---
+    static juce::ValueTree yamlToValueTreeWithId(const YAML::Node& node, const juce::Identifier& typeId);
+
+    juce::ValueTree OmegaPreset::yamlToValueTree(const YAML::Node& node) {
+        return yamlToValueTreeWithId(node, IDs::OMEGAPRESET);
+    }
+
+    juce::ValueTree yamlToValueTreeWithId(const YAML::Node& node, const juce::Identifier& typeId) {
+        if (!node.IsMap()) return {};
+        
+        juce::ValueTree vt(typeId);
+        
+        for (auto const& it : node) {
+            std::string key = it.first.as<std::string>();
+            YAML::Node val = it.second;
+            
+            juce::Identifier id(key);
+            
+            if (val.IsScalar()) {
+                // Infer type (rough approximation)
+                try {
+                    if (val.Tag() == "!!int") vt.setProperty(id, val.as<int>(), nullptr);
+                    else if (val.Tag() == "!!float") vt.setProperty(id, val.as<float>(), nullptr);
+                    else if (val.Tag() == "!!bool") vt.setProperty(id, val.as<bool>(), nullptr);
+                    else vt.setProperty(id, juce::String(val.as<std::string>()), nullptr);
+                } catch (...) {
+                    vt.setProperty(id, juce::String(val.as<std::string>()), nullptr);
+                }
+            } else if (val.IsMap()) {
+                // Nested objects become children or properties depending on key
+                // For simplicity in this refactor, we stick to a flat-ish property structure for small maps
+                // and children for larger things. 
+                // In a production system, we'd have a strict schema here.
+                auto child = yamlToValueTreeWithId(val, id);
+                vt.addChild(child, -1, nullptr);
+            } else if (val.IsSequence()) {
+                juce::ValueTree list(id);
+                for (auto item : val) {
+                    if (item.IsMap()) {
+                        // We use the singular form of the key as child type if possible
+                        juce::String type = id.toString();
+                        if (type.endsWith("s")) type = type.dropLastCharacters(1);
+                        
+                        auto child = yamlToValueTreeWithId(item, juce::Identifier(type.toUpperCase()));
+                        list.addChild(child, -1, nullptr);
+                    }
+                }
+                vt.addChild(list, -1, nullptr);
+            }
+        }
+        return vt;
+    }
+
+    YAML::Node OmegaPreset::valueTreeToYaml(const juce::ValueTree& tree) {
+        YAML::Node node;
+        
+        // Properties
+        for (int i = 0; i < tree.getNumProperties(); ++i) {
+            auto name = tree.getPropertyName(i).toString().toStdString();
+            auto val = tree.getProperty(tree.getPropertyName(i));
+            
+            if (val.isInt()) node[name] = (int)val;
+            else if (val.isDouble()) node[name] = (double)val;
+            else if (val.isBool()) node[name] = (bool)val;
+            else node[name] = val.toString().toStdString();
+        }
+        
+        // Children
+        for (int i = 0; i < tree.getNumChildren(); ++i) {
+            auto child = tree.getChild(i);
+            auto name = child.getType().toString().toStdString();
+            
+            // If it's a "list" type child (like 'layers'), we make it a YAML sequence
+            if (child.getNumChildren() > 0 && child.getNumProperties() == 0) {
+                YAML::Node seq;
+                for (int j = 0; j < child.getNumChildren(); ++j) {
+                    seq.push_back(valueTreeToYaml(child.getChild(j)));
+                }
+                node[name] = seq;
+            } else {
+                node[name] = valueTreeToYaml(child);
+            }
+        }
+        
+        return node;
     }
 
 } // namespace Preset

@@ -3,21 +3,81 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <juce_core/juce_core.h>
+#include <juce_data_structures/juce_data_structures.h>
+
+
+namespace YAML { class Node; }
 
 namespace Omega {
+
 namespace Core {
 namespace Preset {
 
+    /**
+     * @brief Identificadores de tipos para el ValueTree de OMEGA.
+     */
+    namespace IDs {
+        #define DECLARE_ID(name) inline const juce::Identifier name { #name }
+        DECLARE_ID(OMEGAPRESET);
+        DECLARE_ID(id);
+        DECLARE_ID(name);
+        DECLARE_ID(author);
+        DECLARE_ID(engine);
+        DECLARE_ID(masterGainDb);
+        DECLARE_ID(layers);
+        DECLARE_ID(LAYER);
+        DECLARE_ID(polyphony);
+        DECLARE_ID(params);
+        DECLARE_ID(architecture);
+        DECLARE_ID(COMPONENT);
+        DECLARE_ID(amplifiers);
+        DECLARE_ID(envelopes);
+        DECLARE_ID(modulators);
+        DECLARE_ID(oscillators);
+        DECLARE_ID(filters);
+        DECLARE_ID(lfos);
+        DECLARE_ID(auxiliary);
+        DECLARE_ID(slotType);
+        DECLARE_ID(slotName);
+        DECLARE_ID(componentId);
+        DECLARE_ID(enabled);
+        DECLARE_ID(modGraph);
+        DECLARE_ID(NODE);
+        DECLARE_ID(CONNECTION);
+        
+        // --- Layer Params ---
+        DECLARE_ID(levelDb);
+        DECLARE_ID(pan);
+        DECLARE_ID(cutoff);
+        DECLARE_ID(resonance);
+        DECLARE_ID(hpfPos);
+        DECLARE_ID(vcaGateMode);
+        DECLARE_ID(analogDrift);
+        DECLARE_ID(sawOn);
+        DECLARE_ID(pulseOn);
+        DECLARE_ID(subLevel);
+        DECLARE_ID(noiseLevel);
+        DECLARE_ID(vcfEnvDepth);
+        DECLARE_ID(vcfLfoDepth);
+        DECLARE_ID(vcfKybd);
+        DECLARE_ID(vcfEnvInv);
+        DECLARE_ID(dcoLfoDepth);
+        DECLARE_ID(pwmModeLfo);
+        DECLARE_ID(pwmAmount);
+        #undef DECLARE_ID
+    }
+
+    // Estructuras de intercambio de datos (snapshots)
     struct LayerParams {
         float levelDb = 0.0f;
         float pan = 0.0f;
         float cutoff = 2000.0f;
         float resonance = 0.2f;
-        int hpfPos = 1; // 0=Boost, 1=Bypass, 2, 3
+        int hpfPos = 1;
         bool vcaGateMode = false;
         float analogDrift = 0.1f;
         
-        // Modular Hardware
         bool sawOn = true;
         bool pulseOn = true;
         float subLevel = 0.5f;
@@ -33,79 +93,91 @@ namespace Preset {
     };
 
     struct AceComponent {
-        std::string slotType; // e.g., "Oscillator", "Filter"
-        std::string slotName; // e.g., "Osc1", "Filter1"
+        std::string slotName;
+        std::string slotType;
         std::string componentId;
-        bool enabled = true;
         std::map<std::string, float> params;
-    };
-
-    struct ModRoute {
-        std::string source;
-        std::string destination;
-        float amount = 0.0f;
-        bool bipolar = false;
-    };
-
-    struct ModGraphNodeData {
-        uint32_t id;
-        std::string type;
-        std::string name;
-        std::map<std::string, float> params;
-    };
-
-    struct ModGraphConnectionData {
-        uint32_t sourceNode;
-        uint32_t destNode;
-        uint8_t destInput;
-        float amount = 1.0f;
-    };
-
-    struct ModulationGraphData {
-        std::vector<ModGraphNodeData> nodes;
-        std::vector<ModGraphConnectionData> connections;
     };
 
     struct VoiceArchitecture {
         std::vector<AceComponent> oscillators;
         std::vector<AceComponent> filters;
-        std::vector<AceComponent> envelopes;
         std::vector<AceComponent> lfos;
-        std::vector<AceComponent> fxSlots;
+        std::vector<AceComponent> envelopes;
+        std::vector<AceComponent> amplifiers;
+        std::vector<AceComponent> modulators;
+        std::vector<AceComponent> auxiliary;
     };
 
     struct Layer {
         std::string id;
         std::string name;
-        int polyphony = 8;
         LayerParams params;
         VoiceArchitecture voiceArch;
-        std::vector<ModRoute> modulationMatrix; // Legacy/Simple matrix
-        ModulationGraphData modulationGraph;    // Advanced Graph
     };
 
     /**
-     * @brief Representación central de un preset de OMEGA.
-     * [Architecture]: Diseñado para ser serializado a YAML y validado por ACE.
+     * @brief Fachada sobre juce::ValueTree para gestionar presets de OMEGA.
      */
     class OmegaPreset {
     public:
-        std::string id;
-        std::string name;
-        std::string author;
-        std::string engine = "VirtualAnalog";
-        float masterGainDb = 0.0f;
+        OmegaPreset();
+        explicit OmegaPreset(const juce::ValueTree& tree);
+        OmegaPreset(const OmegaPreset& other);
+        OmegaPreset& operator=(const OmegaPreset& other);
+
+        // --- Factory Methods ---
+        static OmegaPreset createEmpty();
+        static OmegaPreset createDefault();
+        static OmegaPreset createDefaultVirtualAnalog();
         
-        std::vector<Layer> layers;
-
-        // Métodos de serialización
+        // --- Serialization ---
         static bool fromYaml(const std::string& yamlSource, OmegaPreset& outPreset);
+        bool loadFromYaml(const std::string& filePath);
+        bool saveToYaml(const std::string& filePath) const;
         std::string toYaml() const;
-
-        /**
-         * @brief Calcula un hash SHA-256 único para el estado actual del preset.
-         */
         std::string calculateHash() const;
+
+        // --- Typed API ---
+        juce::String getUuid() const;
+        void setUuid(const juce::String& uuid);
+
+        juce::String getName() const;
+        void setName(const juce::String& name);
+
+        juce::String getAuthor() const;
+        void setAuthor(const juce::String& author);
+
+        juce::String getEngine() const;
+        void setEngine(const juce::String& engine);
+
+        float getMasterGainDb() const;
+        void setMasterGainDb(float db);
+
+        // --- Layers API ---
+        int getNumLayers() const;
+        juce::ValueTree getLayerTree(int index) const;
+        void addLayer(const juce::String& name);
+        void addLayer(const Layer& layer);
+        void addEnvelope(const AceComponent& comp);
+        void addAmplifier(const AceComponent& comp);
+        void addModulator(const AceComponent& comp);
+        void addAuxiliary(const AceComponent& comp);
+        void addComponent(const AceComponent& comp, const juce::Identifier& categoryId); 
+        void removeLayer(int index);
+
+        // Acceso al árbol subyacente
+        juce::ValueTree& getState() { return mState; }
+        const juce::ValueTree& getState() const { return mState; }
+
+        bool isValid() const { return mState.isValid(); }
+
+    private:
+        juce::ValueTree mState { IDs::OMEGAPRESET };
+
+        // Helpers para conversión ValueTree <-> YAML
+        static juce::ValueTree yamlToValueTree(const YAML::Node& node);
+        static YAML::Node valueTreeToYaml(const juce::ValueTree& tree);
     };
 
 } // namespace Preset

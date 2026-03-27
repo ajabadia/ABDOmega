@@ -1,6 +1,6 @@
 components:
   - id: OSC-VA-001
-    name: Roland DCO
+    name: Juno DCO
     family: Oscillator
     engine: VirtualAnalog
     modelId: RolandJunoDco
@@ -34,6 +34,32 @@ components:
       - id: pw
         label: Pulse Width
         unit: norm
+  - id: OSC-VA-002
+    name: Korg MS-20 VCO
+    family: Oscillator
+    engine: VirtualAnalog
+    modelId: KorgMs20Vco
+    origin: Korg MS-20
+    status: active
+    version: 1
+    tags: [va, korg, ms20, vco]
+    parameters:
+      - id: tune
+        label: Tune
+        unit: semitones
+        min: -24.0
+        max: 24.0
+        default: 0.0
+      - id: wave
+        label: Waveform
+        unit: enum
+        options: [ "Tri", "Saw", "Pulse", "Noise" ]
+        default: 1
+    modulationTargets:
+      - id: pitch
+        label: Pitch
+        unit: semitones
+
   - id: OSC-VA-004
     name: Roland Supersaw
     family: Oscillator
@@ -60,3 +86,37 @@ components:
       - id: pitch
         label: Pitch
         unit: semitones
+
+  - id: OSC-PM-010
+    name: Roland Feedback Saw
+    family: Oscillator
+    engine: PulseModulation
+    modelId: RolandJp8080FeedbackSaw
+    origin: Roland JP-8080
+    status: active
+    version: 1
+    tags: [pm, roland, jp8080, feedback, saw]
+    parameters:
+      - id: feedback
+        label: Feedback
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.5
+
+  - id: OSC-PM-011
+    name: Roland Dual Osc
+    family: Oscillator
+    engine: PulseModulation
+    modelId: RolandJp8080DualOsc
+    origin: Roland JP-8080
+    status: active
+    version: 1
+    tags: [pm, roland, jp8080, dual]
+    parameters:
+      - id: detune
+        label: Detune
+        unit: cents
+        min: 0.0
+        max: 100.0
+        default: 10.0

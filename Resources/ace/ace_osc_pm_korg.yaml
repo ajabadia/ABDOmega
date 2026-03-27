@@ -104,35 +104,71 @@ components:
         label: Pressure
         unit: norm
 
-  - id: OSC-VPM-001
-    name: Prophecy VPM
+  - id: OSC-EP-001
+    name: MOSS Electric Piano
     family: Oscillator
-    engine: PhaseModulation
-    modelId: ProphecyVpmOsc
-    origin: Korg Prophecy
+    engine: PhysicalModeling
+    modelId: MossElectricPiano
+    origin: Korg Trinity/Prophecy (MOSS)
     status: active
     version: 1
-    tags: [vpm, fm, korg, prophecy, moss]
+    tags: [pm, korg, moss, rhodes, ep]
     parameters:
-      - id: depth
-        label: Mod Depth
+      - id: mallet
+        label: Mallet Attack
         unit: norm
         min: 0.0
-        max: 5.0
+        max: 1.0
         default: 0.5
+      - id: reed_decay
+        label: Reed Decay
+        unit: norm
+        min: 0.1
+        max: 5.0
+        default: 1.0
+
+  - id: OSC-OR-001
+    name: MOSS Drawbar Organ
+    family: Oscillator
+    engine: PhysicalModeling
+    modelId: MossOrgan
+    origin: Korg Trinity/Prophecy (MOSS)
+    status: active
+    version: 1
+    tags: [pm, korg, moss, organ, drawbar]
+    parameters:
+      - id: drawbar1
+        label: 16'
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 1.0
+      - id: drawbar2
+        label: 8'
+        unit: norm
+        min: 0.0
+        max: 1.0
+        default: 0.8
+
+  - id: FLT-RES-001
+    name: MOSS Resonant Bank
+    family: Filter
+    engine: PhysicalModeling
+    modelId: MossResonantBank
+    origin: Korg Trinity/Prophecy (MOSS)
+    status: active
+    version: 1
+    tags: [pm, korg, moss, filter, resonator]
+    parameters:
+      - id: resonance
+        label: Bank Resonance
+        unit: norm
+        min: 0.0
+        max: 0.99
+        default: 0.7
       - id: feedback
         label: Feedback
         unit: norm
         min: 0.0
         max: 0.95
-        default: 0.2
-      - id: ratio
-        label: Ratio
-        unit: ratio
-        min: 0.25
-        max: 16.0
-        default: 1.0
-    modulationTargets:
-      - id: depth
-        label: Depth
-        unit: norm
+        default: 0.5

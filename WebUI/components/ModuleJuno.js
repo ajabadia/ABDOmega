@@ -24,27 +24,23 @@ class ModuleJunoBase {
             const meta = window.omegaMetadata[paramId];
             if (!meta) return;
 
-            const els = this.el.querySelectorAll(`[data-param="${paramId}"]`);
+            const els = this.content.querySelectorAll(`[data-param="${paramId}"]`);
             els.forEach(el => {
                 if (el.tagName === 'INPUT') {
-                    // Force normalized 0..1 range for UI if it's a float, 
-                    // or use discrete steps if it's a choice/bool.
+                    // Set real ranges from metadata
+                    el.min = meta.min;
+                    el.max = meta.max;
+                    
                     if (meta.unit === "Choice" || meta.unit === "Bool" || meta.unit === "Mode") {
-                        el.min = meta.min;
-                        el.max = meta.max;
                         el.step = 1;
                     } else {
-                        el.min = 0;
-                        el.max = 1;
-                        el.step = 0.001;
+                        // Use a reasonable step based on range
+                        const range = meta.max - meta.min;
+                        el.step = range / 1000;
                     }
-                    
-                    // Update label/tooltip if they exist
-                    const container = el.closest('.control-group');
-                    if (container) {
-                        const label = container.querySelector('label');
-                        if (label) label.title = `${meta.name}: ${meta.min}-${meta.max} ${meta.unit}`;
-                    }
+
+                    // Log for debugging
+                    console.log(`[ModuleBase] Applied meta to ${paramId}: min=${el.min}, max=${el.max}, step=${el.step}`);
                 }
             });
         });

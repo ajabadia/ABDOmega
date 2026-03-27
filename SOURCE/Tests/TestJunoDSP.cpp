@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
-#include "../DSP/Engines/Juno/OscillatorPoolJunoDco.h"
-#include "../DSP/Engines/Juno/FilterPoolJunoIr3109.h"
+#include "../DSP/Engines/Roland/Juno/OscillatorPoolJunoDco.h"
+#include "../DSP/Engines/Roland/Juno/FilterPoolJunoIr3109.h"
 
-using namespace Omega::DSP::Engines::Juno;
+using namespace Omega::DSP::Engines::Roland::Juno;
 
 TEST_CASE("Juno DCO Basic Integrity", "[dsp][juno][dco]") {
     OscillatorPoolJunoDco dco;

@@ -1,10 +1,19 @@
 #pragma once
 
-#include <vector>
+#include <array>
 #include <cstdint>
+#include <iterator>
 #include "ModSource.h"
 
-namespace Omega::Core::Input {
+namespace Omega {
+namespace Core {
+namespace Input {
+
+    /**
+     * @brief Capacidad máxima de eventos por bloque de audio.
+     * 256 eventos es suficiente para la mayoría de ráfagas MPE/CC.
+     */
+    static constexpr size_t KMaxEventsPerBlock = 256;
 
     /**
      * @brief Tipos de eventos de entrada neutros.
@@ -20,14 +29,14 @@ namespace Omega::Core::Input {
      * @brief Representa un evento de entrada procesado y normalizado.
      */
     struct InputEvent {
-        int sampleOffset;    // Posición dentro del bloque de audio
-        InputEventType type;
+        int sampleOffset = 0;
+        InputEventType type = InputEventType::NoteOn;
         
         union Data {
             struct {
-                int noteId;      // Identificador único de la nota (MPE safe)
-                float pitch;     // Frecuencia base en semitonos
-                float velocity;  // 0..1
+                int noteId;
+                float pitch;
+                float velocity;
             } noteOn;
             
             struct {
@@ -38,7 +47,7 @@ namespace Omega::Core::Input {
             struct {
                 int noteId;
                 ModSource source;
-                float value;    // Normalmente 0..1, o semitonos para Pitch
+                float value;
             } perNote;
             
             struct {
@@ -46,31 +55,49 @@ namespace Omega::Core::Input {
                 float value;
             } channel;
         } data;
+
+        InputEvent() { std::memset(&data, 0, sizeof(data)); }
     };
 
     /**
-     * @brief Buffer de eventos de entrada para un bloque de audio.
+     * @brief Buffer de eventos de entrada de TIEMPO REAL (Lock-free, No-alloc).
+     * [Performance]: Usa un array estático para evitar fragmentación en el audio thread.
      */
     class OmegaInput {
     public:
-        void addEvent(const InputEvent& e) {
-            mEvents.push_back(e);
+        OmegaInput() = default;
+
+        /**
+         * @brief Añade un evento al buffer. 
+         * @return true si se añadió, false si el buffer está lleno.
+         */
+        bool addEvent(const InputEvent& e) noexcept {
+            if (mCount < KMaxEventsPerBlock) {
+                mEvents[mCount++] = e;
+                return true;
+            }
+            return false;
         }
 
-        const std::vector<InputEvent>& getEvents() const noexcept {
-            return mEvents;
-        }
+        const InputEvent* begin() const noexcept { return mEvents.data(); }
+        const InputEvent* end() const noexcept { return mEvents.data() + mCount; }
+
+        size_t size() const noexcept { return mCount; }
+        bool isEmpty() const noexcept { return mCount == 0; }
 
         void clear() noexcept {
-            mEvents.clear();
+            mCount = 0;
         }
 
-        bool isEmpty() const noexcept {
-            return mEvents.empty();
+        const InputEvent& operator[](size_t index) const {
+            return mEvents[index];
         }
 
     private:
-        std::vector<InputEvent> mEvents;
+        std::array<InputEvent, KMaxEventsPerBlock> mEvents;
+        size_t mCount = 0;
     };
 
-} // namespace Omega::Core::Input
+} // namespace Input
+} // namespace Core
+} // namespace Omega

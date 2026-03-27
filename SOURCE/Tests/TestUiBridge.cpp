@@ -36,7 +36,7 @@ TEST_CASE("OmegaUiBridge Direct Testing", "[ui][bridge]")
     Core::Ace::AceCatalog catalog;
     juce::AudioProcessorValueTreeState apvts(mock, nullptr, "PARAMS", std::move(layout));
     bool loadCallbackCalled = false;
-    UI::OmegaUiBridge bridge(preset, catalog, apvts);
+    UI::OmegaUiBridge bridge(nullptr, preset, catalog, nullptr, apvts);
     bridge.setOnLoadCallback([&](const Core::Preset::OmegaPreset&) { loadCallbackCalled = true; });
 
     SECTION("handleMessageFromUi: setParam v1")

@@ -28,6 +28,9 @@ struct ParameterDescriptor {
     
     // For Modulation mapping (if this parameter can be a modulation source or target)
     Omega::Core::Input::ModSource modSource = Omega::Core::Input::ModSource::Count;
+
+    // For Telemetry mapping (index in ModulationTelemetryHub)
+    int telemetryIndex = -1;
 };
 
 /**
@@ -64,8 +67,8 @@ public:
     // Common Factory
     void initializeDefaults() {
         // --- JUNO FAMILY / CORE ---
-        registerParameter({"LAYERAMAINCUTOFF", "Cutoff", 20.0f, 20000.0f, 2000.0f, "Hz", 0.3f, "VCF", 107});
-        registerParameter({"LAYERAMAINRESONANCE", "Resonance", 0.0f, 1.0f, 0.1f, "%", 1.0f, "VCF", 108});
+        registerParameter({"LAYERAMAINCUTOFF", "Cutoff", 20.0f, 20000.0f, 2000.0f, "Hz", 0.3f, "VCF", 107, Omega::Core::Input::ModSource::Count, 8});
+        registerParameter({"LAYERAMAINRESONANCE", "Resonance", 0.0f, 1.0f, 0.1f, "%", 1.0f, "VCF", 108, Omega::Core::Input::ModSource::Count, 7});
         registerParameter({"LAYERACHORUSMODE", "Chorus Mode", 0.0f, 3.0f, 1.0f, "Choice", 1.0f, "FX"});
         registerParameter({"LAYERAMAINHPF", "HPF Position", 0.0f, 3.0f, 1.0f, "Choice", 1.0f, "VCF"});
         registerParameter({"LAYERAMAINVCAMODE", "VCA Mode", 0.0f, 1.0f, 0.0f, "Choice", 1.0f, "VCA"});
@@ -84,14 +87,14 @@ public:
         registerParameter({"LAYERAVCFKYBD", "VCF Keytrack", 0.0f, 1.0f, 0.5f, "%", 1.0f, "VCF"});
         registerParameter({"LAYERAVCFENVPOL", "VCF Env Polarity", 0.0f, 1.0f, 0.0f, "Choice", 1.0f, "VCF"});
         
-        registerParameter({"LAYERADCOMODDEPTH", "DCO LFO Depth", 0.0f, 1.0f, 0.0f, "%", 1.0f, "DCO"});
+        registerParameter({"LAYERADCOMODDEPTH", "DCO LFO Depth", 0.0f, 1.0f, 0.0f, "%", 1.0f, "DCO", -1, Omega::Core::Input::ModSource::Count, 0});
         
         // --- JP-808X ---
         registerParameter({"LAYERAMAINJPDETUNE", "JP Detune", 0.0f, 1.0f, 0.5f, "%", 1.0f, "DCO"});
         registerParameter({"LAYERAMAINJPFILTERMODE", "JP Filter Mode", 0.0f, 2.0f, 0.0f, "Choice", 1.0f, "VCF"});
         
         // --- Korg ---
-        registerParameter({"LAYERAKORGHPFDCUTOFF", "Korg HP Cutoff", 20.0f, 20000.0f, 100.0f, "Hz", 0.3f, "VCF"});
+        registerParameter({"LAYERAKORGHPFCUTOFF", "Korg HP Cutoff", 20.0f, 20000.0f, 100.0f, "Hz", 0.3f, "VCF"});
         registerParameter({"LAYERAKORGHPFRESONANCE", "Korg HP Res", 0.0f, 1.0f, 0.1f, "%", 1.0f, "VCF"});
         registerParameter({"LAYERAKORGGRIT", "Korg Grit", 1.0f, 10.0f, 1.0f, "Mult", 1.0f, "VCF"});
         
@@ -104,6 +107,19 @@ public:
         registerParameter({"LAYERAFXSPACEMODE", "Echo Mode", 1.0f, 12.0f, 1.0f, "Mode", 1.0f, "FX"});
         registerParameter({"LAYERAFXSPACEWOW", "Wow & Flutter", 0.0f, 1.0f, 0.2f, "%", 1.0f, "FX"});
         registerParameter({"LAYERAFXSPACEDRIVE", "Tape Drive", 0.0f, 1.0f, 0.5f, "%", 1.0f, "FX"});
+
+        // --- ADSR ---
+        registerParameter({"LAYERAMAINATTACK", "Attack", 0.1f, 10000.0f, 10.0f, "ms", 1.0f, "ENV"});
+        registerParameter({"LAYERAMAINDECAY", "Decay", 0.1f, 10000.0f, 100.0f, "ms", 1.0f, "ENV"});
+        registerParameter({"LAYERAMAINSUSTAIN", "Sustain", 0.0f, 1.0f, 0.8f, "%", 1.0f, "ENV"});
+        registerParameter({"LAYERAMAINRELEASE", "Release", 1.0f, 10000.0f, 500.0f, "ms", 1.0f, "ENV"});
+
+        // --- VCA ---
+        registerParameter({"LAYERAMAINVCAGAIN", "VCA Gain", 0.0f, 1.0f, 0.8f, "%", 1.0f, "AMP"});
+
+        // --- LFO ---
+        registerParameter({"LAYERAMAINLFORATE", "LFO Rate", 0.1f, 20.0f, 5.0f, "Hz", 1.0f, "MOD"});
+        registerParameter({"LAYERAMAINLFOWAVE", "LFO Wave", 0.0f, 4.0f, 0.0f, "Choice", 1.0f, "MOD"});
     }
 
 private:
@@ -113,4 +129,4 @@ private:
 };
 
 } // namespace Core
-} // namespace OMEGA
+} // namespace Omega

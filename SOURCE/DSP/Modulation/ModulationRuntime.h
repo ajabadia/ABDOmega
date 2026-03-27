@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include <atomic>
+#include "../../Core/Util/PerformanceMonitor.h"
 
 namespace Omega::DSP::Modulation {
 
@@ -49,6 +50,7 @@ namespace Omega::DSP::Modulation {
          * @brief Procesa un bloque de modulación.
          */
         void processBlock(int numSamples) {
+            Core::Util::PerformanceMonitor::ScopedTimer timer(mPerfMonitor);
             for (int i = 0; i < mNumNodes; ++i) {
                 processNode(mNodes[i], numSamples);
             }
@@ -67,6 +69,7 @@ namespace Omega::DSP::Modulation {
         std::array<RuntimeNode, kMaxNodes> mNodes;
         int mNumNodes;
         SignalBufferBank mBuffers;
+        Core::Util::PerformanceMonitor mPerfMonitor{"ModulationRuntime"};
     };
 
 } // namespace Omega::DSP::Modulation

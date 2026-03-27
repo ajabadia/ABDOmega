@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
-#include "../DSP/Engines/Korg/FilterPoolKorg35.h"
+#include "../DSP/Engines/Korg/MS20/FilterPoolKorg35.h"
 
-using namespace Omega::DSP::Engines::Korg;
+using namespace Omega::DSP::Engines::Korg::MS20;
 
 TEST_CASE("FilterPoolKorg35: Refined Model", "[dsp][filter][korg]")
 {

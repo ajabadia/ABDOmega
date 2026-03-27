@@ -29,23 +29,45 @@ class OmegaRPC {
         };
     }
 
+    async _waitForBackend(timeout = 5000) {
+        const start = Date.now();
+        console.log("[RPC] Waiting for Native Bridge...");
+        while (Date.now() - start < timeout) {
+            // Check for our custom shim in root or JUCE backend
+            const bridge = window.omegaNativeCall || window.__JUCE__?.backend?.omegaNativeCall;
+            if (typeof bridge === 'function') {
+                console.log("[RPC] Native Bridge detected via omegaNativeCall");
+                return { omegaNativeCall: bridge };
+            }
+            // Fallback for events
+            if (window.__JUCE__?.backend?.emitEvent) {
+                console.log("[RPC] Native Bridge detected via emitEvent");
+                return window.__JUCE__.backend;
+            }
+            await new Promise(r => setTimeout(r, 100));
+        }
+        console.warn("[RPC] Native Bridge timeout - falling back to MOCK");
+        return null;
+    }
+
     async send(type, payload = {}) {
         const id = this.requestId++;
         const message = { type, requestId: id, payload };
         
         console.log(`[RPC] Executing ${type} (ID: ${id})...`);
 
-        // JUCE 8 could expose functions on window.juce or window.__JUCE__.backend
-        const backend = window.juce || window.__JUCE__?.backend;
+        const backend = await this._waitForBackend();
         
         if (!backend) {
-            console.warn("[RPC] No Native Bridge. Using MOCKS.");
+            console.warn("[RPC] No Native Bridge after timeout. Using MOCKS.");
             return this._getMock(type);
         }
 
         try {
             let rawResponse;
-            if (typeof backend[type] === 'function') {
+            if (typeof backend.omegaNativeCall === 'function') {
+                rawResponse = await backend.omegaNativeCall(type, id, payload);
+            } else if (typeof backend[type] === 'function') {
                 rawResponse = await backend[type](id, payload);
             } else if (backend.emitEvent) {
                 rawResponse = await backend.emitEvent("omegaMessage", message);
@@ -80,7 +102,24 @@ class OmegaRPC {
 
     _getMock(type) {
         if (type === "getState") return {
-            preset: { id: "MOCK-1", name: "Mock Preset", engine: "Juno" },
+            preset: { 
+                id: "MOCK-1", 
+                name: "Mock Preset", 
+                engine: "Juno",
+                auxiliary: [
+                    { id: "MIDI-TRIG", type: "midi-trig", label: "MIDI TRIGGER" },
+                    { id: "MIDI-MON", type: "midi-mon", label: "MIDI MONITOR" },
+                    { id: "LFO1", type: "osc", label: "LFO 1", signalIndex: 10 }
+                ],
+                layers: [{
+                    voiceArch: {
+                        oscillators: [{ slotName: "DCO 1", componentId: "OSC-VA-001" }],
+                        filters: [{ slotName: "VCF", componentId: "FLT-VA-001" }],
+                        envelopes: [{ slotName: "ENV" }],
+                        fxSlots: []
+                    }
+                }]
+            },
             params: { "LAYERAMAINCUTOFF": 0.5, "LAYERAMAINRESONANCE": 0.2 }
         };
         if (type === "listPresets") return ["MOCK_PRESET_A.yaml", "MOCK_PRESET_B.yaml"];
