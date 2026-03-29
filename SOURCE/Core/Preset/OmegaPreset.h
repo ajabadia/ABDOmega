@@ -65,6 +65,23 @@ namespace Preset {
         DECLARE_ID(dcoLfoDepth);
         DECLARE_ID(pwmModeLfo);
         DECLARE_ID(pwmAmount);
+        
+        // --- Visual / Scope ---
+        DECLARE_ID(VISUAL);
+        DECLARE_ID(scope);
+        DECLARE_ID(followsPreset);
+        DECLARE_ID(mode);
+        DECLARE_ID(currentContext);
+        DECLARE_ID(audio);
+        DECLARE_ID(mod);
+        DECLARE_ID(viewMode);
+        DECLARE_ID(sourceA);
+        DECLARE_ID(sourceB);
+        DECLARE_ID(timebase);
+        DECLARE_ID(scale);
+        DECLARE_ID(trigger);
+        DECLARE_ID(freeze);
+        DECLARE_ID(value);
         #undef DECLARE_ID
     }
 
@@ -169,6 +186,10 @@ namespace Preset {
         // Acceso al árbol subyacente
         juce::ValueTree& getState() { return mState; }
         const juce::ValueTree& getState() const { return mState; }
+        
+        // --- Persistence API ---
+        juce::ValueTree getScopeTree();
+        void resetScopeToDefault();
 
         bool isValid() const { return mState.isValid(); }
 

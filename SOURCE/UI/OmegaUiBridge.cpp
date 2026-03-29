@@ -72,6 +72,14 @@ namespace UI {
             resultPayload = handleSavePreset(requestId, payload);
         else if (type.equalsIgnoreCase("uiReady"))
             resultPayload = handleUiReady(requestId, payload);
+        else if (type.equalsIgnoreCase("getSampleRate"))
+            resultPayload = handleGetSampleRate(requestId, payload);
+        else if (type.equalsIgnoreCase("getTelemetrySources"))
+            resultPayload = handleGetTelemetrySources(requestId, payload);
+        else if (type.equalsIgnoreCase("getScopeState"))
+            resultPayload = handleGetScopeState(requestId, payload);
+        else if (type.equalsIgnoreCase("setScopeState"))
+            resultPayload = handleSetScopeState(requestId, payload);
         else if (type.equalsIgnoreCase("exit"))
         {
             juce::MessageManager::callAsync ([] {
@@ -128,6 +136,8 @@ namespace UI {
             result = handleGetModConnections(requestId, payload);
         else if (type.equalsIgnoreCase("triggerNote"))
             result = handleTriggerNote(requestId, payload);
+        else if (type.equalsIgnoreCase("getSampleRate"))
+            result = handleGetSampleRate(requestId, payload);
         else if (type.equalsIgnoreCase("exit"))
         {
             juce::MessageManager::callAsync ([] {
@@ -199,6 +209,8 @@ namespace UI {
             result = handleGetModConnections(requestId, payload);
         else if (type.equalsIgnoreCase("triggerNote"))
             result = handleTriggerNote(requestId, payload);
+        else if (type.equalsIgnoreCase("getSampleRate"))
+            result = handleGetSampleRate(requestId, payload);
         else if (type.equalsIgnoreCase("exit"))
         {
             juce::MessageManager::callAsync ([] {
@@ -635,8 +647,70 @@ namespace UI {
         }
         root->setProperty("layers", layers);
         
-        // Similar para envelopes, amplifiers, etc si se desea exponer todo el árbol
+        // --- GLOBAL AUXILIARY & UTILITIES ---
+        auto mapGlobal = [&](const juce::Identifier& cat) {
+            juce::Array<juce::var> arr;
+            auto list = p.getState().getChildWithName(cat);
+            for (int i = 0; i < list.getNumChildren(); ++i) {
+                arr.add(componentToVar(list.getChild(i)));
+            }
+            return arr;
+        };
+
+        root->setProperty("auxiliary", mapGlobal(Core::Preset::IDs::auxiliary));
+        root->setProperty("envelopes", mapGlobal(Core::Preset::IDs::envelopes));
+        root->setProperty("amplifiers", mapGlobal(Core::Preset::IDs::amplifiers));
+        root->setProperty("modulators", mapGlobal(Core::Preset::IDs::modulators));
+
         return juce::var(root.get());
+    }
+
+    juce::var OmegaUiBridge::handleGetSampleRate(const juce::var& /*requestId*/, const juce::var& /*payload*/)
+    {
+        return juce::var(mProcessor->getSampleRate());
+    }
+    
+    juce::var OmegaUiBridge::handleGetTelemetrySources(const juce::var& /*requestId*/, const juce::var& /*payload*/)
+    {
+        using namespace Core::Modulation;
+        juce::var obj(new juce::DynamicObject());
+        
+        juce::Array<juce::var> audio;
+        audio.add(juce::var("Master Out [" + juce::String((int)TelemetryIndex::Audio_Master_Out) + "]"));
+        audio.add(juce::var("VCF Out [" + juce::String((int)TelemetryIndex::Audio_VCF_Out) + "]"));
+        audio.add(juce::var("DCO Sum [" + juce::String((int)TelemetryIndex::Audio_DCO_Main) + "]"));
+        
+        juce::Array<juce::var> modulation;
+        modulation.add(juce::var("LFO 1 [" + juce::String((int)TelemetryIndex::Mod_LFO1) + "]"));
+        modulation.add(juce::var("Envelope 1 [" + juce::String((int)TelemetryIndex::Mod_ENV1_Amp) + "]"));
+        modulation.add(juce::var("Envelope 2 [" + juce::String((int)TelemetryIndex::Mod_ENV2_Filter) + "]"));
+        
+        obj.getDynamicObject()->setProperty("audio", audio);
+        obj.getDynamicObject()->setProperty("modulation", modulation);
+        
+        // Map of names to indices for easy JS lookup
+        juce::var mapping(new juce::DynamicObject());
+        mapping.getDynamicObject()->setProperty("Master Out", (int)TelemetryIndex::Audio_Master_Out);
+        mapping.getDynamicObject()->setProperty("VCF Out", (int)TelemetryIndex::Audio_VCF_Out);
+        mapping.getDynamicObject()->setProperty("DCO Sum", (int)TelemetryIndex::Audio_DCO_Main);
+        mapping.getDynamicObject()->setProperty("LFO 1", (int)TelemetryIndex::Mod_LFO1);
+        mapping.getDynamicObject()->setProperty("Envelope 1", (int)TelemetryIndex::Mod_ENV1_Amp);
+        mapping.getDynamicObject()->setProperty("Envelope 2", (int)TelemetryIndex::Mod_ENV2_Filter);
+        
+        obj.getDynamicObject()->setProperty("mapping", mapping);
+        
+        return obj;
+    }
+
+    juce::var OmegaUiBridge::handleGetScopeState(const juce::var& /*requestId*/, const juce::var& /*payload*/)
+    {
+        // Simple stub: could use APVTS for persistence
+        return juce::var(new juce::DynamicObject());
+    }
+
+    juce::var OmegaUiBridge::handleSetScopeState(const juce::var& /*requestId*/, const juce::var& /*payload*/)
+    {
+        return juce::var("OK");
     }
 
 } // namespace UI

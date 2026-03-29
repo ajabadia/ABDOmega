@@ -35,6 +35,10 @@ namespace Omega::DSP::Engines::Roland::Juno {
             }
         }
 
+        void setMix(float mix) noexcept {
+            mChorus.setMix(mix);
+        }
+
         void process(float& left, float& right) noexcept {
             float* channelPointers[2] = { &left, &right };
             ::juce::dsp::AudioBlock<float> block(channelPointers, 2, 1);

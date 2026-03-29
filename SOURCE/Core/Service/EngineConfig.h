@@ -2,7 +2,9 @@
 
 #include "../../DSP/Engines/Modular/EngineTypes.h"
 
-namespace Omega::Core::Service {
+namespace Omega {
+namespace Core {
+namespace Service {
 
     using namespace ::Omega::DSP::Engines::Modular;
 
@@ -14,8 +16,38 @@ namespace Omega::Core::Service {
         FilterType filterType { FilterType::JunoIR3109 };
         float cutoff { 2000.0f };
         float resonance { 0.2f };
+        
+        // ADSR
+        float attack { 10.0f };
+        float decay { 100.0f };
+        float sustain { 0.5f };
+        float release { 500.0f };
+
+        // DCO
+        bool sawOn { true };
+        bool pulseOn { false };
+        float subLevel { 0.0f };
+        float noiseLevel { 0.0f };
+        float pwmAmount { 0.5f };
+        bool pwmModeLfo { false };
+
+        // VCF Mod
+        float vcfEnvDepth { 0.0f };
+        float vcfLfoDepth { 0.0f };
+        float vcfKeyTracking { 0.0f };
+        bool vcfEnvInverted { false };
+
+        // Korg/Prophecy Specific
+        float korgHpCutoff { 20.0f };
+        float korgHpRes { 0.1f };
+        float korgGrit { 0.0f };
+
+        // Others
         float lfoRate { 1.0f };
-        bool lfoEnabled { false };
+        int lfoWave { 0 };
+        float dcoLfoDepth { 0.0f };
+        int hpfPosition { 1 };
+        bool vcaGateMode { false };
     };
 
     /**
@@ -26,6 +58,24 @@ namespace Omega::Core::Service {
         float masterGainDb { 0.0f };
         float chorusMix { 0.0f };
         bool chorusEnabled { false };
+        int chorusMode { 1 };
+
+        // Roland JP-8000/8080 Specific
+        float jpDetune { 0.1f };
+        float jpSpread { 0.1f };
+        int jpFilterMode { 0 };
+
+        // Roland Space Echo RE-201
+        bool spaceEchoEnabled { false };
+        float spaceEchoSpeed { 0.5f };
+        float spaceEchoIntensity { 0.5f };
+        float spaceEchoEchoVol { 0.5f };
+        float spaceEchoReverbVol { 0.3f };
+        int spaceEchoMode { 1 };
+        float spaceEchoWow { 0.1f };
+        float spaceEchoDrive { 0.5f };
     };
 
-} // namespace Omega::Core::Service
+} // namespace Service
+} // namespace Core
+} // namespace Omega

@@ -208,25 +208,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             const mgr = window.moduleManager;
             if (!mgr || !mgr.oscilloscopes) return;
 
-            const activeOscs = mgr.oscilloscopes.filter(o => o.active);
-            if (activeOscs.length === 0) {
+            const activeOscs = mgr.oscilloscopes.filter(o => o.state && o.state.active);
+            const hasMidi = mgr.midiViewer !== null;
+
+            if (activeOscs.length === 0 && !hasMidi) {
                 requestAnimationFrame(pollTelemetry);
                 return;
             }
 
             try {
-                const indices = activeOscs.map(o => o.signalIndex);
-                const data = await window.omegaRPC.send("getTelemetry", { indices });
+                // Collect ALL unique indices needed by all active modules
+                const indices = new Set();
+                activeOscs.forEach(o => {
+                   if (o.state) { 
+                       indices.add(o.state.sourceA);
+                       indices.add(o.state.sourceB);
+                   } else {
+                       indices.add(o.signalIndex);
+                   }
+                });
+
+                const data = await window.omegaRPC.send("getTelemetry", { indices: Array.from(indices) });
                 
-                const tel = data;
-                if (tel) {
-                    window.omegaTelemetryCache = tel; // Cache for other components
-                    mgr.oscilloscopes.forEach(osc => {
-                        if (tel[osc.signalIndex]) { // Ensure signal data exists
-                            osc.update(tel[osc.signalIndex]);
-                        }
+                if (data) {
+                    window.omegaTelemetryCache = data;
+                    activeOscs.forEach(osc => {
+                        osc.update(data); // Pass full data, scope will pick its sources
                     });
-                    if (mgr.midiViewer) mgr.midiViewer.update(tel);
+                    if (mgr.midiViewer) mgr.midiViewer.update(data);
                 }
             } catch (err) {
                 // Silently ignore telemetry errors

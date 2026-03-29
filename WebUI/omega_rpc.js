@@ -146,6 +146,12 @@ class OmegaRPC {
     }
     
     uiReady() { return this.send("uiReady"); }
+
+    // --- Oscilloscope 2.0 ---
+    getSampleRate() { return this.send("getSampleRate"); }
+    getTelemetrySources() { return this.send("getTelemetrySources"); }
+    getScopeState() { return this.send("getScopeState"); }
+    setScopeState(state) { return this.send("setScopeState", state); }
 }
 
 window.omegaRPC = new OmegaRPC();

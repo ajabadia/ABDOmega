@@ -169,8 +169,36 @@ namespace Omega::Plugin {
         for (auto const& [id, valuePtr] : {
             std::pair{"LAYERAMAINCUTOFF", mParamCache.cutoff},
             {"LAYERAMAINRESONANCE", mParamCache.resonance},
-            {"LAYERAMAINVCAGAIN", mParamCache.mainVcaGain}
-            // ... Mapear el resto de parámetros críticos aquí
+            {"LAYERAMAINATTACK", mParamCache.mainAttack},
+            {"LAYERAMAINDECAY", mParamCache.mainDecay},
+            {"LAYERAMAINSUSTAIN", mParamCache.mainSustain},
+            {"LAYERAMAINRELEASE", mParamCache.mainRelease},
+            {"LAYERAMAINSAWON", mParamCache.sawOn},
+            {"LAYERAMAINPULSEON", mParamCache.pulseOn},
+            {"LAYERASUBOSELEVEL", mParamCache.subLevel},
+            {"LAYERAVCFMODDEPTH", mParamCache.vcfLfoDepth},
+            {"LAYERAMAINVCAGAIN", mParamCache.mainVcaGain},
+            {"LAYERAKORGGRIT", mParamCache.korgGrit},
+            {"LAYERAKORGHPFCUTOFF", mParamCache.korgHpCutoff},
+            {"LAYERAKORGHPFRESONANCE", mParamCache.korgHpRes},
+            {"LAYERACHORUSMODE", mParamCache.chorusMode},
+            {"LAYERAMAINHPF", mParamCache.hpfPos},
+            {"LAYERAMAINVCAMODE", mParamCache.vcaMode},
+            {"LAYERAPWMMODE", mParamCache.pwmMode},
+            {"LAYERAPWMAMOUNT", mParamCache.pwmAmount},
+            {"LAYERAVCFENVDEPTH", mParamCache.vcfEnvDepth},
+            {"LAYERAVCFKYBD", mParamCache.vcfKybd},
+            {"LAYERAVCFENVPOL", mParamCache.vcfEnvPol},
+            {"LAYERADCOLFODEPTH", mParamCache.dcoLfoDepth},
+            {"LAYERAMAINLFORATE", mParamCache.mainLfoRate},
+            {"LAYERAMAINLFOWAVE", mParamCache.mainLfoWave},
+            {"LAYERAMAINJPDETUNE", mParamCache.jpDetune},
+            {"LAYERAFXSPACEENABLE", mParamCache.spaceEchoEnabled},
+            {"LAYERAFXSPACESPEED", mParamCache.spaceEchoSpeed},
+            {"LAYERAFXSPACEINTENSITY", mParamCache.spaceEchoIntensity},
+            {"LAYERAFXSPACEECHOVOL", mParamCache.spaceEchoEchoVol},
+            {"LAYERAFXSPACEREVERBVOL", mParamCache.spaceEchoReverbVol},
+            {"LAYERAFXSPACEMODE", mParamCache.spaceEchoMode}
         }) {
             if (valuePtr != nullptr) {
                 mEngineConfig.updateParameter(id, valuePtr->load());

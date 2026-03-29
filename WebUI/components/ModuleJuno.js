@@ -102,7 +102,11 @@ class ModuleJunoDCO extends ModuleJunoBase {
                         <label>PWM AMT</label>
                         <input type="range" class="v-slider" data-param="LAYERAPWMAMOUNT">
                     </div>
+                    <div class="osc-row footer">
+                    <button class="sq btn-scope-focus" data-focus-index="32" title="Focus Scope">👁</button>
+                    <div class="osc-power-led"></div>
                 </div>
+            </div>
             </div>
         `;
         this.bindControls();
@@ -110,17 +114,25 @@ class ModuleJunoDCO extends ModuleJunoBase {
 
     bindControls() {
         this.content.querySelectorAll('[data-param]').forEach(el => {
-            el.addEventListener('input', (e) => {
-                window.omegaRPC.setParam(el.dataset.param, parseFloat(e.target.value));
-            });
-            el.addEventListener('click', (e) => {
+            el.onclick = () => {
                 if (el.tagName === 'BUTTON') {
                     const active = el.classList.contains('active');
                     const next = active ? 0 : 1;
                     el.classList.toggle('active', !active);
                     window.omegaRPC.setParam(el.dataset.param, next);
                 }
-            });
+            };
+            if (el.tagName === 'INPUT') {
+                el.oninput = (e) => window.omegaRPC.setParam(el.dataset.param, parseFloat(e.target.value));
+            }
+        });
+
+        this.content.querySelectorAll('.btn-scope-focus').forEach(el => {
+            el.onclick = () => {
+                window.dispatchEvent(new CustomEvent('omega:scopeFocus', { 
+                    detail: { index: parseInt(el.dataset.focusIndex) } 
+                }));
+            };
         });
     }
 
@@ -170,7 +182,11 @@ class ModuleJunoVCF extends ModuleJunoBase {
                         <label>HPF</label>
                         <input type="range" class="v-slider" data-param="LAYERAMAINHPF" min="0" max="1" step="0.333">
                     </div>
+                    <div class="osc-row footer">
+                    <button class="sq btn-scope-focus" data-focus-index="38" title="Focus Scope">👁</button>
+                    <div class="osc-power-led"></div>
                 </div>
+            </div>
             </div>
         `;
         this.bindControls();
@@ -178,9 +194,15 @@ class ModuleJunoVCF extends ModuleJunoBase {
 
     bindControls() {
         this.content.querySelectorAll('[data-param]').forEach(el => {
-            el.addEventListener('input', (e) => {
-                window.omegaRPC.setParam(el.dataset.param, parseFloat(e.target.value));
-            });
+            el.oninput = (e) => window.omegaRPC.setParam(el.dataset.param, parseFloat(e.target.value));
+        });
+
+        this.content.querySelectorAll('.btn-scope-focus').forEach(el => {
+            el.onclick = () => {
+                window.dispatchEvent(new CustomEvent('omega:scopeFocus', { 
+                    detail: { index: parseInt(el.dataset.focusIndex) } 
+                }));
+            };
         });
     }
 

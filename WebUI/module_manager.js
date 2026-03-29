@@ -10,7 +10,6 @@ class ModuleManager {
     }
 
     async updateRack(state) {
-        console.log("[ModuleMgr] Updating Dynamic Rack with state:", state);
         this.lastState = state;
         
         const upper = document.getElementById('upper-rack');
@@ -22,53 +21,36 @@ class ModuleManager {
         this.oscilloscopes = [];
         this.midiViewer = null;
         
-        // 1. Auxiliary (Upper)
+        // 1. Auxiliary (Direct from Preset)
         let aux = state.preset?.auxiliary || [];
         
-        // Ensure utility modules are always present
-        const hasTrig = aux.some(i => (i.type || i.componentId || i.TYPE || i.componentid || "").toLowerCase().includes("trig"));
-        const hasMon = aux.some(i => (i.type || i.componentId || i.TYPE || i.componentid || "").toLowerCase().includes("mon"));
-        const hasOsc = aux.some(i => (i.type || i.componentId || i.TYPE || i.componentid || "").toLowerCase().includes("osc"));
-
-        if (!hasTrig) aux.push({ id: "MIDI-TRIG", type: "midi-trig", label: "MIDI TRIGGER" });
-        if (!hasMon) aux.push({ id: "MIDI-MON", type: "midi-mon", label: "MIDI MONITOR" });
-        if (!hasOsc) aux.push({ id: "OSC-1", type: "osc", label: "GLOBAL WAVE", signalIndex: 63 });
-
-        console.log("[ModuleMgr] Final Aux List:", aux);
-
-        // Reorder: Trigger first, then Monitor, then others
-        aux.sort((a,b) => {
-            const getRank = (item) => {
-                const type = (item.type || item.componentId || item.COMPONENTID || item.TYPE || item.componentid || "").toLowerCase();
-                if (type.includes("trig")) return 0;
-                if (type.includes("mon")) return 1;
-                return 2;
-            };
-            return getRank(a) - getRank(b);
-        });
-
         aux.forEach(item => {
             const rawType = (item.type || item.componentId || item.COMPONENTID || item.TYPE || item.componentid || "").toLowerCase();
             const id = item.id || item.slotName || item.SLOTNAME || item.ID || "AUX";
             const label = item.label || item.name || item.NAME || item.slotName || item.SLOTNAME || id;
             
-            console.log(`[ModuleMgr] Mapping Aux: ID=${id}, Type=${rawType}, Label=${label}`);
+            // Rack Selection
+            let targetRack = upper;
+            let rackType = "aux";
+            const rackValue = item.rack || (item.params && item.params.rack);
+            
+            if (rackValue === "lower" || rackValue === 1 || rackValue === "main") {
+                targetRack = lower;
+                rackType = "main";
+            }
 
             if (rawType.includes("trig")) {
-                this.addModule(id, "ModuleMidiTrigger", "aux", upper, { label });
+                this.addModule(id, "ModuleMidiTrigger", rackType, targetRack, { label });
             } else if (rawType.includes("mon")) {
-                this.addModule(id, "ModuleMidiViewer", "aux", upper, { label });
-            } else if (rawType.includes("osci")) {
-                this.addModule(id, "ModuleOscilloscope", "aux", upper, { label: "OSC SUM", "signalIndex": 62 });
-            } else if (rawType.includes("osc") || rawType.includes("scope")) {
-                this.addModule(id, "ModuleOscilloscope", "aux", upper, { 
+                this.addModule(id, "ModuleMidiViewer", rackType, targetRack, { label });
+            } else if (rawType.includes("osc") || rawType.includes("scope") || rawType.includes("osci")) {
+                this.addModule(id, "ModuleOscilloscope", rackType, targetRack, { 
                     label, 
-                    signalIndex: item.signalIndex !== undefined ? item.signalIndex : 63 
+                    signalIndex: item.signalIndex !== undefined ? item.signalIndex : (item.params?.signalIndex || 63)
                 });
             }
         });
-        
-        // ... (rest of core module logic stays the same)
+
         // 2. Core (Lower) - Dynamic from Preset Architecture
         if (state.preset && state.preset.layers && state.preset.layers[0]) {
             const arch = state.preset.layers[0].voiceArch;

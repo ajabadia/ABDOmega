@@ -81,6 +81,12 @@
 - [x] **Complete Synthesizer Rack**: DCO, VCF, JP/Korg Filters, and Space Echo default view (2026-03-24 01:00).
 - [x] **Korg MS-20 Branding & Telemetry Phase**: Resolved uppercase JSON-RPC key mismatch and implemented dedicated black panel aesthetic for Korg35 (2026-03-26 02:15).
 - [ ] Dynamic PE Knob mapping visualizer.
+- [ ] **Phase 7: Professional Analysis (Scope 2.0)**:
+    - [ ] **Telemetry Grouping**: Standardized audio/mod taps in C++.
+    - [ ] **Context-Aware UI**: Audio/Mod toggle and grouped source selection.
+    - [ ] **Advanced Analysis**: XY Mode, Overlay, and Trigger/Persistence.
+    - [ ] **Visual Persistence**: ValueTree-based memory for scope settings.
+    - [ ] **Smart Focus Integration**: Multi-module focus icons ("Eye").
 
 ### Phase 6: Architectural Maturity & Universal Metadata [DONE]
 - [x] **Universal Parameter Metadata**: Single source of truth in C++ for ranges, units, and UI mapping (2026-03-24 10:20).

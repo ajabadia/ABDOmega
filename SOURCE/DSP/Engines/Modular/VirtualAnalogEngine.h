@@ -40,6 +40,7 @@
 #include "../../../Core/Input/OmegaInput.h"
 #include "../../../Core/Input/ModSource.h"
 #include "../../../Core/Modulation/ModulationTelemetryHub.h"
+#include "../../../Core/Modulation/ModulationTelemetryIndex.h"
 #include "../../../Core/Util/PerformanceMonitor.h"
 
 namespace Omega::DSP::Engines::Modular {
@@ -184,9 +185,10 @@ namespace Omega::DSP::Engines::Modular {
         }
 
         void setLfoParams(float rate, int wave) noexcept {
+            using namespace ::Omega::Core::Modulation;
             for (int i = 0; i < mModRuntime.kMaxNodes; ++i) {
                 auto& node = mModRuntime.getRuntimeNode(i);
-                if (node.outputIndex == 10 && node.type == 0) { // Node ID 10, Type LFO
+                if (node.outputIndex == (int)TelemetryIndex::Mod_LFO1 && node.type == 0) { // Node LFO1
                     node.state.lfo.increment = rate / (float)mSampleRate;
                     node.state.lfo.waveform = (uint8_t)wave;
                     break;
@@ -234,6 +236,7 @@ namespace Omega::DSP::Engines::Modular {
                 float mixedL = 0.0f;
                 float mixedR = 0.0f;
                 float oscSum = 0.0f;
+                float vcfSum = 0.0f;
 
                 if (mArpActive) {
                     mArpCounter++;
@@ -260,13 +263,16 @@ namespace Omega::DSP::Engines::Modular {
                 ::Omega::DSP::Engines::Korg::Prophecy::ProphecyMacroContext::apply(mProphecyMacros, 
                     filterDrive, lfoRate, lfoDepth, airNoise, airHpf, modSensitivity);
 
+                float lastActiveFreq = 440.0f;
                 for (int v = 0; v < 16; ++v) {
                     if (mAmpEnvelopes[v].isActive()) {
-                        float lfoVal = mModRuntime.getSignalValue(10); 
+                        using namespace ::Omega::Core::Modulation;
+                        float lfoVal = mModRuntime.getSignalValue((int)TelemetryIndex::Mod_LFO1); 
                         float dcoLfo = lfoVal * mDcoLfoDepth;
                         float pitchMod = mModRuntime.getSignalValue(3) + dcoLfo; 
                         float pitchBend = mChannelModStates[static_cast<int>(::Omega::Core::Input::ModSource::PitchBend)];
                         float voiceFreq = ::juce::MidiMessage::getMidiNoteInHertz(mActiveNotes[v] + (pitchBend * 2.0f) + (pitchMod / 1.0f));
+                        lastActiveFreq = voiceFreq;
                         
                         float targetPWM = mPwmAmount;
                         if (mPwmModeLfo) targetPWM = 0.5f + (lfoVal * mPwmAmount * 0.5f);
@@ -365,7 +371,7 @@ namespace Omega::DSP::Engines::Modular {
                         float cutoffMod = mModRuntime.getSignalValue(8) * modSensitivity; 
                         float nativeVcfMod = (lfoVal * mVcfLfoDepth) + (filterEnv * mVcfEnvDepth * (mVcfEnvInverted ? -1.0f : 1.0f));
                         
-                        float finalCutoff = 800.0f + ((cutoffMod + nativeVcfMod) * 8000.0f);
+                        float finalCutoff = mCurrentCutoff + ((cutoffMod + nativeVcfMod) * 8000.0f);
                         float filteredL = 0.0f;
                         float filteredR = 0.0f;
 
@@ -400,6 +406,7 @@ namespace Omega::DSP::Engines::Modular {
                             filteredL = mJpFormantFlt.process(v, oscL);
                             filteredR = filteredL;
                         }
+                        vcfSum += (filteredL + filteredR) * 0.5f;
 
                         float hpfOutL = filteredL;
                         float hpfOutR = filteredR;
@@ -430,16 +437,23 @@ namespace Omega::DSP::Engines::Modular {
                     if (s < buffer.getNumSamples()) buffer.setSample(c, s, (c == 0) ? left : right);
                 }
 
-                // Global Waveform Telemetry (Index 63)
-                if (s % 32 == 0) { // Subsample for telemetry
-                   auto& localHub = ::Omega::Core::Modulation::ModulationTelemetryHub::getInstance();
-                   localHub.pushSignal(63, (left + right) * 0.5f);
-                   localHub.pushSignal(62, oscSum);
+                // Standardized Waveform Telemetry
+                if (s % 32 == 0) { 
+                   using namespace ::Omega::Core::Modulation;
+                   auto& localHub = ModulationTelemetryHub::getInstance();
+                   localHub.pushSignal((int)TelemetryIndex::Audio_Master_Out, (left + right) * 0.5f);
+                   localHub.pushSignal((int)TelemetryIndex::Audio_DCO_Main,   oscSum);
+                   localHub.pushSignal((int)TelemetryIndex::Audio_VCF_Out,    vcfSum / 16.0f); // Average of voices
+                   localHub.pushSignal((int)TelemetryIndex::Audio_Bus_PreFX,  (mixedL + mixedR) * 0.5f);
+                   localHub.pushSignal((int)TelemetryIndex::Mod_Pitch,        lastActiveFreq); 
                 }
-            }
+                }
 
-            Omega::Core::Modulation::ModulationTelemetryHub::getInstance().update(mModRuntime.getBuffers());
-        }
+                using namespace ::Omega::Core::Modulation;
+                auto& telemetryHub = ModulationTelemetryHub::getInstance();
+                auto const& modBuffers = mModRuntime.getBuffers();
+                telemetryHub.update(modBuffers); // This handles 0-31 (MOD and input signals)
+            }
 
         void getEnvelopeLevels(float& ampEnv, float& filterEnv) const noexcept override {
             ampEnv = 0.0f; filterEnv = 0.0f;
@@ -493,11 +507,12 @@ namespace Omega::DSP::Engines::Modular {
         int mHpfPosition = 1;
 
         void setupBasicModulation() {
+            using namespace ::Omega::Core::Modulation;
             mModRuntime.reset();
             
             ::Omega::Core::Modulation::RuntimeNode lfoNode;
             lfoNode.type = 0; // LFO
-            lfoNode.outputIndex = 10;
+            lfoNode.outputIndex = (int)TelemetryIndex::Mod_LFO1;
             lfoNode.state.lfo.waveform = 0; // Sine
             lfoNode.state.lfo.phase = 0.0f;
             lfoNode.state.lfo.increment = 5.0f / (float)mSampleRate;
@@ -583,16 +598,68 @@ namespace Omega::DSP::Engines::Modular {
             mFilterType = config->voices[0].filterType;
             mCurrentCutoff = config->voices[0].cutoff;
             mCurrentResonance = config->voices[0].resonance;
-            mVcaMainGain = 1.0f; // TODO: Usar masterGain si es necesario
+            mVcaMainGain = 1.0f; // TODO: Use masterGain if needed
+
+            // Global/Shared params from first voice (standard for Juno mode)
+            setVcfEnvDepth(config->voices[0].vcfEnvDepth);
+            setVcfLfoDepth(config->voices[0].vcfLfoDepth);
+            setVcfKeyTracking(config->voices[0].vcfKeyTracking);
+            setVcfEnvPolarity(config->voices[0].vcfEnvInverted);
+            setPWMMode(config->voices[0].pwmModeLfo);
+            setPWMAmount(config->voices[0].pwmAmount);
+            setLfoParams(config->voices[0].lfoRate, config->voices[0].lfoWave);
+            setDcoLfoDepth(config->voices[0].dcoLfoDepth);
+
+            mKorgHpCut = config->voices[0].korgHpCutoff;
+            mKorgHpRes = config->voices[0].korgHpRes;
+            mKorgGrit = config->voices[0].korgGrit;
 
             for (int i = 0; i < 16; ++i) {
-                mOscModes[i] = config->voices[i].oscMode;
+                const auto& v = config->voices[i];
+                mOscModes[i] = v.oscMode;
+                
                 // Actualizar parámetros de voz en tiempo real
-                setVoiceParams(i, config->voices[i].cutoff, config->voices[i].resonance, 
-                               mKorgHpCut, mKorgHpRes, mKorgGrit);
+                setVoiceParams(i, v.cutoff, v.resonance, mKorgHpCut, mKorgHpRes, mKorgGrit);
+                
+                // DCO Switches
+                setSawEnabled(i, v.sawOn);
+                setPulseEnabled(i, v.pulseOn);
+                setSubLevel(i, v.subLevel);
+                setNoiseLevel(i, v.noiseLevel);
+
+                // Envelopes (Per voice)
+                mAmpEnvelopes[i].setAttackMs(v.attack);
+                mAmpEnvelopes[i].setDecayMs(v.decay);
+                mAmpEnvelopes[i].setSustain(v.sustain);
+                mAmpEnvelopes[i].setReleaseMs(v.release);
+
+                mModEnvelopes[i].setAttackMs(v.attack);
+                mModEnvelopes[i].setDecayMs(v.decay);
+                mModEnvelopes[i].setSustain(v.sustain);
+                mModEnvelopes[i].setReleaseMs(v.release);
             }
             
-            mChorusPool.setMode(config->chorusEnabled ? 1 : 0);
+            mVcaMainGain = std::pow(10.0f, config->masterGainDb / 20.0f);
+            mSpaceEchoEnabled = config->spaceEchoEnabled;
+            mSpaceEchoParams.speed = config->spaceEchoSpeed;
+            mSpaceEchoParams.intensity = config->spaceEchoIntensity;
+            mSpaceEchoParams.echoVol = config->spaceEchoEchoVol;
+            mSpaceEchoParams.reverbVol = config->spaceEchoReverbVol;
+            mSpaceEchoParams.mode = config->spaceEchoMode;
+            mSpaceEchoParams.wowFlutter = config->spaceEchoWow;
+            mSpaceEchoParams.drive = config->spaceEchoDrive;
+
+            mJpDetune = config->jpDetune;
+            mJpSpread = config->jpSpread;
+            mJpFilterMode = config->jpFilterMode;
+
+            const auto& v = config->voices[0];
+            mHpfPosition = v.hpfPosition;
+            mVcaGateMode = v.vcaGateMode;
+            updateHpfCoefficients();
+            
+            mChorusPool.setMode(config->chorusEnabled ? config->chorusMode : 0);
+            mChorusPool.setMix(config->chorusMix);
         }
 
         void updateHpfCoefficients() {

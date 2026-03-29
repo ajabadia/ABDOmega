@@ -65,7 +65,11 @@ namespace Omega {
         juce::var handleGetMetadata(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetTelemetry(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetModConnections(const juce::var& requestId, const juce::var& payload);
-        juce::var handleTriggerNote(const juce::var& requestId, const juce::var& payload);
+        juce::var handleGetTelemetrySources(const juce::var&, const juce::var&);
+        juce::var handleTriggerNote(const juce::var&, const juce::var&);
+        juce::var handleGetScopeState(const juce::var&, const juce::var&);
+        juce::var handleSetScopeState(const juce::var&, const juce::var&);
+        juce::var handleGetSampleRate(const juce::var&, const juce::var&);
 
         // --- Helpers ---
         juce::var presetToVar(const Core::Preset::OmegaPreset& p);

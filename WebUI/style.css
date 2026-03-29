@@ -105,6 +105,7 @@ body, html {
     margin: 0;
     background: linear-gradient(180deg, #fff 0%, #444 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     filter: drop-shadow(0 0 20px rgba(0,242,255,0.5));
 }
@@ -765,43 +766,244 @@ button.sq.active.juno-orange {
     letter-spacing: 1px;
 }
 
-/* Generic Oscilloscope Module */
+/* Generic Oscilloscope Module 2.0 */
 .oscilloscope-module {
-    width: 220px;
-    height: 180px !important;
-    border-left: 4px solid var(--neon-purple) !important;
-    position: relative;
-    overflow: hidden;
+    width: 280px;
+    height: calc(100% - 20px) !important;
+    border-left: 4px solid var(--neon-cyan) !important;
+    background: #0a0e0e !important;
+    display: flex;
+    flex-direction: column;
 }
 
-.oscilloscope-module .module-header {
-    background: linear-gradient(to right, rgba(157, 0, 255, 0.1), transparent);
+.oscilloscope-container {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.osc-viewport {
+    position: relative;
+    background: #050505;
+    border: 2px solid #222;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 120px;
+    box-shadow: inset 0 0 20px rgba(0, 242, 255, 0.1);
+}
+
+.osc-viewport canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.osc-grid-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: 
+        linear-gradient(rgba(0, 242, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 242, 255, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+}
+
+.osc-label-overlay {
+    position: absolute;
+    bottom: 5px; right: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: 'Consolas', monospace;
+    font-size: 8px;
+    color: rgba(0, 255, 255, 0.4);
+    pointer-events: none;
+    text-transform: uppercase;
+}
+
+.osc-controls {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 12px;
+}
+
+.osc-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding-right: 10px;
+    gap: 10px;
 }
 
-.osc-power-btn {
-    background: transparent;
-    border: 1px solid #444;
-    color: #444;
-    width: 16px;
-    height: 16px;
+.osc-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.osc-group label {
+    font-size: 8px;
+    color: #666;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.small-select {
+    background: #111;
+    color: #00f2ff;
+    border: 1px solid #333;
     font-size: 9px;
-    border-radius: 50%;
+    padding: 2px;
+    border-radius: 2px;
+    font-family: 'Outfit', sans-serif;
+    outline: none;
+}
+
+.small-select:hover { border-color: #555; }
+
+.osc-row.footer {
+    border-top: 1px solid #222;
+    padding-top: 8px;
+    align-items: center;
+}
+
+.osc-reset-btn {
+    background: transparent;
+    border: none;
+    color: #444;
     cursor: pointer;
+    font-size: 14px;
+}
+
+.osc-reset-btn:hover { color: #fff; }
+
+.osc-power-btn {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #888;
+    font-size: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.osc-power-led {
+    width: 6px;
+    height: 6px;
+    background: #200;
+    border-radius: 50%;
+    box-shadow: inset 0 0 2px black;
+}
+
+.osc-power-led.on {
+    background: #ff3c3c;
+    box-shadow: 0 0 8px #ff3c3c;
+}
+
+.btn-scope-focus {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 14px !important;
+    padding: 0 !important;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #666;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 4px;
+    cursor: pointer;
     transition: all 0.2s;
-    margin-left: 10px;
+}
+
+.btn-scope-focus:hover {
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 5px rgba(0, 242, 255, 0.3);
 }
 
 .osc-power-btn.active {
     color: var(--neon-cyan);
     border-color: var(--neon-cyan);
     box-shadow: 0 0 5px rgba(0,242,255,0.5);
+}
+
+.osc-freeze-btn {
+    font-size: 9px;
+    padding: 2px 6px;
+    background: #222;
+    border: 1px solid #444;
+    color: #888;
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+.osc-freeze-btn.active {
+    background: #b4851b;
+    color: white;
+    box-shadow: 0 0 5px #b4851b;
+}
+
+.osc-sync-btn.active {
+    background: var(--neon-cyan);
+    color: #000;
+    box-shadow: 0 0 10px var(--neon-cyan);
+}
+
+.osc-expand-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid #00f2ff;
+    color: #00f2ff;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: 0.8;
+    z-index: 100;
+    transition: all 0.2s;
+}
+
+.osc-expand-btn:hover {
+    opacity: 1;
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+}
+
+/* Expanded Modal laboratory view */
+.osc-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.osc-modal-container {
+    width: 80%;
+    max-width: 1000px;
+    background: #111;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 50px rgba(0,0,0,1);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.osc-modal-container .osc-viewport {
+    height: 400px;
+    width: 100%;
 }
 
 .osc-canvas-wrapper {

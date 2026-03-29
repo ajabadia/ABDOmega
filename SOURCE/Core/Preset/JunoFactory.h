@@ -68,6 +68,26 @@ namespace Preset {
             lfo.params["rate"] = 5.0f;
             lfo.params["wave"] = 0.0f; // Sine
             p.addModulator(lfo);
+            
+            // Utility Modules (Parameterized)
+            AceComponent trig;
+            trig.slotName = "MIDI TRIGGER";
+            trig.componentId = "MIDI-TRIG";
+            trig.slotType = "midi-trig";
+            p.addAuxiliary(trig);
+
+            AceComponent mon;
+            mon.slotName = "MIDI MONITOR";
+            mon.componentId = "MIDI-MON";
+            mon.slotType = "midi-mon";
+            p.addAuxiliary(mon);
+
+            AceComponent osci;
+            osci.slotName = "GLOBAL WAVE";
+            osci.componentId = "OSCILLOSCOPE";
+            osci.slotType = "osci";
+            osci.params["rack"] = 1.0f; // Lower/Main rack
+            p.addAuxiliary(osci);
 
             return p;
         }
@@ -100,6 +120,13 @@ namespace Preset {
             osc.params["sub"] = 0.3f;
             layer.voiceArch.oscillators.push_back(osc);
             
+            // Utility Modules
+            AceComponent trig;
+            trig.slotName = "MIDI TRIGGER";
+            trig.componentId = "MIDI-TRIG";
+            trig.slotType = "midi-trig";
+            p.addAuxiliary(trig);
+
             p.addLayer(layer);
             return p;
         }
@@ -136,6 +163,13 @@ namespace Preset {
             flt.params["drive"] = 2.0f;
             layer.voiceArch.filters.push_back(flt);
             
+            // Utility Modules
+            AceComponent trig;
+            trig.slotName = "MIDI TRIGGER";
+            trig.componentId = "MIDI-TRIG";
+            trig.slotType = "midi-trig";
+            p.addAuxiliary(trig);
+
             p.addLayer(layer);
             return p;
         }
@@ -186,6 +220,13 @@ namespace Preset {
             vca.params["gain"] = 0.8f;
             p.addAmplifier(vca);
 
+            // Utility Modules
+            AceComponent trig;
+            trig.slotName = "MIDI TRIGGER";
+            trig.componentId = "MIDI-TRIG";
+            trig.slotType = "midi-trig";
+            p.addAuxiliary(trig);
+
             return p;
         }
 
@@ -210,6 +251,14 @@ namespace Preset {
             layer.voiceArch.oscillators.push_back(osc);
             
             p.addLayer(layer);
+
+            // Utility Modules
+            AceComponent trig;
+            trig.slotName = "MIDI TRIGGER";
+            trig.componentId = "MIDI-TRIG";
+            trig.slotType = "midi-trig";
+            p.addAuxiliary(trig);
+
             return p;
         }
 
@@ -225,7 +274,13 @@ namespace Preset {
             p.setName("VERIFICATION: MINIMAL");
             p.setAuthor("antigravity");
             
-            // Upper Rack: MIDI-MON ONLY
+            // Upper Rack: MIDI-MON & MIDI-TRIG
+            AceComponent midiTrig;
+            midiTrig.slotName = "MIDI TRIGGER";
+            midiTrig.componentId = "MIDI-TRIG";
+            midiTrig.slotType = "midi-trig";
+            p.addAuxiliary(midiTrig);
+
             AceComponent midiMon;
             midiMon.slotName = "MIDI MONITOR";
             midiMon.componentId = "MIDI-MON";
@@ -236,6 +291,7 @@ namespace Preset {
             osci.slotName = "GLOBAL WAVE";
             osci.componentId = "OSCILLOSCOPE";
             osci.slotType = "osci";
+            osci.params["rack"] = 1.0f; // Lower rack
             p.addAuxiliary(osci);
 
             // Lower Rack: ADSR 1 ONLY

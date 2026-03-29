@@ -1,16 +1,11 @@
+file(GLOB OMEGA_TEST_SOURCES 
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} 
+    CONFIGURE_DEPENDS 
+    *.cpp *.h
+)
+
 add_executable(omegatests
-    TestAceCatalog.cpp
-    TestOmegaInput.cpp
-    TestAceValidator.cpp
-    TestFilterCurveResponse.cpp
-    TestJunoDSP.cpp
-    TestModulatedFilter.cpp
-    TestModulationGraph.cpp
-    TestVibratoRoute.cpp
-    TestYamlPreset.cpp
-    TestUiBridge.cpp
-    TestPresetGit.cpp
-    TestKorg35Refined.cpp
+    ${OMEGA_TEST_SOURCES}
     ../Plugin/OmegaAudioProcessor.cpp
     ../UI/OmegaUiBridge.cpp
 )

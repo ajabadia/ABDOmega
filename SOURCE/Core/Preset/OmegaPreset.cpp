@@ -174,6 +174,43 @@ namespace Preset {
         mState.getChildWithName(IDs::layers).removeChild(index, nullptr);
     }
 
+    juce::ValueTree OmegaPreset::getScopeTree() {
+        auto visual = mState.getOrCreateChildWithName(IDs::VISUAL, nullptr);
+        auto scope = visual.getOrCreateChildWithName(IDs::scope, nullptr);
+        
+        if (scope.getNumProperties() == 0) {
+            resetScopeToDefault();
+        }
+        return scope;
+    }
+
+    void OmegaPreset::resetScopeToDefault() {
+        auto visual = mState.getOrCreateChildWithName(IDs::VISUAL, nullptr);
+        visual.removeChild(visual.getChildWithName(IDs::scope), nullptr);
+        auto scope = visual.getOrCreateChildWithName(IDs::scope, nullptr);
+
+        scope.setProperty(IDs::followsPreset, true, nullptr);
+        scope.setProperty(IDs::mode, "PRESET", nullptr);
+        scope.setProperty(IDs::currentContext, "audio", nullptr);
+        scope.setProperty(IDs::freeze, false, nullptr);
+
+        auto audio = scope.getOrCreateChildWithName(IDs::audio, nullptr);
+        audio.setProperty(IDs::viewMode, "SOURCE_A", nullptr);
+        audio.setProperty(IDs::sourceA, "MASTER_OUT", nullptr);
+        audio.setProperty(IDs::sourceB, "VCF_OUT", nullptr);
+        audio.setProperty(IDs::timebase, 0.5f, nullptr);
+        audio.setProperty(IDs::scale, 1.0f, nullptr);
+        audio.setProperty(IDs::trigger, 0.0f, nullptr);
+
+        auto mod = scope.getOrCreateChildWithName(IDs::mod, nullptr);
+        mod.setProperty(IDs::viewMode, "SOURCE_A", nullptr);
+        mod.setProperty(IDs::sourceA, "LFO1", nullptr);
+        mod.setProperty(IDs::sourceB, "ENV1_AMP", nullptr);
+        mod.setProperty(IDs::timebase, 0.5f, nullptr);
+        mod.setProperty(IDs::scale, 1.0f, nullptr);
+        mod.setProperty(IDs::trigger, 0.0f, nullptr);
+    }
+
     // --- Conversion Logic ---
     static juce::ValueTree yamlToValueTreeWithId(const YAML::Node& node, const juce::Identifier& typeId);
 

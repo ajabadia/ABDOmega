@@ -1,4 +1,5 @@
 #include "ModulationGraph.h"
+#include "ModulationRuntime.h"
 #include <algorithm>
 #include <map>
 #include <queue>
@@ -19,7 +20,7 @@ namespace Omega::DSP::Modulation {
         mConnections.push_back({ source, sourceOut, dest, destIn, amount });
     }
 
-    ModulationGraph::CompileResult ModulationGraph::compile() {
+    CompileResult ModulationGraph::compile() {
         CompileResult result;
         result.success = false;
 

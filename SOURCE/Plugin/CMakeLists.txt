@@ -1,3 +1,15 @@
+file(GLOB_RECURSE OMEGA_PLUGIN_SOURCES 
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} 
+    CONFIGURE_DEPENDS 
+    *.cpp *.h
+)
+
+file(GLOB_RECURSE OMEGA_UI_SOURCES 
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} 
+    CONFIGURE_DEPENDS 
+    ../UI/*.cpp ../UI/*.h
+)
+
 juce_add_plugin(omega_plugin
     COMPANY_NAME "ABD-IA"
     BUNDLE_ID    "com.abd-ia.omega"
@@ -17,12 +29,8 @@ juce_add_plugin(omega_plugin
 
 target_sources(omega_plugin
     PRIVATE
-        OmegaAudioProcessor.cpp
-        OmegaAudioProcessor.h
-        ../UI/OmegaUiBridge.cpp
-        ../UI/OmegaUiBridge.h
-        ../UI/OmegaMainEditor.h
-        ../UI/OmegaWebViewComponent.h
+        ${OMEGA_PLUGIN_SOURCES}
+        ${OMEGA_UI_SOURCES}
 )
 
 target_link_libraries(omega_plugin
