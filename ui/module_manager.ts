@@ -50,12 +50,12 @@ export class ModuleManager {
             const arch = layerData.voiceArch || layerData.architecture;
             if (arch) {
                 const categories = [
-                    { list: arch.oscillators, type: "osc" },
-                    { list: arch.filters,     type: "filter" },
-                    { list: arch.envelopes || arch.envelopeList || [], type: "env" },
-                    { list: arch.amplifiers || [], type: "amp" },
-                    { list: arch.lfos || [],        type: "lfo" },
-                    { list: arch.fxSlots || [],     type: "fx" }
+                    { list: arch.oscillators || arch.oscillatorList || [], type: "osc" },
+                    { list: arch.filters     || arch.filterList     || [], type: "filter" },
+                    { list: arch.envelopes   || arch.envelopeList   || [], type: "env" },
+                    { list: arch.amplifiers  || arch.amplifierList  || [], type: "amp" },
+                    { list: arch.lfos        || arch.lfoList        || [], type: "lfo" },
+                    { list: arch.fxSlots     || arch.fxList         || [], type: "fx" }
                 ];
 
                 for (const cat of categories) {

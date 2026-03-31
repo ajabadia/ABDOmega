@@ -73,8 +73,20 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         }
     },
 
-    // Universal ADSR (EG-STANDARD-001)
+    // Universal ADSR (EG-STANDARD-001 / ENV-ADSR-GEN)
     "EG-STANDARD-001": {
+        id: "adsr",
+        panelClass: "env-panel",
+        grid: { columns: 2, gap: 8 },
+        items: [
+            { paramId: "LAYERAMAINATTACK",  control: "knob", label: "A", row: 0, col: 0 },
+            { paramId: "LAYERAMAINDECAY",   control: "knob", label: "D", row: 0, col: 1 },
+            { paramId: "LAYERAMAINSUSTAIN", control: "knob", label: "S", row: 1, col: 0 },
+            { paramId: "LAYERAMAINRELEASE", control: "knob", label: "R", row: 1, col: 1 }
+        ],
+        footer: { label: "ENV GENERATOR" }
+    },
+    "ENV-ADSR-GEN": {
         id: "adsr",
         panelClass: "env-panel",
         grid: { columns: 2, gap: 8 },
@@ -133,6 +145,29 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
             { paramId: "LAYERAKORGGRIT",       control: "knob", label: "GRIT", row: 0, col: 2 }
         ],
         footer: { label: "KORG-35 VCF" }
+    },
+
+    // JP Supersaw (OSC-VA-004)
+    "OSC-VA-004": {
+        id: "jp-supersaw",
+        panelClass: "jp-panel osc",
+        grid: { columns: 2, gap: 10 },
+        items: [
+            { paramId: "LAYERAMAINSAWON", control: "knob", label: "MIX", row: 0, col: 0 },
+            { paramId: "LAYERAMAINPULSEON", control: "knob", label: "DETUNE", row: 0, col: 1 }
+        ],
+        footer: { label: "JP SUPERSAW" }
+    },
+
+    // Juno Chorus (FX-CH-001)
+    "FX-CH-001": {
+        id: "juno-chorus",
+        panelClass: "juno-panel chorus",
+        grid: { columns: 1, gap: 10 },
+        items: [
+            { paramId: "LAYERAFXCHORUSMODE", control: "select", label: "MODE", row: 0, col: 0 }
+        ],
+        footer: { label: "JUNO CHORUS" }
     }
 };
 
