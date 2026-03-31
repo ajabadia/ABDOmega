@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMEGA Modular Synth</title>
+    <style>
+        /* Immediate black background to prevent white flash */
+        html, body {
+            background-color: #000 !important;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            color: #fff;
+            font-family: sans-serif;
+        }
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 11px;
+            overflow-y: auto;
+            z-index: 10000;
+            border-top: 2px solid #333;
+            pointer-events: auto;
+            display: block;
+        }
+    </style>
+    <script>
+        window.onerror = function(msg, url, line) {
+            const div = document.createElement('div');
+            div.innerText = "ERROR: " + msg + " at " + url + ":" + line;
+            div.style.color = "red";
+            document.getElementById('debug-console').appendChild(div);
+            document.getElementById('debug-console').style.display = 'block';
+        };
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        function appendToConsole(type, ...args) {
+            const div = document.createElement('div');
+            div.className = `log-entry log-${type}`;
+            div.innerText = `[${type.toUpperCase()}] ` + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+            
+            const contentEl = document.getElementById('debug-console-content');
+            if (contentEl) {
+                contentEl.appendChild(div);
+                contentEl.scrollTop = contentEl.scrollHeight;
+            }
+        }
+
+        console.log = (...args) => { originalLog.apply(console, args); appendToConsole('log', ...args); };
+        console.warn = (...args) => { originalWarn.apply(console, args); appendToConsole('warn', ...args); };
+        console.error = (...args) => { originalError.apply(console, args); appendToConsole('error', ...args); };
+
+    </script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/preferences.css">
+</head>
+<body class="rack-bg">
+    <nav class="top-menu">
+        <div class="menu-item">
+            FILE
+            <div class="dropdown">
+                <a>New Preset</a>
+                <a>Save</a>
+                <a id="menu-exit">Exit</a>
+            </div>
+        </div>
+        <div class="menu-item">
+            EDIT
+            <div class="dropdown">
+                <a>Undo</a>
+                <a>Redo</a>
+                <a id="menu-presets">Presets...</a>
+                <a id="menu-preferences">Preferences...</a>
+            </div>
+        </div>
+        <div class="menu-item">
+            HELP
+            <div class="dropdown">
+                <a id="menu-about">About OMEGA...</a>
+                <a id="menu-console">Console</a>
+            </div>
+        </div>
+        <div class="top-bar-version" id="top-bar-version">OMEGA v1.0.0 (Build 0)</div>
+    </nav>
+
+    <div id="splash-screen">
+        <div class="splash-content">
+            <h1 class="splash-logo">OMEGA</h1>
+            <div class="splash-version">Version 1.0.0 - Build 2026.03.22</div>
+            <div class="splash-credit">Powered by ABD-SynthEngine</div>
+            <div class="splash-loading-bar"><div class="loading-progress"></div></div>
+        </div>
+    </div>
+
+    <div id="omega-rack" class="rack-container" style="display: none;">
+        <div id="upper-rack" class="rack-row upper">
+            <!-- Monitoring modules injected here -->
+        </div>
+        <div id="lower-rack" class="rack-row lower">
+            <!-- Core modules injected here -->
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="about-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2 class="modal-title">OMEGA MODULAR SYNTH</h2>
+            <p class="modal-slogan">Advanced Binary-Dynamics Generation</p>
+            <div class="modal-info">
+                <p>Version: <span id="about-version">1.0.0</span></p>
+                <p>Build: <span id="about-build">0</span></p>
+                <p>Timestamp: <span id="about-timestamp"></span></p>
+            </div>
+            <div class="modal-credits">
+                <p>Design & Engineering: ABD-Team</p>
+                <p>Engine: OMEGA SynthEngine (High Fidelity)</p>
+            </div>
+            <button class="modal-ok-btn">OK</button>
+        </div>
+    </div>
+
+    <!-- Presets Modal -->
+    <div id="presets-modal" class="modal">
+        <div class="modal-content presets-modal-content">
+            <span class="close-btn" onclick="document.getElementById('presets-modal').style.display='none'">&times;</span>
+            <h2 class="modal-title">PRESET MANAGEMENT</h2>
+            <div class="presets-container">
+                <div id="preset-browser-container"></div>
+                <div id="version-control-container"></div>
+            </div>
+            <button class="modal-ok-btn" onclick="document.getElementById('presets-modal').style.display='none'">DONE</button>
+        </div>
+    </div>
+
+    <!-- Preferences Modal -->
+    <div id="preferences-modal" class="modal">
+        <div class="modal-content modal-preferences-content">
+            <div class="preferences-tabs">
+                <div class="pref-tab active">General</div>
+                <div class="pref-tab">Engine</div>
+                <div class="pref-tab">MIDI</div>
+            </div>
+            <div id="preferences-body" class="preferences-body">
+                <!-- Settings rendered by preferences.js -->
+            </div>
+            <div class="pref-footer">
+                <button class="pref-done-btn" onclick="document.getElementById('preferences-modal').style.display='none'">DONE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="debug-console" style="display: none;">
+        <div class="debug-console-header">
+            <span>CONSOLE</span>
+            <div class="console-actions">
+                <button id="close-console" title="Close Console" class="icon-btn">&#10006;</button>
+                <button id="copy-console" title="Copy to Clipboard" class="icon-btn">&#128203;</button>
+                <button id="clear-console" title="Clear Console" class="icon-btn">&#128465;</button>
+            </div>
+        </div>
+        <div id="debug-console-content"></div>
+    </div>
+    <!-- UI Bridge & Module Manager -->
+    <script src="omega_rpc.js"></script>
+    <script src="metadata_store.js"></script>
+    <script src="module_renderer.js"></script>
+    <script src="module_descriptors.js"></script>
+    <script src="components/PresetBrowser.js"></script>
+    <script src="components/VersionControl.js"></script>
+    <script src="components/ModuleMidiTrigger.js"></script>
+    <script src="components/ModuleMidiViewer.js"></script>
+    <script src="components/ModuleOscilloscope.js"></script>
+    <script src="components/ModulationVisualizer.js"></script>
+    <script src="preferences.js"></script>
+    <script src="module_manager.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>

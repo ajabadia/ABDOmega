@@ -1,0 +1,225 @@
+/**
+ * OMEGA Module Renderer
+ * Generic base for data-driven modules.
+ */
+class ModuleRenderer {
+    constructor(el, content, descriptor) {
+        this.el = el;
+        this.content = content;
+        this.descriptor = descriptor;
+        this.values = {};
+        this.layer = el.dataset.layer || "A";
+        this.group = el.dataset.group || "MAIN";
+        this.componentId = el.dataset.componentId || "";
+        
+        // Internal state
+        this.isInitialized = false;
+    }
+
+    async init() {
+        const meta = await window.metadataStore.ensureLoaded();
+        if (!meta) return;
+
+        this.render();
+        this.bind();
+        this.isInitialized = true;
+        
+        console.log(`[Renderer] Module ${this.descriptor.id} initialized.`);
+    }
+
+    render() {
+        const desc = this.descriptor;
+        this.content.innerHTML = `
+            <div class="panel ${desc.panelClass || ''}">
+                <div class="module-grid" style="display:grid; grid-template-columns: repeat(${desc.grid?.columns || 2}, 1fr); gap: ${desc.grid?.gap || 8}px;">
+                    ${desc.items.map(item => this.renderItem(item)).join('')}
+                </div>
+                ${this.renderFooter()}
+            </div>
+        `;
+    }
+
+    renderItem(item) {
+        const param = window.metadataStore.getParam(item.paramId);
+        if (!param) return `<!-- Param ${item.paramId} not found -->`;
+
+        const style = `grid-row: ${item.row + 1}; grid-column: ${item.col + 1}${item.colSpan ? ` / span ${item.colSpan}` : ''};`;
+        const label = item.label || param.name;
+
+        switch (item.control) {
+            case 'knob':
+                return `
+                    <div class="control-group" style="${style}">
+                        <label>${label}</label>
+                        <div class="knob-control" data-param="${param.id}">
+                            <div class="knob"><div class="knob-marker white"></div></div>
+                            <input type="hidden" value="${param.default || 0}" />
+                        </div>
+                    </div>
+                `;
+            case 'slider-v':
+                return `
+                    <div class="control-group" style="${style}">
+                        <label>${label}</label>
+                        <input type="range" class="v-slider" data-param="${param.id}" min="${param.min}" max="${param.max}" step="${param.step || 'any'}" value="${param.default || 0}" />
+                    </div>
+                `;
+            case 'toggle':
+                return `
+                    <div class="control-group" style="${style}">
+                        <label>${label}</label>
+                        <button class="sq ${item.variant || 'juno-red'}" data-param="${param.id}"></button>
+                    </div>
+                `;
+            case 'select':
+                return `
+                    <div class="control-group" style="${style}">
+                        <label>${label}</label>
+                        <select data-param="${param.id}">
+                            ${(param.options || []).map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+            default:
+                return '';
+        }
+    }
+
+    renderFooter() {
+        const footer = this.descriptor.footer;
+        if (!footer) return '';
+        return `
+            <div class="module-footer">
+                ${footer.paramId ? `<button class="sq juno-red" data-param="${footer.paramId}" data-role="status">ON</button>` : ''}
+                <span class="label-tiny">${footer.label || ''}</span>
+            </div>
+        `;
+    }
+
+    bind() {
+        // Enlazar eventos para cada control
+        this.descriptor.items.forEach(item => {
+            const param = window.metadataStore.getParam(item.paramId);
+            if (!param) return;
+
+            if (item.control === 'knob') {
+                const ctrl = this.content.querySelector(`[data-param="${param.id}"].knob-control`);
+                if (ctrl) this._bindKnob(ctrl, param);
+            } else if (item.control === 'slider-v') {
+                const input = this.content.querySelector(`input[data-param="${param.id}"]`);
+                if (input) {
+                    input.addEventListener('input', (e) => this.setParam(param.id, parseFloat(e.target.value)));
+                }
+            } else if (item.control === 'toggle') {
+                const btn = this.content.querySelector(`button[data-param="${param.id}"]`);
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        const current = this.values[param.id] || param.default || 0;
+                        this.setParam(param.id, current > 0.5 ? 0 : 1);
+                    });
+                }
+            } else if (item.control === 'select') {
+                const sel = this.content.querySelector(`select[data-param="${param.id}"]`);
+                if (sel) {
+                    sel.addEventListener('change', (e) => this.setParam(param.id, parseFloat(e.target.value)));
+                }
+            }
+        });
+
+        // Footer toggle
+        const footerBtn = this.content.querySelector('button[data-role="status"]');
+        if (footerBtn) {
+            const paramId = footerBtn.dataset.param;
+            footerBtn.addEventListener('click', () => {
+                const param = window.metadataStore.getParam(paramId);
+                const current = this.values[paramId] || (param ? param.default : 0);
+                this.setParam(paramId, current > 0.5 ? 0 : 1);
+            });
+        }
+    }
+
+    _bindKnob(ctrl, param) {
+        const knob = ctrl.querySelector('.knob');
+        if (!knob) return;
+
+        let isDragging = false;
+        let startY = 0;
+        let startVal = 0;
+
+        knob.addEventListener('mousedown', e => {
+            isDragging = true;
+            startY = e.clientY;
+            startVal = this.values[param.id] || param.default || 0;
+            e.preventDefault();
+        });
+
+        const onMove = (e) => {
+            if (!isDragging) return;
+            const delta = (startY - e.clientY) / 150;
+            let next = startVal + delta * (param.max - param.min);
+            next = Math.max(param.min, Math.min(param.max, next));
+            this.setParam(param.id, next);
+        };
+
+        const onUp = () => { isDragging = false; };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    }
+
+    setParam(id, value) {
+        this.values[id] = value;
+        window.omegaRPC.setParam(id, value);
+        this.updateControlUI(id, value);
+    }
+
+    onStateUpdate(state) {
+        if (!state || !state.params) return;
+        
+        // Solo actualizar parámetros que pertenecen a este módulo
+        this.descriptor.items.forEach(item => {
+            if (state.params[item.paramId] !== undefined) {
+                const val = state.params[item.paramId];
+                this.values[item.paramId] = val;
+                if (this.isInitialized) this.updateControlUI(item.paramId, val);
+            }
+        });
+
+        if (this.descriptor.footer?.paramId && state.params[this.descriptor.footer.paramId] !== undefined) {
+            const val = state.params[this.descriptor.footer.paramId];
+            this.values[this.descriptor.footer.paramId] = val;
+            if (this.isInitialized) this.updateControlUI(this.descriptor.footer.paramId, val);
+        }
+    }
+
+    updateControlUI(id, value) {
+        const param = window.metadataStore.getParam(id);
+        if (!param) return;
+
+        const input = this.content.querySelector(`input[data-param="${id}"]`);
+        if (input && input.type === 'range') input.value = value;
+
+        const btn = this.content.querySelector(`button[data-param="${id}"]`);
+        if (btn) btn.classList.toggle('active', value > 0.5);
+
+        const sel = this.content.querySelector(`select[data-param="${id}"]`);
+        if (sel) sel.value = value;
+
+        const knob = this.content.querySelector(`[data-param="${id}"].knob-control`);
+        if (knob) this._updateKnobVisual(knob, param, value);
+        
+        // Footer toggle text
+        const fBtn = this.content.querySelector(`button[data-param="${id}"][data-role="status"]`);
+        if (fBtn) fBtn.innerText = value > 0.5 ? "ON" : "BYPASS";
+    }
+
+    _updateKnobVisual(ctrl, param, value) {
+        const marker = ctrl.querySelector('.knob-marker');
+        if (!marker) return;
+        const norm = (value - param.min) / ((param.max - param.min) || 1);
+        const angle = -135 + (norm * 270);
+        marker.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+    }
+}
+
+window.ModuleRenderer = ModuleRenderer;

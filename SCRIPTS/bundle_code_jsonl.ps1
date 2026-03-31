@@ -37,7 +37,7 @@ $specificFiles = @(
 )
 
 # Folders to explicitly INCLUDE (relative to root)
-$foldersToProcess = @("SOURCE", "WebUI", "SCRIPTS", "Resources", "DOCUMENTACION")
+$foldersToProcess = @("src", "ui", "docs")
 
 # Directories to exclude (always ignore these)
 $excludeDirsBase = @(
@@ -46,7 +46,7 @@ $excludeDirsBase = @(
     ".vercel", "dist", "build", ".contentlayer", ".pnpm-store",
     ".pnpm-debug", ".idea", "temp_migration_data", "JUCE", "logs", "docs",
     "build_ninja", "build_nmake", "build_standalone", "build_vs", ".agents",
-    "vcpkg", "CMake", "HELP", "REFERENCE", "exports", ".gemini"
+    "vcpkg", "CMake", "REFERENCE", "exports", ".gemini"
 )
 
 # Combine base excludes with user-provided ones (normalized as paths starting from root)
@@ -212,8 +212,8 @@ try {
         }
     }
 
-    # 2. Get files from root (solo nivel root)
-    $rootFiles = Get-ChildItem -Path $rootDir -Depth 0 -File
+    # 2. Get files from root (solo archivos .md)
+    $rootFiles = Get-ChildItem -Path $rootDir -Depth 0 -File | Where-Object { $_.Extension -eq ".md" }
     $allFiles += $rootFiles
 
     # Distinct por ruta completa por si acaso

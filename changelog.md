@@ -2,6 +2,58 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
  
+## [1.9.4] - 2026-03-31
+### Added
+- **WebUI Architecture Hardening (Phase 13.5)**:
+    - **Fully Declarative Rendering**: Purged all legacy fallback classes (`ModuleJuno`, `ModuleDelay`, etc.). The WebUI is now 100% data-driven via `module_descriptors.js`.
+    - **TypeScript Foundation**: Transitioned core bridge infrastructure (`metadata_store.ts`, `module_renderer.ts`, `module_manager.ts`, `module_descriptors.ts`) to TypeScript with formal interface definitions.
+    - **Single Source of Truth (SOT)**: C++ `ParameterMetadataRegistry` is now the absolute authority for UI ranges, labels, and types, served via RPC.
+    - **Modular Layout Expansion**: Added universal descriptors for ADSR (EG-STANDARD-001), VCA (VCA-STANDARD-001), LFO (LFO-STANDARD-001) and Korg/Prophecy components.
+
+### Improved
+- **Build System Hygiene**: Consolidated build scripts into `build_auto.bat` and cleaned up repo-level `.gitignore` and legacy artifacts.
+- **Verification Pipeline**: Established Build #95 as the stable production-ready baseline.
+
+## [1.9.2] - 2026-03-31
+### Added
+- **Architectural Hardening Milestone (Build #91)**:
+    - **Metadata SOT (Single Source of Truth)**: Expanded `ParameterMetadataRegistry` with rich descriptors (`valueType`, `uiControl`, `category`, `options`, `ccNumber`).
+    - **Bridge Decomposition**: Refactored monolithic `OmegaUiBridge` into specialized controllers (`RpcPresetController`, `RpcTelemetryController`, `RpcSystemController`, `RpcMetadataController`, `RpcInputController`).
+    - **Data-Driven Validation**: Refactored `AceValidator` to be engine-agnostic and driven by catalog families and preset engine metadata.
+    - **Oscilloscope Restoration**: Fixed data contract mismatch in the telemetry stream by wrapping history buffers in structured objects (`{ history, latest }`).
+    - **Schema Standardization**: Unified parameter naming between ValueTrees and DSP structs (e.g., `hpfPos` -> `hpfPosition`, `vcfKybd` -> `vcfKeyTracking`).
+
+### Fixed
+- **Build Regressions**: Resolved `yaml-cpp` include path issues and `juce::var` type conversion ambiguities during RPC refactoring.
+- **Telemetry Loop**: Fixed syntax errors in `RpcTelemetryController` history fetch loop.
+ 
+## [1.9.1] - 2026-03-30
+### Added
+- **Phase 11: Modular Core Stabilization**:
+    - Standardized `voiceArch` identifier across C++, YAML and WebUI.
+    - Implemented **Recursive Collection Flattening** in `OmegaUiBridge`, ensuring modular racks render correctly.
+    - Automated metadata synchronization using `system_settings.yaml`.
+
+## [1.7.0] - 2026-03-30
+### Added
+- **Smart Focus Diagnostic System (Phase 7)**:
+    - Universal "Eye" icons (👁️) across all synthesis and FX modules.
+    - Context-aware oscilloscope routing with visual `focus-flash` feedback.
+    - Standardized `ModuleJunoBase` toolbar for consistent multi-module interaction patterns.
+- **MIDI 2.0 Hybrid Support (Phase 10)**:
+    - Integration of JUCE 8 `universal_midi_packets` (UMP) with runtime auto-detection.
+    - High-resolution processing for 16-bit velocity and 32-bit controller values.
+    - Native fallback to MIDI 1.0 byte-stream adapters for absolute backward compatibility.
+
+### Fixed & Hardened
+- **Ghost LFO Suppression**: Eliminated hardcoded 5Hz PWM modulation in `OscillatorPoolJunoDco.h`. PWM is now strictly parameter-driven.
+- **DSP Signal Purity**:
+    - Implemented hardware-style bypass for the Chorus module when set to "Off" (CPU-efficient).
+    - Restricted "Resonance Compensation" to the Juno IR3109 filter model, preventing gain artifacts in other filter types.
+- **UI/UX Refinement**:
+    - Converted VCF tactical sliders to high-fidelity rotary knobs for a premium aesthetic.
+    - Implemented "ON/BYPASS" toggle logic for the Delay module with real-time state sync.
+
 ## [1.6.1] - 2026-03-27
 ### Fixed
 - **ValueTree Serialization**: Resolved `std::string` type mismatches in `OmegaPreset` and implemented robust `juce::var` wrapping.

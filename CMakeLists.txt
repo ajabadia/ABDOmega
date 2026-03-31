@@ -31,11 +31,11 @@ add_subdirectory(JUCE _juce)
 include_directories(JUCE/modules)
 
 # Módulos OMEGA
-add_subdirectory(SOURCE/Core)
-add_subdirectory(SOURCE/DSP)
-add_subdirectory(SOURCE/Plugin)
+add_subdirectory(src/Core)
+add_subdirectory(src/DSP)
+add_subdirectory(src/Plugin)
 
 # Tests
 include(CTest)
 enable_testing()
-add_subdirectory(SOURCE/Tests)
+add_subdirectory(src/Tests)

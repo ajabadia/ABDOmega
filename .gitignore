@@ -2,39 +2,44 @@
 /*
 
 # Except these (Source and Documentation)
-!/SOURCE/
+!/src/
 !/Resources/
-!/DOCUMENTACION/
-!/SCRIPTS/
+!/docs/
+!/scripts/
 !/README.md
 !/ROADMAP.md
 !/changelog.md
 !/build_no.txt
 !/CMakeLists.txt
-!/WebUI/
+!/ui/
 !/.gitignore
+!/RULES.md
+!/BUILD.md
+!/DEVELOPMENT_RULES.md
 
-# Subdirectories of SOURCE/ and others should be handled by their own structure
-# But we need to make sure we don't re-ignore things inside SOURCE
-!/SOURCE/**
+# Subdirectories
+!/src/**
 !/Resources/**
-!/DOCUMENTACION/**
-!/SCRIPTS/**
-!/WebUI/**
+!/docs/**
+!/scripts/**
+!/ui/**
 
-# Exclude specific heavy or binary files even if they are in allowed folders
+# Exclude specific heavy or binary files
 *.exe
 *.log
 *.pdb
 *.obj
 *.o
+*.output
+*.errors
 .vs/
 .vscode/
 build*/
+OMEGABOOTLOG.txt
+OMEGA_BOOT_LOG.txt
 
 # Heavy folders to exclude explicitly
 /JUCE/
 /REFERENCE/
 /CMake/
 /build/
-/build_nmake/

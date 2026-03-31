@@ -1,0 +1,43 @@
+settings:
+  - id: numVoices
+    label: "Polyphony (Voices)"
+    tooltip: "Total sum of voices processed per engine block. Reducing this can save significant CPU."
+    defaultValue: 16
+    minValue: 1
+    maxValue: 16
+    isInteger: true
+    category: "GENERAL"
+    options:
+      1: "1 (MONO)"
+      2: "2"
+      4: "4"
+      6: "6 (CLASSIC)"
+      8: "8"
+      12: "12"
+      16: "16 (MAX)"
+
+  - id: srMode
+    label: "Oversampling Mode"
+    tooltip: "Internal engine oversampling quality. Higher values improve high-frequency resolution but increase CPU load."
+    defaultValue: 1
+    minValue: 1
+    maxValue: 4
+    isInteger: true
+    category: "GENERAL"
+    options:
+      1: "None (1x)"
+      2: "High (2x)"
+      4: "Ultra (4x)"
+
+  - id: midiStandard
+    label: "MIDI Standard"
+    tooltip: "Determines how incoming MIDI input is processed. MIDI 2.0 allows high-resolution modulation and expressive control."
+    defaultValue: 0
+    minValue: 0
+    maxValue: 2
+    isInteger: true
+    category: "MIDI"
+    options:
+      0: "Auto (Detect)"
+      1: "MIDI 1.0 Heritage"
+      2: "MIDI 2.0 Expressive"

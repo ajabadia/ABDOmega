@@ -8,7 +8,8 @@ The project follow a "Modular-without-Cables" architecture, focusing on expressi
 ### Tech Stack
 - **Agnostic Core**: C++ Standard Library, `yaml-cpp`, `std::filesystem`.
 - **DSP/Plugin Layer**: JUCE Framework (v8 compatible).
-- **Architecture**: Decoupled, Protocol-agnostic (MIDI 1.0/2.0/MPE ready).
+- **Architecture**: Decoupled, Protocol-agnostic (**MIDI 1.0 / 2.0 UMP ready**).
+- **Diagnostics**: Standardized **Smart Focus** (Universal Context-Aware Analysis).
 
 ## 📂 Repository Structure
 - `/SOURCE/DSP`: Core DSP algorithms (VA, Physical Models).
@@ -34,7 +35,10 @@ OMEGA has transitioned to a **Service-Oriented Architecture** to ensure long-ter
 - **Korg Prophecy & Z1 (MOSS)**: Modelos físicos de cuerda, metales, caña, VPM, **EP (Electric Piano)** e **Drawbar Organ**.
 - **Roland JP-8080 Elite Suite**: Osciladores **Feedback** y **Supersaw**, **Cross-Modulation**, **JP-Formant Filter** y **Motion Control**.
 - **Space Echo (RE-201)**: Emulación multi-cabezal con saturación de cinta magnética y reverb de muelles integrada en el rack modular.
-- **Build System**: Estabilización mediante `build_auto.bat` (CMake/Ninja) con tracking automático de builds y despliegue del ejecutable Standalone (**Build #104**).
+- **Smart Focus Diagnostic**: Sistema universal de iconos de enfoque ("Eye") para ruteo instantáneo al osciloscopio desde cualquier módulo.
+- **MIDI 2.0 Hybrid Input**: Soporte nativo para UMP en JUCE 8 con auto-detección de formato y procesamiento de alta resolución (16-bit velocity).
+- **Fully Declarative WebUI**: 100% data-driven interface using `ModuleRenderer` and TypeScript descriptors, ensuring zero duplication between C++ and JS.
+- **Build System**: Stabilized via `build_auto.bat` (CMake/Ninja) with automatic build tracking (**Build #95**).
 
 ---
 *Built by ABD-IA*
