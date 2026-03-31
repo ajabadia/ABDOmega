@@ -106,6 +106,8 @@ public:
         chorusMode.options = {{0, "Off"}, {1, "I"}, {2, "II"}, {3, "I+II"}};
         registerParameter(chorusMode);
 
+        registerParameter({"LAYERACHORUSMIX", "Chorus Mix", "Juno chorus wet/dry level", ParamValueType::Continuous, 0.0f, 1.0f, 0.5f, 0.0f, 1.0f, "%", "FX", "synthesis", "knob"});
+
         ParameterDescriptor hpfPos = {"LAYERAMAINHPF", "HPF Position", "High-pass filter mode", ParamValueType::Enum, 0.0f, 3.0f, 1.0f, 1.0f, 1.0f, "Choice", "VCF", "synthesis", "switch", false, 81};
         hpfPos.options = {{0, "Off"}, {1, "1"}, {2, "2"}, {3, "3"}};
         registerParameter(hpfPos);

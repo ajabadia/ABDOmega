@@ -65,22 +65,28 @@ class ModuleManager {
             console.log("[ModuleManager] Rack Update - Arch:", arch);
 
             if (arch) {
-                // Process Categories
+                // Process Categories - Unify Root and Layer components
                 const categories = [
-                    { list: arch.oscillators || arch.oscillatorList || [], type: "osc" },
-                    { list: arch.filters     || arch.filterList     || [], type: "filter" },
-                    { list: arch.envelopes   || arch.envelopeList   || [], type: "env" },
-                    { list: arch.amplifiers  || arch.amplifierList  || [], type: "amp" },
-                    { list: arch.lfos        || arch.lfoList        || [], type: "lfo" },
-                    { list: arch.fxSlots     || arch.fxList         || [], type: "fx" }
+                    { list: (arch.oscillators || arch.oscillatorList || []).concat(state.preset?.oscillators || []), type: "osc" },
+                    { list: (arch.filters     || arch.filterList     || []).concat(state.preset?.filters || []), type: "filter" },
+                    { list: (arch.envelopes   || arch.envelopeList   || []).concat(state.preset?.envelopes || []), type: "env" },
+                    { list: (arch.amplifiers  || arch.amplifierList  || []).concat(state.preset?.amplifiers || []), type: "amp" },
+                    { list: (arch.lfos        || arch.lfoList        || []).concat(state.preset?.lfos || []), type: "lfo" },
+                    { list: (arch.fxSlots     || arch.fxList         || []).concat(state.preset?.fxSlots || []), type: "fx" }
                 ];
 
                 for (const cat of categories) {
-                    if (!cat.list) continue;
+                    if (!cat.list || cat.list.length === 0) {
+                        console.log(`[ModuleManager] Category ${cat.type} is empty.`);
+                        continue;
+                    }
+                    console.log(`[ModuleManager] Processing category ${cat.type} (${cat.list.length} items)`);
                     for (const item of cat.list) {
                         const componentId = item.componentId || item.id || item.type;
                         const descriptor = window.ModuleDescriptors[componentId];
                         
+                        console.log(`[ModuleManager] Item: ${item.slotName}, ID: ${componentId}, HasDescriptor: ${!!descriptor}`);
+
                         if (descriptor) {
                             await this.addModule(item.slotName || componentId, "ModuleRenderer", cat.type, lower, { 
                                 descriptor, componentId, layer, group: "MAIN" 

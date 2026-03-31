@@ -9,6 +9,7 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     // Juno DCO (OSC-VA-001)
     "OSC-VA-001": {
         id: "juno-dco",
+        title: "JUNO DCO",
         panelClass: "juno-panel dco",
         grid: { columns: 2, gap: 10 },
         items: [
@@ -16,14 +17,16 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
             { paramId: "LAYERAMAINPULSEON",   control: "toggle",   label: "PULSE", row: 0, col: 1, variant: "juno-red" },
             { paramId: "LAYERASUBOSELEVEL",   control: "slider-v", label: "SUB",   row: 1, col: 0 },
             { paramId: "LAYERANOISELEVEL",    control: "slider-v", label: "NOISE", row: 1, col: 1 },
-            { paramId: "LAYERAPWMMODE",       control: "select",   label: "PWM",   row: 2, col: 0 },
-            { paramId: "LAYERAPWMAMOUNT",     control: "slider-v", label: "AMT",   row: 2, col: 1 }
-        ]
+            { paramId: "LAYERADCOMODDEPTH",   control: "knob",     label: "LFO",   row: 2, col: 0 },
+            { paramId: "LAYERAPWMAMOUNT",     control: "slider-v", label: "PWM",   row: 2, col: 1 }
+        ],
+        footer: { label: "DIGITALLY CONTROLLED OSC" }
     },
 
     // Juno VCF (FLT-VA-001)
     "FLT-VA-001": {
         id: "juno-vcf",
+        title: "IR3109 VCF",
         panelClass: "juno-panel vcf",
         grid: { columns: 3, gap: 10 },
         items: [
@@ -34,12 +37,14 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
             { paramId: "LAYERAVCFMODDEPTH",   control: "knob",     label: "LFO",   row: 1, col: 1 },
             { paramId: "LAYERAVCFENVPOL",     control: "toggle",   label: "POL",   row: 1, col: 2, variant: "juno-orange" },
             { paramId: "LAYERAMAINHPF",       control: "select",   label: "HPF",   row: 2, col: 0, colSpan: 3 }
-        ]
+        ],
+        footer: { label: "ANALOG LOW PASS FILTER" }
     },
 
     // Space Echo (FX-DL-002)
     "FX-DL-002": {
         id: "space-echo",
+        title: "SPACE ECHO",
         panelClass: "space-panel",
         grid: { columns: 2, gap: 10 },
         items: [
@@ -57,9 +62,10 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         }
     },
 
-    // Master Delay (FX-DL-001)
+    // Master Delay
     "FX-DL-001": {
         id: "master-delay",
+        title: "MASTER DELAY",
         panelClass: "delay-panel",
         grid: { columns: 2, gap: 8 },
         items: [
@@ -69,13 +75,14 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         ],
         footer: {
             paramId: "MASTERDELAYENABLED",
-            label: "MASTER DELAY"
+            label: "DIGITAL FX CORE"
         }
     },
 
     // Universal ADSR (EG-STANDARD-001 / ENV-ADSR-GEN)
     "EG-STANDARD-001": {
         id: "adsr",
+        title: "EG-ADSR",
         panelClass: "env-panel",
         grid: { columns: 2, gap: 8 },
         items: [
@@ -88,6 +95,7 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     },
     "ENV-ADSR-GEN": {
         id: "adsr",
+        title: "EG-ADSR",
         panelClass: "env-panel",
         grid: { columns: 2, gap: 8 },
         items: [
@@ -102,10 +110,12 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     // Universal VCA (VCA-STANDARD-001)
     "VCA-STANDARD-001": {
         id: "vca",
+        title: "AMP-VCA",
         panelClass: "vca-panel",
         grid: { columns: 1, gap: 8 },
         items: [
-            { paramId: "LAYERAMAINVCAGAIN", control: "slider-v", label: "GAIN", row: 0, col: 0 }
+            { paramId: "LAYERAMAINVCAGAIN", control: "slider-v", label: "GAIN", row: 0, col: 0 },
+            { paramId: "LAYERAMAINVCAMODE", control: "toggle",   label: "GATE", row: 1, col: 0 }
         ],
         footer: { label: "AMPLIFIER" }
     },
@@ -113,6 +123,7 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     // Universal LFO (LFO-STANDARD-001)
     "LFO-STANDARD-001": {
         id: "lfo",
+        title: "LFO-MOD",
         panelClass: "lfo-panel",
         grid: { columns: 1, gap: 10 },
         items: [
@@ -125,49 +136,54 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     // Korg/Prophecy Oscillator (OSC-KORG-P)
     "OSC-KORG-P": {
         id: "korg-osc",
+        title: "KORG DCO",
         panelClass: "korg-panel osc",
         grid: { columns: 2, gap: 10 },
         items: [
-            { paramId: "LAYERAMAINSAWON", control: "knob", label: "OSC-A", row: 0, col: 0 },
-            { paramId: "LAYERAMAINPULSEON", control: "knob", label: "OSC-B", row: 0, col: 1 }
+            { paramId: "LAYERAMAINSAWON", control: "toggle", label: "SAW", row: 0, col: 0 },
+            { paramId: "LAYERAMAINPULSEON", control: "toggle", label: "PULSE", row: 0, col: 1 }
         ],
-        footer: { label: "KORG DCO" }
+        footer: { label: "MOSS ENGINE" }
     },
 
     // Korg MS-20 Filter (FLT-VA-003)
     "FLT-VA-003": {
         id: "korg-vcf",
+        title: "KORG-35 VCF",
         panelClass: "korg-panel vcf",
         grid: { columns: 3, gap: 10 },
         items: [
             { paramId: "LAYERAMAINCUTOFF",     control: "knob", label: "LPF", row: 0, col: 0 },
             { paramId: "LAYERAKORGHPFCUTOFF",  control: "knob", label: "HPF", row: 0, col: 1 },
-            { paramId: "LAYERAKORGGRIT",       control: "knob", label: "GRIT", row: 0, col: 2 }
+            { paramId: "LAYERAKORGGRIT",       control: "knob", label: "DRIVE", row: 0, col: 2 }
         ],
-        footer: { label: "KORG-35 VCF" }
+        footer: { label: "VCF (ANALOG)" }
     },
 
     // JP Supersaw (OSC-VA-004)
     "OSC-VA-004": {
         id: "jp-supersaw",
+        title: "JP SUPERSAW",
         panelClass: "jp-panel osc",
         grid: { columns: 2, gap: 10 },
         items: [
-            { paramId: "LAYERAMAINSAWON", control: "knob", label: "MIX", row: 0, col: 0 },
-            { paramId: "LAYERAMAINPULSEON", control: "knob", label: "DETUNE", row: 0, col: 1 }
+            { paramId: "LAYERAMAINJPDETUNE", control: "knob", label: "DETUNE", row: 0, col: 0 },
+            { paramId: "LAYERAMAINANALOGDRIFT", control: "knob", label: "DRIFT", row: 0, col: 1 }
         ],
-        footer: { label: "JP SUPERSAW" }
+        footer: { label: "ROLAND SUPERSAW" }
     },
 
     // Juno Chorus (FX-CH-001)
     "FX-CH-001": {
         id: "juno-chorus",
+        title: "JUNO CHORUS",
         panelClass: "juno-panel chorus",
-        grid: { columns: 1, gap: 10 },
+        grid: { columns: 2, gap: 10 },
         items: [
-            { paramId: "LAYERAFXCHORUSMODE", control: "select", label: "MODE", row: 0, col: 0 }
+            { paramId: "LAYERACHORUSMODE", control: "select", label: "MODE", row: 0, col: 0 },
+            { paramId: "LAYERACHORUSMIX",  control: "knob",   label: "MIX",  row: 0, col: 1 }
         ],
-        footer: { label: "JUNO CHORUS" }
+        footer: { label: "BBD EFFECT" }
     }
 };
 

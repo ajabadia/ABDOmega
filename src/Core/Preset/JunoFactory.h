@@ -326,10 +326,10 @@ namespace Preset {
             flt.componentId = "FLT-VA-003"; // This triggers Korg35 model
             l.voiceArch.filters.push_back(flt);
             
-            AceComponent delay;
-            delay.slotName = "Master Delay";
-            delay.componentId = "FX-DL-001";
-            l.voiceArch.fxSlots.push_back(delay);
+            AceComponent chorus;
+            chorus.slotName = "CHORUS";
+            chorus.componentId = "FX-CH-001";
+            l.voiceArch.fxSlots.push_back(chorus);
             
             p.addLayer(l);
 

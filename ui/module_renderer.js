@@ -41,7 +41,10 @@ class ModuleRenderer {
 
     renderItem(item) {
         const param = window.metadataStore.getParam(item.paramId);
-        if (!param) return `<!-- Param ${item.paramId} not found -->`;
+        if (!param) {
+            console.error(`[Renderer] Parameter ${item.paramId} not found in MetadataStore.`);
+            return `<div class="error-param" style="color:red; font-size:9px;">! ${item.paramId}</div>`;
+        }
 
         const style = `grid-row: ${item.row + 1}; grid-column: ${item.col + 1}${item.colSpan ? ` / span ${item.colSpan}` : ''};`;
         const label = item.label || param.name;
