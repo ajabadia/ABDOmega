@@ -3,7 +3,7 @@
  * Generic engine for declarative UI modules.
  */
 
-import { MetadataStore, ParamDescriptor } from './metadata_store';
+import { MetadataStore, type ParamDescriptor } from './metadata_store.js';
 
 export interface LayoutItem {
     paramId: string;
@@ -59,7 +59,7 @@ export class ModuleRenderer {
         const desc = this.descriptor;
         this.content.innerHTML = `
             <div class="panel ${desc.panelClass || ''}">
-                <div class="module-grid" style="display:grid; grid-template-columns: repeat(${desc.grid?.columns || 2}, 1fr); gap: ${desc.grid?.gap || 8}px;">
+                <div class="module-grid" style="display:grid; grid-template-columns: repeat(${desc.grid?.columns || 2}, 1fr); gap: ${desc.grid?.gap || 12}px;">
                     ${desc.items.map(item => this.renderItem(item)).join('')}
                 </div>
                 ${this.renderFooter()}
@@ -117,9 +117,9 @@ export class ModuleRenderer {
         const footer = this.descriptor.footer;
         if (!footer) return '';
         return `
-            <div class="module-footer">
-                ${footer.paramId ? `<button class="sq juno-red" data-param="${footer.paramId}" data-role="status">ON</button>` : ''}
-                <span class="label-tiny">${footer.label || ''}</span>
+            <div class="module-footer" style="padding: 4px 10px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                ${footer.paramId ? `<button class="sq juno-red" data-param="${footer.paramId}" data-role="status" style="width:24px; height:24px;"></button>` : ''}
+                <span class="label-tiny" style="font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; flex: 1; text-align: right;">${footer.label || ''}</span>
             </div>
         `;
     }

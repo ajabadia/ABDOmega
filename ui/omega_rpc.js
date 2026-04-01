@@ -1,167 +1,128 @@
 /**
- * OMEGA JSON-RPC v2 Bridge (Built for JUCE 8)
- * Ensures robust communication via native functions and event emitters.
+ * OMEGA JSON-RPC v2 Bridge (TypeScript Implementation)
+ * Phase 15.1 - Structural Maturity
  */
-class OmegaRPC {
+export class OmegaRPC {
+    requestId = 1000;
+    pendingRequests = new Map();
     constructor() {
-        this.requestId = 1000;
-        this.pendingRequests = new Map();
-        
-        // Listener for messages from C++ (notifications or legacy responses)
+        console.log("[OMEGA TS] RPC Controller Initialized");
+        // Listener for messages from C++
         window.handleOmegaMessage = (json) => {
             try {
                 const msg = typeof json === 'string' ? JSON.parse(json) : json;
-                console.log("[RPC] Received Event:", msg);
-                
                 if (msg.requestId && this.pendingRequests.has(msg.requestId)) {
-                    const { resolve, reject } = this.pendingRequests.get(msg.requestId);
+                    const req = this.pendingRequests.get(msg.requestId);
                     this.pendingRequests.delete(msg.requestId);
-                    if (msg.type === "error") reject(msg.payload);
-                    else resolve(msg.payload);
-                } else if (msg.type === "paramChanged") {
-                    window.dispatchEvent(new CustomEvent('omega:paramChanged', { detail: msg.payload }));
-                } else if (msg.type === "state") {
-                    window.dispatchEvent(new CustomEvent('omega:stateUpdate', { detail: msg.payload }));
+                    if (msg.type === "error")
+                        req.reject(msg.payload);
+                    else
+                        req.resolve(msg.payload);
                 }
-            } catch (e) {
-                console.error("[RPC] Error handling message:", e, json);
+                else {
+                    // Dispatch as browser event
+                    window.dispatchEvent(new CustomEvent(`omega:${msg.type}`, { detail: msg.payload }));
+                }
+            }
+            catch (e) {
+                console.error("[RPC TS] Error handling message:", e, json);
             }
         };
     }
-
     async _waitForBackend(timeout = 5000) {
         const start = Date.now();
-        console.log("[RPC] Waiting for Native Bridge...");
         while (Date.now() - start < timeout) {
-            // Check for our custom shim in root or JUCE backend
-            const bridge = window.omegaNativeCall || window.__JUCE__?.backend?.omegaNativeCall;
-            if (typeof bridge === 'function') {
-                console.log("[RPC] Native Bridge detected via omegaNativeCall");
+            const win = window;
+            const bridge = win.omegaNativeCall || win.__JUCE__?.backend?.omegaNativeCall;
+            if (typeof bridge === 'function')
                 return { omegaNativeCall: bridge };
-            }
-            // Fallback for events
-            if (window.__JUCE__?.backend?.emitEvent) {
-                console.log("[RPC] Native Bridge detected via emitEvent");
-                return window.__JUCE__.backend;
-            }
+            if (win.__JUCE__?.backend?.emitEvent)
+                return win.__JUCE__.backend;
             await new Promise(r => setTimeout(r, 100));
         }
-        console.warn("[RPC] Native Bridge timeout - falling back to MOCK");
         return null;
     }
-
     async send(type, payload = {}) {
         const id = this.requestId++;
         const message = { type, requestId: id, payload };
-        
-        console.log(`[RPC] Executing ${type} (ID: ${id})...`);
-
         const backend = await this._waitForBackend();
-        
         if (!backend) {
-            console.warn("[RPC] No Native Bridge after timeout. Using MOCKS.");
+            console.warn(`[RPC TS] No backend for ${type}, mocking.`);
             return this._getMock(type);
         }
-
         try {
             let rawResponse;
             if (typeof backend.omegaNativeCall === 'function') {
                 rawResponse = await backend.omegaNativeCall(type, id, payload);
-            } else if (typeof backend[type] === 'function') {
-                rawResponse = await backend[type](id, payload);
-            } else if (backend.emitEvent) {
+            }
+            else if (backend.emitEvent) {
                 rawResponse = await backend.emitEvent("omegaMessage", message);
-            } else {
-                console.warn(`[RPC] Bridge exists but ${type} is not a function. MOCKING.`);
-                return this._getMock(type);
             }
-
-            if (window.appendToConsole) {
-                window.appendToConsole(`[RPC] RAW Response for ${type}: ${JSON.stringify(rawResponse)}`, 'log');
-            }
-            
-            if (rawResponse === undefined || rawResponse === null) {
-                console.warn(`[RPC] RAW Response is empty. MOCKING.`);
-                return this._getMock(type);
-            }
-
-            let msg = (typeof rawResponse === 'string' && rawResponse.startsWith('{')) 
-                        ? JSON.parse(rawResponse) 
-                        : rawResponse;
-
-            if (msg && typeof msg === 'object' && msg.payload !== undefined) {
-                return msg.payload;
-            }
-            
-            return msg;
-        } catch (e) {
-            console.error(`[RPC] Bridge CRASHED. MOCKING.`, e);
+            const msg = typeof rawResponse === 'string' ? JSON.parse(rawResponse) : rawResponse;
+            return msg?.payload !== undefined ? msg.payload : msg;
+        }
+        catch (e) {
+            console.error(`[RPC TS] Call ${type} failed:`, e);
             return this._getMock(type);
         }
     }
-
     _getMock(type) {
-        if (type === "getState") return {
-            preset: { 
-                id: "MOCK-1", 
-                name: "Mock Preset", 
-                engine: "Juno",
-                auxiliary: [
-                    { id: "MIDI-TRIG", type: "midi-trig", label: "MIDI TRIGGER" },
-                    { id: "MIDI-MON", type: "midi-mon", label: "MIDI MONITOR" },
-                    { id: "LFO1", type: "osc", label: "LFO 1", signalIndex: 10 }
-                ],
-                layers: [{
-                    voiceArch: {
-                        oscillators: [{ slotName: "DCO 1", componentId: "OSC-VA-001" }],
-                        filters: [{ slotName: "VCF", componentId: "FLT-VA-001" }],
-                        envelopes: [{ slotName: "ENV" }],
-                        fxSlots: []
-                    }
-                }]
-            },
-            params: { "LAYERAMAINCUTOFF": 0.5, "LAYERAMAINRESONANCE": 0.2 }
-        };
-        if (type === "listPresets") return ["MOCK_PRESET_A.yaml", "MOCK_PRESET_B.yaml"];
-        if (type === "getMetadata") return {
-            "LAYERAMAINCUTOFF": { id: "LAYERAMAINCUTOFF", name: "Cutoff", min: 20, max: 20000, default: 2000, unit: "Hz", skew: 0.3 },
-            "LAYERAMAINRESONANCE": { id: "LAYERAMAINRESONANCE", name: "Resonance", min: 0, max: 1, default: 0.1, unit: "%", skew: 1.0 },
-            "LAYERAMAINHPF": { id: "LAYERAMAINHPF", name: "HPF", min: 0, max: 3, default: 1, unit: "Choice", skew: 1.0 }
-        };
-        if (type === "GET_SYSTEM_SETTINGS") return [
-            { id: "numVoices", label: "Polyphony (Voices)", tooltip: "Total sum of voices processed per engine block. Reducing this can save significant CPU.", currentValue: 16, defaultValue: 16, minValue: 1, maxValue: 16, isInteger: true, category: "GENERAL", options: { 1: "1 (MONO)", 16: "16 (MAX)" } },
-            { id: "srMode", label: "Oversampling Mode", tooltip: "Internal engine oversampling quality.", currentValue: 1, defaultValue: 1, minValue: 1, maxValue: 4, isInteger: true, category: "GENERAL", options: { 1: "None (1x)", 2: "High (2x)", 4: "Ultra (4x)" } },
-            { id: "midiStandard", label: "MIDI Standard", tooltip: "Determines how incoming MIDI input is processed.", currentValue: 0, defaultValue: 0, minValue: 0, maxValue: 2, isInteger: true, category: "MIDI", options: { 0: "Auto (Detect)", 1: "MIDI 1.0 Heritage", 2: "MIDI 2.0 Expressive" } }
-        ];
+        // Reduced mock for TS baseline
+        if (type === "getState")
+            return { preset: { name: "TS MOCK PATCH" }, params: {} };
         return null;
     }
-
-    // Core methods
+    // API methods
     getState() { return this.send("getState"); }
-    getMetadata() { return this.send("getMetadata"); }
-    setParam(paramId, value) { return this.send("setParam", { id: paramId, value }); }
-    
-    // Preset management
-    listPresets() { return this.send("listPresets"); }
-    getHistory(presetId) { return this.send("getHistory", { id: presetId }); }
-    saveSnapshot(author, message) { return this.send("saveSnapshot", { author, message }); }
-    checkout(presetId, hash) { return this.send("checkout", { id: presetId, hash }); }
-    createBranch(presetId, branchName, fromHash = "") { 
-        return this.send("createBranch", { id: presetId, name: branchName, from: fromHash }); 
+    async getMetadata() { return this.send("getMetadata"); }
+    async getSystemSettings() { return this.send("getSystemSettings"); }
+    async setSystemSetting(id, value) { return this.send("setSystemSetting", { id, value }); }
+    async getBrowserData() { return this.send("getBrowserData"); }
+    async selectLibrary(libIdx) { return this.send("selectLibrary", { libIdx }); }
+    async loadLibraryPreset(libIdx, prstIdx) { return this.send("loadLibraryPreset", { libIdx, prstIdx }); }
+    async setFavorite(libIdx, prstIdx, fav) { return this.send("setFavorite", { libIdx, prstIdx, fav }); }
+    async savePresetDetailed(libIdx, prstIdx) { return this.send("savePreset", { libIdx, prstIdx }); }
+    async saveAsNewPresetDetailed(name, category, author, tags, notes) {
+        return this.send("saveAsNewPreset", { name, category, author, tags, notes });
     }
-    
+    setParam(id, value) { return this.send("setParam", { id, value }); }
     uiReady() { return this.send("uiReady"); }
-
-    // --- Oscilloscope 2.0 ---
-    getSampleRate() { return this.send("getSampleRate"); }
-    getTelemetrySources() { return this.send("getTelemetrySources"); }
-    getMidiEvents() { return this.send("getMidiEvents"); }
-    getScopeState() { return this.send("getScopeState"); }
-    setScopeState(state) { return this.send("setScopeState", state); }
-
-    // --- System Settings (Preferences) ---
-    getSystemSettings() { return this.send("getSystemSettings"); }
-    setSystemSetting(id, value) { return this.send("setSystemSetting", { id, value }); }
+    sendMidi(status, data1, data2) {
+        return this.send("sendMidi", { status, data1, data2 });
+    }
 }
-
-window.omegaRPC = new OmegaRPC();
+export const rpc = new OmegaRPC();
+/**
+ * Compatibility Shim: maps legacy window.juce calls to RPC sends.
+ */
+export function setupJuceShim() {
+    if (!window.juce) {
+        window.juce = {
+            getMetadata: () => rpc.getMetadata(),
+            getSystemSettings: () => rpc.getSystemSettings(),
+            setSystemSetting: (id, val) => rpc.setSystemSetting(id, val),
+            getBrowserData: () => rpc.getBrowserData(),
+            selectLibrary: (idx) => rpc.selectLibrary(idx),
+            loadLibraryPreset: (lIdx, pIdx) => rpc.loadLibraryPreset(lIdx, pIdx),
+            setFavorite: (lIdx, pIdx, fav) => rpc.setFavorite(lIdx, pIdx, fav),
+            savePresetDetailed: (lIdx, pIdx) => rpc.savePresetDetailed(lIdx, pIdx),
+            saveAsNewPresetDetailed: (n, c, a, t, ns) => rpc.saveAsNewPresetDetailed(n, c, a, t, ns),
+            menuAction: (action, ...args) => {
+                console.log("[BRIDGE SHIM] juce.menuAction -> RPC send:", action);
+                rpc.send("menuAction", { action, args });
+            },
+            setParameter: (id, value) => {
+                rpc.setParam(id, value);
+            },
+            uiReady: () => {
+                rpc.uiReady();
+            },
+            sendMidi: (status, data1, data2) => {
+                rpc.sendMidi(status, data1, data2);
+            }
+        };
+        console.log("[BRIDGE SHIM] window.juce initialized via RPC");
+    }
+}
+window.omegaRPC = rpc;
+//# sourceMappingURL=omega_rpc.js.map

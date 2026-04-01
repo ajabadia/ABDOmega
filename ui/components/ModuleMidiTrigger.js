@@ -1,78 +1,94 @@
 /**
- * OMEGA MIDI Trigger Module
- * Allows triggering notes from the UI.
+ * ModuleMidiTrigger (TypeScript)
+ * Interface for triggering notes directly from the WebUI.
  */
-class ModuleMidiTrigger {
-    constructor(el, content) {
+export class ModuleMidiTrigger {
+    el;
+    content;
+    descriptor;
+    currentNote = 0; // index in ["C", ...]
+    currentOctave = 5;
+    constructor(el, content, descriptor) {
         this.el = el;
         this.content = content;
-        this.active = true;
-        
-        this.notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        this.selectedNote = 0; // C
-        this.selectedOctave = 4;
-        
-        this.init();
+        this.descriptor = descriptor;
+        this.render();
     }
-
-    init() {
-        this.content.className += ' trigger-controls';
+    async init() {
+        this.bind();
+    }
+    render() {
+        const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const octaves = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8];
         this.content.innerHTML = `
-            <div class="control-group">
-                <label>NOTE</label>
-                <select class="note-select">
-                    ${this.notes.map((n, i) => `<option value="${i}">${n}</option>`).join('')}
-                </select>
-            </div>
-            <div class="control-group">
-                <label>OCT</label>
-                <select class="octave-select">
-                    ${[0,1,2,3,4,5,6,7,8].map(o => `<option value="${o}" ${o===4 ? 'selected' : ''}>${o}</option>`).join('')}
-                </select>
-            </div>
-            <button class="trigger-btn">PUSH</button>
-            <div class="osc-footer">
-                <span>V-REMOTE #01</span>
+            <div class="midi-trigger-container" style="display: flex; flex-direction: column; height: 100%; padding: 10px; gap: 10px; justify-content: center; align-items: center;">
+                <div class="trigger-selectors" style="display: flex; gap: 5px; width: 100%;">
+                    <select id="trigger-note" class="pref-select" style="flex: 2;">
+                        ${notes.map((n, i) => `<option value="${i}" ${i === this.currentNote ? 'selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                    <select id="trigger-octave" class="pref-select" style="flex: 1;">
+                        ${octaves.map(o => `<option value="${o}" ${o === this.currentOctave ? 'selected' : ''}>${o}</option>`).join('')}
+                    </select>
+                </div>
+                
+                <div class="trigger-main" style="flex: 1; display: flex; justify-content: center; align-items: center; width: 100%;">
+                    <div id="big-fire-btn" class="sq juno-white" style="
+                        width: 80px; height: 80px; 
+                        border-radius: 50%; 
+                        display: flex; justify-content: center; align-items: center; 
+                        cursor: pointer; 
+                        box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+                        transition: all 0.1s ease;
+                        font-weight: bold;
+                        border: 2px solid #00f2ff;
+                    ">
+                        FIRE
+                    </div>
+                </div>
             </div>
         `;
-        
-        // Listeners
-        const noteSel = this.content.querySelector('.note-select');
-        const octSel = this.content.querySelector('.octave-select');
-        const btn = this.content.querySelector('.trigger-btn');
-        
-        noteSel.onchange = (e) => this.selectedNote = parseInt(e.target.value);
-        octSel.onchange = (e) => this.selectedOctave = parseInt(e.target.value);
-        
-        // Trigger Note On/Off
-        btn.onmousedown = () => this.sendMidi(true);
-        btn.onmouseup = () => this.sendMidi(false);
-        btn.onmouseleave = () => { if (this.isPressed) this.sendMidi(false); };
-        
+    }
+    bind() {
+        const noteSel = this.content.querySelector('#trigger-note');
+        const octSel = this.content.querySelector('#trigger-octave');
+        const fireBtn = this.content.querySelector('#big-fire-btn');
+        noteSel.onchange = () => this.currentNote = parseInt(noteSel.value);
+        octSel.onchange = () => this.currentOctave = parseInt(octSel.value);
+        const trigger = (on) => {
+            const midiNote = (this.currentOctave + 2) * 12 + this.currentNote;
+            const velocity = on ? 127 : 0;
+            const status = on ? 0x90 : 0x80;
+            // Visual feedback
+            if (on) {
+                fireBtn.style.backgroundColor = '#00f2ff';
+                fireBtn.style.color = '#000';
+                fireBtn.style.boxShadow = '0 0 30px #00f2ff';
+                fireBtn.style.transform = 'scale(0.95)';
+            }
+            else {
+                fireBtn.style.backgroundColor = '';
+                fireBtn.style.color = '';
+                fireBtn.style.boxShadow = '0 0 15px rgba(0, 242, 255, 0.2)';
+                fireBtn.style.transform = '';
+            }
+            // @ts-ignore
+            if (window.omegaRPC) {
+                // @ts-ignore
+                window.omegaRPC.sendMidi(status, midiNote, velocity);
+            }
+        };
+        fireBtn.onmousedown = () => trigger(true);
+        fireBtn.onmouseup = () => trigger(false);
+        fireBtn.onmouseleave = () => trigger(false);
         // Touch support
-        btn.ontouchstart = (e) => { e.preventDefault(); this.sendMidi(true); };
-        btn.ontouchend = (e) => { e.preventDefault(); this.sendMidi(false); };
+        fireBtn.ontouchstart = (e) => { e.preventDefault(); trigger(true); };
+        fireBtn.ontouchend = (e) => { e.preventDefault(); trigger(false); };
     }
-
-    sendMidi(isOn) {
-        this.isPressed = isOn;
-        const midiNote = (this.selectedOctave + 1) * 12 + this.selectedNote;
-        const velocity = isOn ? 100 : 0;
-        
-        console.log(`[MidiTrigger] Sending Note ${midiNote} (${isOn ? 'ON' : 'OFF'})`);
-        
-        if (window.omegaRPC) {
-            window.omegaRPC.send("triggerNote", {
-                note: midiNote,
-                velocity: velocity,
-                on: isOn
-            });
-        }
-        
-        const btn = this.el.querySelector('.trigger-btn');
-        if (isOn) btn.classList.add('active');
-        else btn.classList.remove('active');
-    }
+    onStateUpdate(state) { }
+    destroy() { }
 }
-
-window.ModuleMidiTrigger = ModuleMidiTrigger;
+// @ts-ignore
+if (typeof window !== 'undefined')
+    window.ModuleMidiTrigger = ModuleMidiTrigger;
+export default ModuleMidiTrigger;
+//# sourceMappingURL=ModuleMidiTrigger.js.map

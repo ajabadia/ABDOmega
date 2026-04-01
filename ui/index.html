@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OMEGA Modular Synth</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@400;800&display=swap" rel="stylesheet">
     <style>
         /* Immediate black background to prevent white flash */
         html, body {
@@ -35,11 +38,16 @@
     </style>
     <script>
         window.onerror = function(msg, url, line) {
-            const div = document.createElement('div');
-            div.innerText = "ERROR: " + msg + " at " + url + ":" + line;
-            div.style.color = "red";
-            document.getElementById('debug-console').appendChild(div);
-            document.getElementById('debug-console').style.display = 'block';
+            const contentEl = document.getElementById('debug-console-content');
+            if (contentEl) {
+                const div = document.createElement('div');
+                div.innerText = "ERROR: " + msg + " at " + url + ":" + line;
+                div.style.color = "#ff5555";
+                contentEl.appendChild(div);
+                contentEl.scrollTop = contentEl.scrollHeight;
+            }
+            const consoleEl = document.getElementById('debug-console');
+            if (consoleEl) consoleEl.style.display = 'block';
         };
         const originalLog = console.log;
         const originalWarn = console.warn;
@@ -70,28 +78,28 @@
         <div class="menu-item">
             FILE
             <div class="dropdown">
-                <a>New Preset</a>
-                <a>Save</a>
-                <a id="menu-exit">Exit</a>
+                <a data-action="new_preset">New Preset</a>
+                <a data-action="save_preset">Save</a>
+                <a id="menu-exit" data-action="exit">Exit</a>
             </div>
         </div>
         <div class="menu-item">
             EDIT
             <div class="dropdown">
-                <a>Undo</a>
-                <a>Redo</a>
-                <a id="menu-presets">Presets...</a>
-                <a id="menu-preferences">Preferences...</a>
+                <a data-action="undo">Undo</a>
+                <a data-action="redo">Redo</a>
+                <a id="menu-presets" data-action="toggle_presets_modal">Presets...</a>
+                <a id="menu-preferences" data-action="toggle_preferences_modal">Preferences...</a>
             </div>
         </div>
         <div class="menu-item">
             HELP
             <div class="dropdown">
-                <a id="menu-about">About OMEGA...</a>
-                <a id="menu-console">Console</a>
+                <a id="menu-about" data-action="about">About OMEGA...</a>
+                <a id="menu-console" data-action="toggle_console">Console</a>
             </div>
         </div>
-        <div class="top-bar-version" id="top-bar-version">OMEGA v1.0.0 (Build 0)</div>
+        <div class="top-bar-version" id="top-bar-version">OMEGA v1.0.0 (DISCONNECTED)</div>
     </nav>
 
     <div id="splash-screen">
@@ -103,7 +111,7 @@
         </div>
     </div>
 
-    <div id="omega-rack" class="rack-container" style="display: none;">
+    <div id="omega-rack" class="rack-container" style="display: flex; opacity: 0; pointer-events: none;">
         <div id="upper-rack" class="rack-row upper">
             <!-- Monitoring modules injected here -->
         </div>
@@ -131,13 +139,79 @@
         </div>
     </div>
 
+    <!-- Advanced Wave Analyzer (Oscilloscope Modal) -->
+    <div id="oscilloscope-modal" class="modal">
+        <div class="modal-content modal-scope-content">
+            <span class="close-btn">&times;</span>
+            <h2 class="modal-title">ADVANCED WAVE ANALYZER</h2>
+            
+            <div class="scope-modal-layout">
+                <div class="scope-main-view">
+                    <canvas id="scope-large-canvas"></canvas>
+                    <div class="scope-canvas-overlay">
+                        <div class="scope-stats" id="scope-stats-overlay">≈ 0.0 Hz</div>
+                    </div>
+                </div>
+                
+                <div class="scope-side-controls">
+                    <div class="scope-control-group">
+                        <label>SOURCES</label>
+                        <select id="scope-modal-src-a" class="scope-select"><option value="10">SOURCE A</option></select>
+                        <select id="scope-modal-src-b" class="scope-select"><option value="11">SOURCE B</option></select>
+                    </div>
+
+                    <div class="scope-control-group">
+                        <label>TIMEBASE</label>
+                        <div class="scope-control-row">
+                            <input type="range" id="scope-modal-timebase" min="1" max="100" value="50">
+                            <span id="scope-val-timebase">50ms</span>
+                        </div>
+                    </div>
+
+                    <div class="scope-control-group">
+                        <label>TRIGGER</label>
+                        <select id="scope-modal-trig-mode" class="scope-select">
+                            <option value="off">OFF</option>
+                            <option value="auto">AUTO</option>
+                            <option value="norm">NORMAL</option>
+                        </select>
+                        <div class="scope-control-row">
+                            <input type="range" id="scope-modal-trig-level" min="-1" max="1" step="0.1" value="0">
+                        </div>
+                    </div>
+
+                    <div class="scope-control-group">
+                        <button id="scope-modal-freeze" class="juno-btn">FREEZE</button>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="modal-ok-btn">DONE</button>
+        </div>
+    </div>
+
     <!-- Presets Modal -->
+
     <div id="presets-modal" class="modal">
         <div class="modal-content presets-modal-content">
             <span class="close-btn" onclick="document.getElementById('presets-modal').style.display='none'">&times;</span>
             <h2 class="modal-title">PRESET MANAGEMENT</h2>
             <div class="presets-container">
-                <div id="preset-browser-container"></div>
+                <div id="preset-browser-container">
+                    <div class="browser-column">
+                        <h4>CATEGORY</h4>
+                        <ul id="cat-list" class="preset-list"></ul>
+                    </div>
+                    <div class="browser-column">
+                        <h4>BANK</h4>
+                        <ul id="lib-list" class="preset-list"></ul>
+                    </div>
+                    <div class="browser-column">
+                        <h4>PATCH</h4>
+                        <input type="text" id="browser-search" placeholder="Search...">
+                        <ul id="preset-list" class="preset-list"></ul>
+                    </div>
+                </div>
                 <div id="version-control-container"></div>
             </div>
             <button class="modal-ok-btn" onclick="document.getElementById('presets-modal').style.display='none'">DONE</button>
@@ -164,27 +238,15 @@
     <div id="debug-console" style="display: none;">
         <div class="debug-console-header">
             <span>CONSOLE</span>
-            <div class="console-actions">
-                <button id="close-console" title="Close Console" class="icon-btn">&#10006;</button>
-                <button id="copy-console" title="Copy to Clipboard" class="icon-btn">&#128203;</button>
-                <button id="clear-console" title="Clear Console" class="icon-btn">&#128465;</button>
+            <div class="debug-console-controls">
+                <button id="copy-console" title="Copy (C)" class="icon-btn">C</button>
+                <button id="clear-console" title="Clear (L)" class="icon-btn">L</button>
+                <button id="close-console" title="Close (X)" class="icon-btn">X</button>
             </div>
         </div>
         <div id="debug-console-content"></div>
     </div>
-    <!-- UI Bridge & Module Manager -->
-    <script src="omega_rpc.js"></script>
-    <script src="metadata_store.js"></script>
-    <script src="module_renderer.js"></script>
-    <script src="module_descriptors.js"></script>
-    <script src="components/PresetBrowser.js"></script>
-    <script src="components/VersionControl.js"></script>
-    <script src="components/ModuleMidiTrigger.js"></script>
-    <script src="components/ModuleMidiViewer.js"></script>
-    <script src="components/ModuleOscilloscope.js"></script>
-    <script src="components/ModulationVisualizer.js"></script>
-    <script src="preferences.js"></script>
-    <script src="module_manager.js"></script>
-    <script src="index.js"></script>
+    <!-- OMEGA Unified Entry Point (TS Built) -->
+    <script type="module" src="index.js"></script>
 </body>
 </html>

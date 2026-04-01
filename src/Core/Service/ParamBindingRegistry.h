@@ -67,6 +67,8 @@ namespace Service {
             reg("VCA_GATE_MODE",    "LAYERAMAINVCAMODE",    [](VoiceConfig& c, float v) { c.vcaGateMode = (v > 0.5f); });
             
             // --- Korg/Extra ---
+            reg("LFO_RATE",         "LAYERAMAINLFORATE",    [](VoiceConfig& c, float v) { c.lfoRate = v; });
+            reg("LFO_WAVE",         "LAYERAMAINLFOWAVE",    [](VoiceConfig& c, float v) { c.lfoWave = (int)v; });
             reg("KORG_HPF_CUTOFF",  "LAYERAKORGHPFCUTOFF",  [](VoiceConfig& c, float v) { c.korgHpCutoff = v; });
             reg("KORG_HPF_RES",     "LAYERAKORGHPFRESONANCE",[](VoiceConfig& c, float v) { c.korgHpRes = v; });
             reg("KORG_GRIT",        "LAYERAKORGGRIT",       [](VoiceConfig& c, float v) { c.korgGrit = v; });

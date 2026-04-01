@@ -9,7 +9,7 @@ Un motor determinista construido por `EngineConfigManager` cuando un preset cont
 The synth voice is defined by a `voiceArch` block within each Layer.
 
 ### 2.1 Component Whitelist (Phase 1)
-- **Oscillators**: `OSC-VA-001` (Juno DCO), `OSC-VA-SUPERSAW` (JP), `OSC-VA-002` (Korg MS-20 VCO).
+- **Oscillators**: `OSC-VA-001` (Juno DCO), `OSC-VA-004` (JP SUPERSAW), `OSC-VA-002` (Korg MS-20 VCO).
 - **Filters**: `FLT-VA-001` (Juno IR3109), `FLT-KORG35` (Korg 35), `FLT-JP8080` (JP-8080).
 - **Modulators**: `ENV-ADSR-GEN` (Generic ADSR), `LFO-VA-001` (Generic LFO).
 

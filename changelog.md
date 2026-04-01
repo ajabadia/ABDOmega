@@ -2,6 +2,17 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
  
+## [1.9.5] - 2026-04-01
+### Added
+- **Modular ADSR Engine (Case 401)**: Implemented sample-accurate ADSR generator with POD-compatible state mapping for high-fidelity voice architecture integration.
+- **Dynamic Source Filtering**: Standardized A/B source selectors to strictly display active synthesis/FX modules in the current preset.
+
+### Fixed
+- **Oscilloscope Stabilization (Build #142)**:
+    - Resolved `ResizeObserver` loop errors by implementsing `requestAnimationFrame` throttled resize logic.
+    - Corrected UI rendering regression (compressed line) by enforcing `flex: 1` and a `4:3` aspect ratio on the visualizer container.
+    - Restored full modal synchronization with the "Advanced Wave Analyzer" using the existing static HTML definition.
+
 ## [1.9.4] - 2026-03-31
 ### Added
 - **WebUI Architecture Hardening (Phase 13.5)**:
@@ -184,8 +195,8 @@ Este archivo registra todos los cambios significativos, mejoras y correcciones d
 
 ## [1.1.0] - 2026-03-20
 ### Improved
-- **OmegaInput Layer**: Capa neutra de entrada MIDI separada del core de síntesis.
-- **Build System**: Estabilización con NMake y aislamiento de dependencias v143.
+- **Modular Envelopes (Case 401)**: Dynamic, sample-accurate ADSR state management integrated into the voice signal path.
+- **Build System**: Stabilized via `build_auto.bat` (CMake/Ninja) with automatic build tracking (**Build #142**).
 - **Decoupling**: Reducción de la dependencia de JUCE en `omega_core`.
 
 ## [1.0.0] - 2026-03-18

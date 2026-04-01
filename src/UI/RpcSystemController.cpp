@@ -14,6 +14,15 @@ namespace UI {
             obj->setProperty("minValue", def.minValue);
             obj->setProperty("maxValue", def.maxValue);
             obj->setProperty("category", juce::String(def.category));
+            
+            if (!def.options.empty()) {
+                juce::DynamicObject::Ptr optObj = new juce::DynamicObject();
+                for (auto const& [val, label] : def.options) {
+                    optObj->setProperty(juce::String(val), juce::String(label));
+                }
+                obj->setProperty("options", juce::var(optObj.get()));
+            }
+
             settings.add(juce::var(obj.get()));
         }
         return createResponse("SYSTEM_SETTINGS", requestId, {}, settings);

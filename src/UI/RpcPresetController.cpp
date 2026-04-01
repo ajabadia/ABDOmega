@@ -42,6 +42,71 @@ namespace UI {
         return createResponse("PRESET_LIST", requestId, {}, list);
     }
 
+    juce::var RpcPresetController::handleGetBrowserData(const juce::var& requestId, const juce::var&) {
+        juce::DynamicObject::Ptr root = new juce::DynamicObject();
+        juce::Array<juce::var> libraries;
+
+        // 1. Factory Library (from Repository)
+        juce::DynamicObject::Ptr factLib = new juce::DynamicObject();
+        factLib->setProperty("name", "Factory");
+        factLib->setProperty("category", "Factory");
+        
+        juce::Array<juce::var> patches;
+        auto presets = mRepository->listPresets();
+        for (const auto& p : presets) {
+            juce::DynamicObject::Ptr patch = new juce::DynamicObject();
+            patch->setProperty("name", juce::String(p));
+            patch->setProperty("author", "OMEGA Team");
+            patch->setProperty("category", "Factory");
+            patch->setProperty("favorite", false);
+            patches.add(juce::var(patch.get()));
+        }
+        factLib->setProperty("patches", patches);
+        libraries.add(juce::var(factLib.get()));
+
+        // 2. User Library (Placeholder for now)
+        juce::DynamicObject::Ptr userLib = new juce::DynamicObject();
+        userLib->setProperty("name", "User");
+        userLib->setProperty("category", "User");
+        userLib->setProperty("patches", juce::Array<juce::var>());
+        libraries.add(juce::var(userLib.get()));
+
+        root->setProperty("libraries", libraries);
+        
+        juce::Array<juce::var> categories;
+        categories.add("Factory");
+        categories.add("User");
+        categories.add("Bass");
+        categories.add("Lead");
+        categories.add("Pad");
+        root->setProperty("categories", categories);
+
+        return createResponse("BROWSER_DATA", requestId, {}, juce::var(root.get()));
+    }
+
+    juce::var RpcPresetController::handleSelectLibrary(const juce::var& requestId, const juce::var&) {
+        return createResponse("SELECT_LIB_ACK", requestId, {}, true);
+    }
+
+    juce::var RpcPresetController::handleLoadLibraryPreset(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
+        int libIdx = (int)payload["libIdx"];
+        int prstIdx = (int)payload["prstIdx"];
+        
+        auto presets = mRepository->listPresets();
+        if (prstIdx >= 0 && prstIdx < (int)presets.size()) {
+            Core::Preset::OmegaPreset loaded;
+            if (mRepository->loadPreset(presets[prstIdx], loaded)) {
+                if (onLoad) onLoad(loaded);
+                return createResponse("LOAD_ACK", requestId, {}, true);
+            }
+        }
+        return createError("LOAD_ACK", requestId, "Preset not found at index");
+    }
+
+    juce::var RpcPresetController::handleSetFavorite(const juce::var& requestId, const juce::var&) {
+        return createResponse("FAV_ACK", requestId, {}, true);
+    }
+
     juce::var RpcPresetController::handleGetHistory(const juce::var& requestId, const juce::var& payload) {
         if (!mRepository) return createError("HISTORY", requestId, "Repository not available");
         juce::String presetId = payload["presetId"].toString();
@@ -110,7 +175,8 @@ namespace UI {
         // Collection Flattening
         static const std::vector<juce::String> collections = {
             "layers", "oscillators", "filters", "lfos", "envelopes", 
-            "amplifiers", "modulators", "fxSlots", "auxiliary", "modGraph"
+            "amplifiers", "modulators", "fxSlots", "auxiliary", "modGraph",
+            "nodes"
         };
 
         if (std::find(collections.begin(), collections.end(), tag) != collections.end()) {

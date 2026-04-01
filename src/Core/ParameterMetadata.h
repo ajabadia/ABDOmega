@@ -102,11 +102,11 @@ public:
         registerParameter({"LAYERAMAINCUTOFF", "Cutoff", "Main low-pass filter cutoff", ParamValueType::Continuous, 20.0f, 20000.0f, 2000.0f, 0.0f, 0.3f, "Hz", "VCF", "synthesis", "knob", false, 74, Omega::Core::Input::ModSource::PE1, 8});
         registerParameter({"LAYERAMAINRESONANCE", "Resonance", "Filter resonance / Q", ParamValueType::Continuous, 0.0f, 1.0f, 0.1f, 0.0f, 1.0f, "%", "VCF", "synthesis", "knob", false, 71, Omega::Core::Input::ModSource::PE2, 7});
         
-        ParameterDescriptor chorusMode = {"LAYERACHORUSMODE", "Chorus Mode", "Juno-style chorus selection", ParamValueType::Enum, 0.0f, 3.0f, 1.0f, 1.0f, 1.0f, "Choice", "FX", "synthesis", "select", false, 93};
+        ParameterDescriptor chorusMode = {"MASTERCHORUSMODE", "Chorus Mode", "Juno-style chorus selection", ParamValueType::Enum, 0.0f, 3.0f, 1.0f, 1.0f, 1.0f, "Choice", "FX", "synthesis", "select", false, 93};
         chorusMode.options = {{0, "Off"}, {1, "I"}, {2, "II"}, {3, "I+II"}};
         registerParameter(chorusMode);
 
-        registerParameter({"LAYERACHORUSMIX", "Chorus Mix", "Juno chorus wet/dry level", ParamValueType::Continuous, 0.0f, 1.0f, 0.5f, 0.0f, 1.0f, "%", "FX", "synthesis", "knob"});
+        registerParameter({"MASTERCHORUSMIX", "Chorus Mix", "Juno chorus wet/dry level", ParamValueType::Continuous, 0.0f, 1.0f, 0.5f, 0.0f, 1.0f, "%", "FX", "synthesis", "knob"});
 
         ParameterDescriptor hpfPos = {"LAYERAMAINHPF", "HPF Position", "High-pass filter mode", ParamValueType::Enum, 0.0f, 3.0f, 1.0f, 1.0f, 1.0f, "Choice", "VCF", "synthesis", "switch", false, 81};
         hpfPos.options = {{0, "Off"}, {1, "1"}, {2, "2"}, {3, "3"}};
@@ -139,8 +139,15 @@ public:
         
         registerParameter({"LAYERADCOMODDEPTH", "DCO LFO Depth", "LFO modulation of pitch (Vibrato)", ParamValueType::Continuous, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, "%", "DCO", "synthesis", "knob"});
         
+        registerParameter({"LAYERAMAINLFORATE", "LFO Rate", "LFO cycle speed", ParamValueType::Continuous, 0.01f, 20.0f, 1.0f, 0.0f, 0.3f, "Hz", "LFO", "synthesis", "knob"});
+        
+        ParameterDescriptor lfoWave = {"LAYERAMAINLFOWAVE", "LFO Wave", "LFO waveform selection", ParamValueType::Enum, 0.0f, 5.0f, 0.0f, 1.0f, 1.0f, "Choice", "LFO", "synthesis", "select"};
+        lfoWave.options = {{0, "Sin"}, {1, "Tri"}, {2, "Saw"}, {3, "Sqr"}, {4, "Rnd"}, {5, "Noi"}};
+        registerParameter(lfoWave);
+        
         // --- JP-808X ---
         registerParameter({"LAYERAMAINJPDETUNE", "JP Detune", "SuperSaw detune amount", ParamValueType::Continuous, 0.0f, 1.0f, 0.5f, 0.0f, 1.0f, "%", "DCO", "synthesis", "knob"});
+        registerParameter({"LAYERAMAINJPSPREAD", "JP Spread", "SuperSaw detune spread/width", ParamValueType::Continuous, 0.0f, 1.0f, 0.5f, 0.0f, 1.0f, "%", "DCO", "synthesis", "knob"});
         
         ParameterDescriptor jpFilterMode = {"LAYERAMAINJPFILTERMODE", "JP Filter Mode", "JP-style filter slope selection", ParamValueType::Enum, 0.0f, 2.0f, 0.0f, 1.0f, 1.0f, "Choice", "VCF", "synthesis", "select"};
         jpFilterMode.options = {{0, "LP 12dB"}, {1, "LP 24dB"}, {2, "BP"}};
@@ -174,12 +181,6 @@ public:
         // --- VCA ---
         registerParameter({"LAYERAMAINVCAGAIN", "VCA Gain", "Voice amplifier volume", ParamValueType::Continuous, 0.0f, 1.0f, 0.8f, 0.0f, 1.0f, "%", "AMP", "synthesis", "knob"});
 
-        // --- LFO ---
-        registerParameter({"LAYERAMAINLFORATE", "LFO Rate", "Low Frequency Oscillator frequency", ParamValueType::Continuous, 0.1f, 20.0f, 5.0f, 0.0f, 1.0f, "Hz", "MOD", "synthesis", "knob", false, 76});
-        
-        ParameterDescriptor lfoWave = {"LAYERAMAINLFOWAVE", "LFO Wave", "LFO waveform selection", ParamValueType::Enum, 0.0f, 4.0f, 0.0f, 1.0f, 1.0f, "Choice", "MOD", "synthesis", "select", false, 77};
-        lfoWave.options = {{0, "Triangle"}, {1, "Saw"}, {2, "Square"}, {3, "Random"}, {4, "Noise"}};
-        registerParameter(lfoWave);
         
         // --- Special Modulation Sources (GM Standard) ---
         registerParameter({"MIDI_MODWHEEL", "Mod Wheel", "Standard MIDI Modulation Wheel", ParamValueType::Continuous, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, "%", "MIDI", "midi", "slider", false, 1, Omega::Core::Input::ModSource::ModWheel});

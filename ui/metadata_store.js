@@ -1,55 +1,65 @@
 /**
- * OMEGA Metadata Store
- * Caches and provides parameter definitions from the C++ backend.
+ * OMEGA Metadata Store (TypeScript)
+ * Formalizes the "Single Source of Truth" for parameters.
  */
-class MetadataStore {
-    constructor() {
-        this.cache = null;
-        this.groups = new Map();
-        this.parameters = new Map();
-    }
-
+export class MetadataStore {
+    parameters = new Map();
+    groups = new Map();
+    isLoaded = false;
+    version = "1.0.0";
+    build = "0";
+    timestamp = "";
+    constructor() { }
     async ensureLoaded() {
-        if (this.cache) return this.cache;
-
+        if (this.isLoaded)
+            return true;
         try {
-            console.log("[MetadataStore] Fetching metadata from backend...");
-            const data = await window.omegaRPC.getMetadata();
-            
-            // The new RpcMetadataController returns: { version, engine, parameters: [], groups: [] }
-            this.cache = data;
-            
-            if (data.parameters && Array.isArray(data.parameters)) {
-                data.parameters.forEach(p => {
+            console.log("[MetadataStore] Attempting to load metadata via omegaRPC...");
+            // @ts-ignore - window.omegaRPC defined globally
+            if (!window.omegaRPC) {
+                console.warn("[MetadataStore] window.omegaRPC is missing!");
+                return false;
+            }
+            const response = await window.omegaRPC.getMetadata();
+            console.log("[MetadataStore] RPC Response received:", response ? "SUCCESS" : "EMPTY");
+            if (response && response.parameters) {
+                response.parameters.forEach((p) => {
                     this.parameters.set(p.id, p);
                 });
+                if (response.groups) {
+                    response.groups.forEach((g) => {
+                        this.groups.set(g.id, g);
+                    });
+                }
+                if (response.version)
+                    this.version = response.version;
+                if (response.build !== undefined)
+                    this.build = response.build.toString();
+                if (response.timestamp)
+                    this.timestamp = response.timestamp;
+                this.isLoaded = true;
+                return true;
             }
-
-            if (data.groups && Array.isArray(data.groups)) {
-                data.groups.forEach(g => {
-                    this.groups.set(g.id, g);
-                });
-            }
-
-            console.log(`[MetadataStore] Loaded ${this.parameters.size} parameters and ${this.groups.size} groups.`);
-            return this.cache;
-        } catch (e) {
-            console.error("[MetadataStore] Failed to load metadata:", e);
-            return null;
         }
+        catch (e) {
+            console.error("[MetadataStore] Failed to load metadata:", e);
+        }
+        return false;
     }
-
     getParam(id) {
         return this.parameters.get(id);
     }
-
-    getGroup(id) {
-        return this.groups.get(id);
-    }
-
     getAllParams() {
         return Array.from(this.parameters.values());
     }
+    getGroup(id) {
+        return this.groups.get(id);
+    }
+    getVersion() { return this.version; }
+    getBuild() { return this.build; }
+    getTimestamp() { return this.timestamp; }
 }
-
+// Global instance for runtime
+// @ts-ignore
 window.metadataStore = new MetadataStore();
+//# sourceMappingURL=metadata_store.js.map

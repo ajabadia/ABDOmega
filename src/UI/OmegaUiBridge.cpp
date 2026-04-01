@@ -59,6 +59,14 @@ namespace UI {
         if (type == "saveSnapshot") return mPresetController->handleSaveSnapshot(requestId, payload, mPreset);
         if (type == "checkout") return mPresetController->handleCheckout(requestId, payload, mOnLoadPreset);
         if (type == "createBranch") return mPresetController->handleCreateBranch(requestId, payload);
+        if (type == "getBrowserData") return mPresetController->handleGetBrowserData(requestId, payload);
+        if (type == "selectLibrary") return mPresetController->handleSelectLibrary(requestId, payload);
+        if (type == "loadLibraryPreset") return mPresetController->handleLoadLibraryPreset(requestId, payload, mOnLoadPreset);
+        if (type == "setFavorite") return mPresetController->handleSetFavorite(requestId, payload);
+        if (type == "saveAsNewPreset") {
+             // Redirect to saveSnapshot logic or similar
+             return mPresetController->handleSaveSnapshot(requestId, payload, mPreset);
+        }
         
         if (type == "setParam") {
             juce::String paramId = payload["id"].toString();
@@ -84,10 +92,45 @@ namespace UI {
         if (type == "getMetadata") return mMetadataController->handleGetMetadata(requestId, payload);
         if (type == "getSampleRate") return mMetadataController->handleGetSampleRate(requestId, payload);
         if (type == "getTempo") return mMetadataController->handleGetTempo(requestId, payload);
-        if (type == "uiReady") return createResponse("UI_READY_ACK", requestId, {});
+        if (type == "uiReady") {
+            // Proactive Push: Ensure UI is in sync with real engine state immediately
+            // We use the same format as onStateUpdate so ModuleManager handles it.
+            juce::DynamicObject::Ptr push = new juce::DynamicObject();
+            push->setProperty("type", "onStateUpdate");
+            push->setProperty("payload", mPresetController->presetToVar(mPreset));
+            notifyUi(juce::var(push.get()));
+            
+            return createResponse("UI_READY_ACK", requestId, {});
+        }
 
         // 5. Input
         if (type == "triggerNote") return mInputController->handleTriggerNote(requestId, payload);
+        if (type == "sendMidi") {
+            // Translate raw MIDI from UI to handleTriggerNote
+            int status = (int)payload["status"];
+            int note = (int)payload["data1"];
+            int vel = (int)payload["data2"];
+            
+            juce::DynamicObject::Ptr triggerPayload = new juce::DynamicObject();
+            triggerPayload->setProperty("note", note);
+            triggerPayload->setProperty("velocity", vel);
+            triggerPayload->setProperty("on", (status & 0xF0) == 0x90 && vel > 0);
+            
+            return mInputController->handleTriggerNote(requestId, juce::var(triggerPayload.get()));
+        }
+
+        // 6. Menu Actions & System
+        if (type == "menuAction") {
+            juce::String action = payload["action"].toString();
+            DBG("[OMEGA BRIDGE] menuAction received: " << action);
+            
+            if (action == "exit") {
+                DBG("[OMEGA BRIDGE] Executing System Quit");
+                juce::JUCEApplication::getInstance()->systemRequestedQuit();
+                return createResponse("EXIT_ACK", requestId, {});
+            }
+            // Add other system actions here
+        }
 
         return createResponse("error", requestId, "Unknown method: " + type);
     }

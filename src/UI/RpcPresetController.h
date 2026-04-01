@@ -23,6 +23,10 @@ namespace UI {
         juce::var handleLoadPreset(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad);
         juce::var handleSavePreset(const juce::var& requestId, const juce::var& payload);
         juce::var handleListPresets(const juce::var& requestId, const juce::var& payload);
+        juce::var handleGetBrowserData(const juce::var& requestId, const juce::var& payload);
+        juce::var handleSelectLibrary(const juce::var& requestId, const juce::var& payload);
+        juce::var handleLoadLibraryPreset(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad);
+        juce::var handleSetFavorite(const juce::var& requestId, const juce::var& payload);
 
         // Version Control (Moved from System)
         juce::var handleGetHistory(const juce::var& requestId, const juce::var& payload);

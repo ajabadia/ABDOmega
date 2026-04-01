@@ -40,6 +40,11 @@
 #include "../Korg/Prophecy/ProphecyArpeggiator.h"
 #include "../../../Core/Modulation/ModulationRuntime.h"
 #include "../../../Core/Modulation/MotionRecorder.h"
+#include "../../../Core/Voice/CompiledVoicePlan.h"
+#include "../../../Core/Voice/VoiceState.h"
+#include "../../../Core/Voice/EngineVoiceRuntime.h"
+#include "../../../Core/Voice/VoiceArchitectureCompiler.h"
+#include "../../../Core/Voice/ParamIdRegistry.h"
 
 namespace Omega::DSP::Engines::Modular {
 
@@ -49,7 +54,10 @@ namespace Omega::DSP::Engines::Modular {
     class VirtualAnalogEngine : public ::Omega::DSP::Engines::ISynthesisEngine {
     public:
         VirtualAnalogEngine(::Omega::Core::Service::SystemSettingsManager& settings) 
-            : mSettings(settings) {
+            : mSettings(settings),
+              mPoolSet{mOscPool, mJunoFlt, mKorg35Flt, mJpOscPool}
+        {
+            ::Omega::Core::ParamIdRegistry::getInstance().preRegisterCommonIds();
             mChannelModStates.fill(0.0f);
         }
 
@@ -78,6 +86,10 @@ namespace Omega::DSP::Engines::Modular {
         void reset() override {
             mModRuntime.reset();
             for (auto& v : mVoices) v.reset();
+            for (auto& s : mVoiceStates) {
+                for (auto& b : s.buses) b = 0.0f;
+                s.isActive = false;
+            }
         }
 
         void renderNextBlock(::juce::AudioBuffer<float>& buffer, const ::Omega::Core::Input::OmegaInput& input) noexcept override {
@@ -128,23 +140,44 @@ namespace Omega::DSP::Engines::Modular {
 
                 for (int v = 0; v < mNumVoices; ++v) {
                     if (mVoices[v].isActive()) {
-                        float vL = 0.0f, vR = 0.0f, vDco = 0.0f, ampEnv = 0.0f, modEnv = 0.0f;
-                        auto& vc = mCurrentConfig.voices[v];
+                        float vL = 0.0f, vR = 0.0f;
                         
-                        mVoices[v].renderNextBlock(vL, vR, vDco, v,
-                             blockLfoVal, vc.dcoLfoDepth, vc.vcfLfoDepth, vc.vcfEnvDepth, 
-                             vc.vcfEnvInverted, mVcaMainGain, vc.vcaGateMode, vc.cutoff, 
-                             vc.resonance, vc.filterType, FilterSlotMode::Standard, 
-                             1.0f, 0.0f, 0.0f, 0.0f, mChannelModStates,
-                             mOscPool, mJpOscPool, mJunoFlt, mKorg35Flt, mJpFilterPool, 
-                             mJpFormantFlt, mMs20Esp, mResBankFlt,
-                             mPluckOsc, mBrassOsc, mReedOsc, mVpmOsc, mNoiseCombOsc, 
-                             mJpFeedbackOsc, mJpDualOsc, mElectricPianoOsc, mOrganOsc, 
-                             mBowedOsc, mProphecyWaveshaper,
-                             mCurrentConfig.jpDetune, mCurrentConfig.jpSpread, mCurrentConfig.jpFilterMode, 
-                             vc.korgHpCutoff, vc.korgHpRes, vc.korgGrit, 1.0f, 0.0f, false, 0.0f, 0);
-                             
-                        mixedL += vL; mixedR += vR; totalDcoSum += vDco;
+                        // Use the new Modular Dispatcher (Batch 5)
+                        if (mVoicePlan.isInitialised) {
+                            ::Omega::Core::Voice::VoiceState& state = mVoiceStates[v];
+                            state.isActive = mVoices[v].isActive();
+                            state.ampEnvelope = mVoices[v].getAmpEnvelopeLevel();
+                            
+                            ::Omega::Core::Voice::TelemetrySnapshot voiceTelemetry;
+                            ::Omega::Core::Voice::EngineVoiceRuntime::renderSample(
+                                v, mVoicePlan, state, blockLfoVal, vL, vR, 
+                                mPoolSet, voiceTelemetry);
+                                
+                            if (v == 0) {
+                                totalDcoSum = voiceTelemetry.rawOsc;
+                                // Capture filter tap if needed for standard VCF_Out index
+                                hub.pushSignal((int)::Omega::Core::Modulation::TelemetryIndex::Audio_VCF_Out, voiceTelemetry.rawFilter);
+                            }
+
+                            mixedL += vL; mixedR += vR; 
+                        } else {
+                            // Legacy Fallback
+                            float vDco = 0.0f;
+                            auto& vc = mCurrentConfig.voices[v];
+                            mVoices[v].renderNextBlock(vL, vR, vDco, v,
+                                 blockLfoVal, vc.dcoLfoDepth, vc.vcfLfoDepth, vc.vcfEnvDepth, 
+                                 vc.vcfEnvInverted, mVcaMainGain, vc.vcaGateMode, vc.cutoff, 
+                                 vc.resonance, vc.filterType, FilterSlotMode::Standard, 
+                                 1.0f, 0.0f, 0.0f, 0.0f, mChannelModStates,
+                                 mOscPool, mJpOscPool, mJunoFlt, mKorg35Flt, mJpFilterPool, 
+                                 mJpFormantFlt, mMs20Esp, mResBankFlt,
+                                 mPluckOsc, mBrassOsc, mReedOsc, mVpmOsc, mNoiseCombOsc, 
+                                 mJpFeedbackOsc, mJpDualOsc, mElectricPianoOsc, mOrganOsc, 
+                                 mBowedOsc, mProphecyWaveshaper,
+                                 mCurrentConfig.jpDetune, mCurrentConfig.jpSpread, mCurrentConfig.jpFilterMode, 
+                                 vc.korgHpCutoff, vc.korgHpRes, vc.korgGrit, 1.0f, 0.0f, false, 0.0f, 0);
+                            mixedL += vL; mixedR += vR; totalDcoSum += vDco;
+                        }
                     }
                 }
                 
@@ -196,11 +229,22 @@ namespace Omega::DSP::Engines::Modular {
 
         void setVcaGain(float gain) noexcept { mVcaMainGain = gain; }
         void pushConfigUpdate() noexcept { mPendingConfigUpdate.store(true); }
+        
+        void setVoicePlan(const ::Omega::Core::Voice::CompiledVoicePlan& plan) noexcept {
+            mNextVoicePlan = plan;
+            mPendingPlanUpdate.store(true);
+        }
+
         void onOscillatorModesChanged() noexcept { pushConfigUpdate(); }
         void setConfigProvider(std::atomic<::Omega::Core::Service::EngineConfig*>* provider) noexcept { mConfigProvider = provider; }
 
     private:
         void applyConfigUpdate() noexcept {
+            if (mPendingPlanUpdate.load()) {
+                mVoicePlan = mNextVoicePlan;
+                mPendingPlanUpdate.store(false);
+            }
+
             if (!mConfigProvider) return;
             auto* cfg = mConfigProvider->load();
             if (!cfg) return;
@@ -245,6 +289,14 @@ namespace Omega::DSP::Engines::Modular {
         std::array<int, 16> mVoiceNoteIds { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 };
         std::array<float, 64> mChannelModStates;
         std::array<OmegaModularVoiceFixed, 16> mVoices;
+        
+        // Voice Architecture 2.0 (Batch 4)
+        ::Omega::Core::Voice::CompiledVoicePlan mVoicePlan;
+        ::Omega::Core::Voice::CompiledVoicePlan mNextVoicePlan;
+        std::array<::Omega::Core::Voice::VoiceState, 16> mVoiceStates;
+        ::Omega::Core::Voice::DspPoolSet mPoolSet;
+        std::atomic<bool> mPendingPlanUpdate { false };
+        
         ::Omega::Core::Service::SystemSettingsManager& mSettings;
         int mNumVoices = 16;
         float mVcaMainGain = 0.8f;

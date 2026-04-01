@@ -23,7 +23,7 @@ namespace UI {
                         obj->setProperty("type", (int)e.type);
                         obj->setProperty("ch", (int)e.channel);
                         obj->setProperty("d1", (int)e.data1);
-                        obj->setProperty("d2", (int)e.data2);
+                        obj->setProperty("d2", (int)e.data2); 
                         obj->setProperty("ts", e.timestamp);
                         midiArr.add(juce::var(obj.get()));
                     }
@@ -51,12 +51,22 @@ namespace UI {
         
         struct SourceDef { int index; const char* name; const char* category; };
         SourceDef defs[] = {
-            { (int)TelemetryIndex::Audio_DCO_Main, "Osc Sum", "Audio" },
-            { (int)TelemetryIndex::Audio_VCF_Out, "VCF Out", "Audio" },
-            { (int)TelemetryIndex::Audio_Master_Out, "Main Out", "Audio" },
-            { (int)TelemetryIndex::Mod_LFO1, "LFO 1", "Modulation" },
-            { (int)TelemetryIndex::Mod_ENV1_Amp, "Env 1 (Amp)", "Modulation" },
-            { (int)TelemetryIndex::Mod_ENV2_Filter, "Env 2 (Mod)", "Modulation" }
+            { (int)TelemetryIndex::Audio_DCO_Main,   "DCO Main",  "Audio" },
+            { (int)TelemetryIndex::Audio_DCO_Sub,    "DCO Sub",   "Audio" },
+            { (int)TelemetryIndex::Audio_Noise,      "Noise",     "Audio" },
+            { (int)TelemetryIndex::Audio_VCF_Out,    "VCF Out",   "Audio" },
+            { (int)TelemetryIndex::Audio_HPF_Out,    "HPF Out",   "Audio" },
+            { (int)TelemetryIndex::Audio_Bus_PreFX,  "Bus PreFX", "Audio" },
+            { (int)TelemetryIndex::Audio_FX_Out,     "FX Out",    "Audio" },
+            { (int)TelemetryIndex::Audio_Master_Out, "Final Out", "Audio" },
+            
+            { (int)TelemetryIndex::Mod_LFO1,         "LFO 1",     "Modulation" },
+            { (int)TelemetryIndex::Mod_LFO2,         "LFO 2",     "Modulation" },
+            { (int)TelemetryIndex::Mod_ENV1_Amp,     "Env 1 (A)", "Modulation" },
+            { (int)TelemetryIndex::Mod_ENV2_Filter,  "Env 2 (F)", "Modulation" },
+            { (int)TelemetryIndex::Mod_EnvFollower,  "Env Fold",  "Modulation" },
+            { (int)TelemetryIndex::Mod_ModWheel,     "ModWheel",  "Modulation" },
+            { (int)TelemetryIndex::Mod_Pitch,        "Pitch",     "Modulation" }
         };
 
         for (int i=0; i < sizeof(defs)/sizeof(defs[0]); ++i) {

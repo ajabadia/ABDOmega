@@ -26,6 +26,9 @@ export class MetadataStore {
     private parameters: Map<string, ParamDescriptor> = new Map();
     private groups: Map<string, GroupDescriptor> = new Map();
     private isLoaded: boolean = false;
+    private version: string = "1.0.0";
+    private build: string = "0";
+    private timestamp: string = "";
 
     constructor() {}
 
@@ -33,8 +36,14 @@ export class MetadataStore {
         if (this.isLoaded) return true;
 
         try {
+            console.log("[MetadataStore] Attempting to load metadata via omegaRPC...");
             // @ts-ignore - window.omegaRPC defined globally
-            const response = await window.omegaRPC.getMetadata();
+            if (!(window as any).omegaRPC) {
+                console.warn("[MetadataStore] window.omegaRPC is missing!");
+                return false;
+            }
+            const response = await (window as any).omegaRPC.getMetadata();
+            console.log("[MetadataStore] RPC Response received:", response ? "SUCCESS" : "EMPTY");
             if (response && response.parameters) {
                 response.parameters.forEach((p: ParamDescriptor) => {
                     this.parameters.set(p.id, p);
@@ -44,6 +53,10 @@ export class MetadataStore {
                         this.groups.set(g.id, g);
                     });
                 }
+                if (response.version) this.version = response.version;
+                if (response.build !== undefined) this.build = response.build.toString();
+                if (response.timestamp) this.timestamp = response.timestamp;
+
                 this.isLoaded = true;
                 return true;
             }
@@ -64,6 +77,10 @@ export class MetadataStore {
     getGroup(id: string): GroupDescriptor | undefined {
         return this.groups.get(id);
     }
+
+    getVersion(): string { return this.version; }
+    getBuild(): string { return this.build; }
+    getTimestamp(): string { return this.timestamp; }
 }
 
 // Global instance for runtime

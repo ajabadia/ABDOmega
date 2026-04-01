@@ -37,8 +37,8 @@ OMEGA has transitioned to a **Service-Oriented Architecture** to ensure long-ter
 - **Space Echo (RE-201)**: Emulación multi-cabezal con saturación de cinta magnética y reverb de muelles integrada en el rack modular.
 - **Smart Focus Diagnostic**: Sistema universal de iconos de enfoque ("Eye") para ruteo instantáneo al osciloscopio desde cualquier módulo.
 - **MIDI 2.0 Hybrid Input**: Soporte nativo para UMP en JUCE 8 con auto-detección de formato y procesamiento de alta resolución (16-bit velocity).
-- **Fully Declarative WebUI**: 100% data-driven interface using `ModuleRenderer` and TypeScript descriptors, ensuring zero duplication between C++ and JS.
-- **Build System**: Stabilized via `build_auto.bat` (CMake/Ninja) with automatic build tracking (**Build #95**).
+- **Modular Envelopes (Case 401)**: Dynamic, sample-accurate ADSR state management integrated into the voice signal path.
+- **Build System**: Stabilized via `build_auto.bat` (CMake/Ninja) with automatic build tracking (**Build #142**).
 
 ---
 *Built by ABD-IA*

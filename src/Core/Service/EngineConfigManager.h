@@ -26,7 +26,7 @@ namespace Service {
     class EngineConfigManager {
     public:
         EngineConfigManager(DSP::Engines::Modular::VirtualAnalogEngine& engine, const Ace::AceCatalog& catalog)
-            : mEngine(engine), mValidator(catalog) {
+            : mEngine(engine), mCatalog(catalog), mValidator(catalog) {
             mSnapshots[0] = std::make_unique<EngineConfig>();
             mSnapshots[1] = std::make_unique<EngineConfig>();
             mCurrentSnapshot.store(mSnapshots[0].get());
@@ -69,6 +69,12 @@ namespace Service {
                     }
                 }
 
+                // 4. Voice Architecture 2.0 (Batch 4) - Compile dynamic topology
+                auto compileResult = Voice::VoiceArchitectureCompiler::compile(layer, mCatalog);
+                if (compileResult.success) {
+                    mEngine.setVoicePlan(compileResult.plan);
+                }
+
                 next->masterGainDb = preset.getMasterGainDb();
             }
 
@@ -86,8 +92,10 @@ namespace Service {
             // 1. Global Parameters (Direct Access)
             if (paramId == "LAYERAMAINVCAGAIN") {
                 mEngine.setVcaGain(value);
-            } else if (paramId == "LAYERACHORUSMODE") {
+            } else if (paramId == "MASTERCHORUSMODE") {
                 current->chorusMode = (int)value;
+            } else if (paramId == "MASTERCHORUSMIX") {
+                current->chorusMix = value;
             } else if (paramId == "LAYERAMAINJPDETUNE") {
                 current->jpDetune = value;
             } else if (paramId == "LAYERAMAINJPSPREAD") {
@@ -118,6 +126,7 @@ namespace Service {
 
     private:
         DSP::Engines::Modular::VirtualAnalogEngine& mEngine;
+        const Ace::AceCatalog& mCatalog;
         Ace::AceValidator mValidator;
         
         std::unique_ptr<EngineConfig> mSnapshots[2];

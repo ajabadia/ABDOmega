@@ -1,0 +1,1 @@
+{"version":3,"file":"module_manager.d.ts","sourceRoot":"","sources":["module_manager.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAIH,qBAAa,aAAa;IACtB,OAAO,CAAC,aAAa,CAA+B;IACpD,OAAO,CAAC,aAAa,CAAa;IAClC,OAAO,CAAC,UAAU,CAAa;IAC/B,OAAO,CAAC,SAAS,CAAa;;IAQxB,UAAU,CAAC,KAAK,EAAE,GAAG,GAAG,OAAO,CAAC,IAAI,CAAC;YAkI7B,cAAc;YAcd,qBAAqB;YAMrB,SAAS;CA+B1B;AAOD,eAAe,aAAa,CAAC"}

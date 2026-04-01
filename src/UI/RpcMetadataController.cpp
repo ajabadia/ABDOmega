@@ -11,7 +11,9 @@ namespace UI {
         auto& registry = Core::ParameterMetadataRegistry::getInstance();
         
         juce::DynamicObject::Ptr root = new juce::DynamicObject();
-        root->setProperty("version", "1.9.2"); // Build Hardened
+        root->setProperty("version", "1.0.0");
+        root->setProperty("build", 128);
+        root->setProperty("timestamp", juce::Time::getCurrentTime().toString(true, true));
         root->setProperty("engine", "Omega VA (Direct Sum)");
 
         juce::Array<juce::var> parameters;

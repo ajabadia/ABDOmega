@@ -1,10 +1,13 @@
 #pragma once
 
 #include "OmegaPreset.h"
+#include "OmegaIdentifiers.h"
 
 namespace Omega {
 namespace Core {
 namespace Preset {
+
+    using IDs = Omega::Core::Identifiers;
 
     /**
      * @brief Factoría estática para presets de la familia Juno y sus híbridos.
@@ -316,6 +319,10 @@ namespace Preset {
             l.params.sawOn = true;
             l.params.pulseOn = false;
             
+            l.params.jpDetune = 0.3f;
+            l.params.jpSpread = 0.5f;
+            l.params.lfoRate = 5.0f;
+
             AceComponent osc;
             osc.slotName = "JP SUPERSAW";
             osc.componentId = "OSC-VA-004";
@@ -332,6 +339,10 @@ namespace Preset {
             l.voiceArch.fxSlots.push_back(chorus);
             
             p.addLayer(l);
+
+            auto globalParams = p.getState().getOrCreateChildWithName(IDs::params, nullptr);
+            globalParams.setProperty("MASTERCHORUSMODE", 1.0f, nullptr);
+            globalParams.setProperty("MASTERCHORUSMIX", 0.5f, nullptr);
 
             return p;
         }

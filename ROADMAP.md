@@ -143,5 +143,12 @@
 - [x] **WebUI Modular Renderer Implementation** (2026-03-31 10:30).
 - [x] **Legacy Fallback Purge & TypeScript Foundation (Phase 13.5)** (2026-03-31 10:45).
 
+### Phase 15: OMEGA Core 2.0 & High-Fidelity Expansion [IN PROGRESS]
+- [x] **Voice Architecture 2.0 Hardening**: Replaced compiler mocks with real AceCatalog lookup and implemented pre-registration logic (2026-04-01 08:30).
+- [x] **Modular Dispatcher Expansion**: Support for JP Supersaw and Korg-35 Filters in the dynamic signal path (2026-04-01 08:35).
+- [x] UI Alignment & Scope 2.0: Stabilized ResizeObserver & 4:3 Layout (2026-04-01 12:40).
+- [x] Case 401: Modular Envelopes (ADSR): Finalized per-unit dynamic ADSR state management in the audio thread (2026-04-01 10:30).
+- [ ] Phase 15.2: Multi-Sample Core: Initialize Multi-Sample synthesis layer and Granular subsystem.
+
 ---
-*Last Updated: 2026-03-31 09:40*
+*Last Updated: 2026-04-01 12:45*

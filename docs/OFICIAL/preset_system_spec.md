@@ -22,25 +22,29 @@ layers:
     
     # Parámetros de "Panel": Lo que el usuario ve en los sliders principales
     layerParams:
-      mainCutoffHz: 2000.0
-      mainResonance: 0.2
-      hpfPos: 1 # 0: Boost, 1: Bypass, 2: 225Hz, 3: 700Hz
-      vcaGateMode: false # true for Gate, false for Env
-      analogDrift: 0.15 # 0.0 to 1.0 (drift depth)
+      cutoff: 2000.0             # Unified: was mainCutoffHz
+      resonance: 0.2
+      hpfPosition: 1             # 0: Boost, 1: Bypass, 2: 225Hz, 3: 700Hz
+      vcaGateMode: false         # true: Gate, false: Env
+      analogDrift: 0.15
       
       # Juno Modular hardware
-      sawOn: true # Bool
-      pulseOn: true # Bool
-      subLevel: 0.5 # 0.0 to 1.0
-      noiseLevel: 0.05 # 0.0 to 1.0
-      pwmModeLfo: false # true for LFO, false for Manual
-      pwmAmount: 0.5 # Width (Manual) or Amount (LFO)
+      sawOn: true
+      pulseOn: true
+      subLevel: 0.5
+      noiseLevel: 0.05
+      pwmMode: 0                 # 0: Manual, 1: LFO
+      pwmAmount: 0.5
       
-      vcfEnvDepth: 0.5 # 0.0 to 1.0
-      vcfLfoDepth: 0.0 # 0.0 to 1.0 (Native Path)
-      vcfKybd: 0.5 # 0.0 to 1.0 (0-100%)
-      vcfEnvInv: false # Polarity inversion
-      dcoLfoDepth: 0.0 # Dedicated Vibrato path
+      vcfEnvDepth: 0.5
+      vcfModDepth: 0.0
+      vcfKeyTracking: 0.5        # Unified: was vcfKybd
+      vcfEnvInverted: false      # Unified: was vcfEnvInv
+      dcoLfoDepth: 0.0
+      
+      # OMEGA Master LFO
+      lfoRate: 5.0
+      lfoWave: 0                 # 0: Triangle, 1: Saw, etc.
     
     # Arquitectura de Voz: La "maquinaria" interna (ACE)
     voiceArch:
@@ -94,6 +98,6 @@ layers:
 
 ## Conceptos Clave
 
-1. **ACE Component IDs**: Cada `componentId` (ej. `OSC-VA-004`) mapea a una clase DSP específica. Esto permite intercambiar un oscilador Juno por uno Moog simplemente cambiando el ID en el YAML.
-2. **Separación de Capas**: Soporta hasta 6 capas independientes, permitiendo sonidos híbridos complejos (ej. Capa A: VA Juno, Capa B: Neural Wavetable).
-3. **Modulación Desacoplada**: Las rutas de modulación no están "cableadas" en el código del oscilador, sino que se inyectan a través del `ModulationRuntime`.
+1. **ACE Component IDs**: Cada `componentId` (ej. `OSC-VA-004`) mapea a una clase DSP específica.
+2. **Hardened LayerParams**: OMEGA utiliza una estructura `LayerParams` en C++ que debe coincidir 1:1 con las llaves de `layerParams` en el YAML. La persistencia se garantiza mediante macros `SET_P` en `OmegaPreset.cpp`.
+3. **Global vs Local**: Parámetros globales (Chorus, Master Volume) se inyectan en el nodo `params` del Root del preset, utilizando los prefijos `MASTERVOL`, `MASTERCHORUSMODE`, etc.

@@ -52,11 +52,13 @@ Para traer un módulo de JUNiO 601 a OMEGA:
 
 ---
 > [!TIP]
-> **Consistencia en IDs**: Todos los IDs de parámetros deben ser en mayúsculas y seguir el formato `LAYER[X][MODULO][PARAM]` (ej: `LAYERAVCFRESONANCE`).
+> **Consistencia en IDs**: Todos los IDs de parámetros deben ser en mayúsculas y seguir el formato `LAYER[X][MODULO][PARAM]` (ej: `LAYERAVCFRESONANCE`) para parámetros de voz, o `MASTER[MODULO][PARAM]` (ej: `MASTERCHORUSMODE`) para parámetros globales.
 
 ## 5. Protocolo Semántico RPC (WebUI)
 - **Métodos (Acciones)**: Deben usar estrictamente `camelCase` (ej: `omegaRPC.getState()`, `omegaRPC.listPresets()`).
-- **IDs de Parámetros**: Deben usar estrictamente `UPPERCASE` y el prefijo de capa: `LAYER[A/B][MODULO][PARAM]` (ej: `LAYERAMAINCUTOFF`).
+- **IDs de Parámetros**: Deben usar estrictamente `UPPERCASE` y el prefijo de capa o maestro:
+    - `LAYER[A/B][MODULO][PARAM]` (ej: `LAYERAMAINCUTOFF`)
+    - `MASTER[MODULO][PARAM]` (ej: `MASTERCHORUSMODE`, `MASTERVOL`)
 - **Claves de Datos (JSON)**: Deben usar `id` para identificadores únicos y `camelCase` para propiedades (ej: `voiceArch`).
 - **Validación del Puente**: El `OmegaUiBridge` debe realizar comparaciones estrictas (case-sensitive) para garantizar la disciplina del protocolo.
 

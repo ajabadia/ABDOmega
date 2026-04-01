@@ -50,8 +50,9 @@ namespace Omega::DSP::Engines::Roland::JP {
                 float saw = (float)(2.0 * v.phases[i] - 1.0);
                 sum += saw;
 
-                float freq = v.frequency * (1.0f + detuneAmts[i] * v.detune);
-                double phaseStep = freq * mInvSampleRate;
+                float detuneScale = (i == 0) ? 0.0f : (1.0f + v.spread * 2.0f);
+                float freq = v.frequency * (1.0f + detuneAmts[i] * v.detune * detuneScale);
+                double phaseStep = (double)freq * mInvSampleRate;
                 v.phases[i] += phaseStep;
                 if (v.phases[i] >= 1.0) v.phases[i] -= 1.0;
             }

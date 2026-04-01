@@ -36,6 +36,18 @@ namespace Core {
         static inline const juce::Identifier modulators  {"modulators"};
         static inline const juce::Identifier fxSlots     {"fxSlots"};
         static inline const juce::Identifier auxiliary   {"auxiliary"};
+        
+        // --- Voice Architecture 2.0 ---
+        static inline const juce::Identifier voiceChain   {"voiceChain"};
+        static inline const juce::Identifier NODES        {"NODES"};
+        static inline const juce::Identifier CONNECTIONS  {"CONNECTIONS"};
+        static inline const juce::Identifier NODE         {"NODE"};
+        static inline const juce::Identifier CONNECTION   {"CONNECTION"};
+        static inline const juce::Identifier nodeId       {"nodeId"};
+        static inline const juce::Identifier role         {"role"};
+        static inline const juce::Identifier from         {"from"};
+        static inline const juce::Identifier to           {"to"};
+        static inline const juce::Identifier bus          {"bus"};
 
         // --- Parameter IDs (Unified Contract) ---
         static inline const juce::Identifier cutoff           {"cutoff"};
@@ -60,6 +72,11 @@ namespace Core {
         static inline const juce::Identifier decay            {"decay"};
         static inline const juce::Identifier sustain          {"sustain"};
         static inline const juce::Identifier release          {"release"};
+        
+        static inline const juce::Identifier lfoRate          {"lfoRate"};
+        static inline const juce::Identifier lfoWave          {"lfoWave"};
+        static inline const juce::Identifier jpDetune         {"jpDetune"};
+        static inline const juce::Identifier jpSpread         {"jpSpread"};
 
         // Korg Specific
         static inline const juce::Identifier korgHpCutoff     {"korgHpCutoff"};

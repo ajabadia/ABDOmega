@@ -107,6 +107,13 @@ namespace Preset {
         SET_P(vcfKeyTracking, layer.params.vcfKeyTracking);
         SET_P(vcfEnvInverted, layer.params.vcfEnvInverted);
         SET_P(dcoLfoDepth, layer.params.dcoLfoDepth);
+        SET_P(lfoRate, layer.params.lfoRate);
+        SET_P(lfoWave, layer.params.lfoWave);
+        SET_P(jpDetune, layer.params.jpDetune);
+        SET_P(jpSpread, layer.params.jpSpread);
+        SET_P(korgHpCutoff, layer.params.korgHpCutoff);
+        SET_P(korgHpResonance, layer.params.korgHpResonance);
+        SET_P(korgGrit, layer.params.korgGrit);
         SET_P(attack, layer.params.attack);
         SET_P(decay, layer.params.decay);
         SET_P(sustain, layer.params.sustain);

@@ -1,0 +1,45 @@
+export declare class ModuleOscilloscope {
+    private el;
+    private content;
+    private canvas;
+    private ctx;
+    private descriptor;
+    private isPowered;
+    private sourceA;
+    private sourceB;
+    private isDual;
+    private isFrozen;
+    private syncEnabled;
+    private timebase;
+    private dataA;
+    private dataB;
+    private allSources;
+    private filteredSources;
+    private pollingInterval;
+    private animationId;
+    private resizeObserver;
+    private modalActive;
+    private modalCanvas;
+    private modalCtx;
+    private modalTimebase;
+    constructor(el: HTMLElement, content: HTMLElement, descriptor: any);
+    init(): Promise<void>;
+    private setupResizeObserver;
+    private fetchSourcesWithRetry;
+    private applyDynamicFiltering;
+    private render;
+    private updateSelectors;
+    private bindEvents;
+    private bindModalEvents;
+    private openModal;
+    private syncModalInputs;
+    private startPolling;
+    private startDrawLoop;
+    private resize;
+    private draw;
+    private renderTrace;
+    onStateUpdate(state: any): void;
+    destroy(): void;
+}
+export default ModuleOscilloscope;
+//# sourceMappingURL=ModuleOscilloscope.d.ts.map

@@ -1,11 +1,15 @@
 :root {
     --rack-height: 600px;
     --module-bg-dark: #121212;
+    --omega-neutral: #1a1a1a;
     --neon-cyan: #00f2ff;
     --neon-amber: #ffaa00;
     --juno-orange: #ff7700;
     --juno-red: #ff3c3c;
-    --jp-blue: #2a415a;
+    --jp-blue: #2a3d52;
+    --korg-black: #0d0d0d;
+    --korg-silver: #c0c0c0;
+    --space-green: #2b3a2a;
 }
 
 body, html {
@@ -36,18 +40,22 @@ body, html {
 }
 
 .icon-btn {
-    background: transparent;
-    border: none;
-    color: #888;
+    background: #333;
+    border: 1px solid #555;
+    color: #fff !important;
+    opacity: 1;
     cursor: pointer;
-    font-size: 14px;
-    padding: 2px 5px;
-    transition: color 0.2s, transform 0.1s;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    margin-left: 4px;
+    border-radius: 2px;
+    transition: background 0.2s;
 }
 
 .icon-btn:hover {
-    color: #00f2ff;
-    transform: scale(1.1);
+    background: #444;
+    color: #00f2ff !important;
 }
 
 .icon-btn:active {
@@ -90,7 +98,7 @@ body, html {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10000;
+    z-index: 20000;
     transition: opacity 1s ease-out;
 }
 
@@ -150,19 +158,28 @@ body, html {
     align-items: center;
 }
 
+#omega-rack {
+    min-height: 500px;
+    background-color: #0d0d0d !important;
+}
+
 .rack-container {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     width: 98vw;
     margin: 60px auto 0 auto;
-    background: #111;
-    border: 4px solid #333;
-    border-radius: 8px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-    overflow: hidden;
+    background: #0a0a0a;
     position: relative;
     z-index: 100;
+    transition: opacity 1s ease-in-out;
+}
+
+.rack-container.visible {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    visibility: visible !important;
 }
 
 .rack-row {
@@ -171,6 +188,7 @@ body, html {
     overflow-x: auto;
     overflow-y: hidden;
     background: rgba(0,0,0,0.3);
+    min-height: 100px;
 }
 
 .rack-row.upper {
@@ -221,10 +239,49 @@ body, html {
 }
 
 #preset-browser-container {
-    flex: 1;
+    flex: 2;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
     border-right: 1px solid #333;
+    overflow: hidden;
+    padding-right: 10px;
+}
+
+.browser-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.browser-column h4 {
+    margin: 5px 0;
+    font-size: 0.7rem;
+    color: #666;
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.browser-column ul {
+    flex: 1;
     overflow-y: auto;
-    padding-right: 15px;
+    list-style: none;
+    padding: 0;
+}
+
+#browser-search {
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 5px;
+    font-size: 11px;
+    margin-bottom: 5px;
+    border-radius: 3px;
 }
 
 #version-control-container {
@@ -361,14 +418,15 @@ body, html {
 }
 
 .module-header {
-    padding: 10px;
+    padding: 6px 10px; /* Compactada 15% */
     text-align: center;
-    font-weight: bold;
-    font-size: 0.8rem;
-    letter-spacing: 2px;
+    font-weight: 900;
+    font-size: 0.75rem;
+    letter-spacing: 2.5px;
     border-bottom: 2px solid #333;
     text-transform: uppercase;
     background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+    color: #888;
 }
 
 .loading-module {
@@ -396,65 +454,130 @@ body, html {
     to { opacity: 1; transform: scale(1.1); }
 }
 
-/* OMEGA Modular Components */
+/* --- OMEGA UNIVERSAL KIT --- */
 .panel {
-    padding: 10px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     height: 100%;
     box-sizing: border-box;
     width: fit-content;
-    min-width: 80px;
+    min-width: 120px;
+    background: #151515;
 }
 
-.param-column {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    align-items: center;
+.universal-panel {
+    background: linear-gradient(145deg, #18191b 0%, #0d0e10 100%);
+    border-left: 4px solid #444;
 }
 
-.param-row {
-    display: flex;
-    flex-direction: row;
-    gap: 10px;
-    justify-content: center;
+.module-grid {
+    gap: 12px !important;
 }
 
 .control-group {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .control-group label {
-    font-size: 0.6rem;
-    color: #888;
+    font-size: 10px;
+    color: #666;
     text-transform: uppercase;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px black;
+    font-weight: 800;
+    letter-spacing: 1px;
 }
 
-.silver-panel {
-    background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
-    border: 1px solid #999;
-    color: #222 !important;
-}
-
-.ms20-panel {
-    background: #0a0a0a !important;
-    border: 2px solid #333;
-    color: #eee !important;
-}
-
-/* Custom Controls - Juno Style */
+/* --- JUNO FAMILY KIT --- */
 .juno-panel {
-    background: linear-gradient(135deg, #1e1f24 0%, #111 100%);
+    background-image: url('juno_bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
     border-left: 4px solid var(--juno-orange);
-    box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
 }
+
+.juno-panel .module-header { border-bottom-color: var(--juno-orange); color: #eee; }
+.juno-panel label { color: #aaa; }
+
+.juno-panel .knob {
+    background: radial-gradient(circle, #333 0%, #111 100%);
+    border-color: #444;
+}
+
+.juno-panel .knob-marker { background-color: var(--juno-red); width: 3px; }
+
+/* --- JP FAMILY KIT --- */
+.jp-panel {
+    background-image: url('jp8000_bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    border-left: 4px solid var(--neon-cyan);
+    color: #eee;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+}
+
+.jp-panel label { color: var(--neon-cyan); opacity: 0.7; }
+
+.jp-panel .knob {
+    background: radial-gradient(circle, #666 0%, #333 100%);
+    border-color: #888;
+}
+
+.jp-panel .knob-marker { background-color: #fff; box-shadow: 0 0 5px #fff; }
+
+/* --- KORG MS-20 FAMILY KIT --- */
+.korg-ms20-panel {
+    background-image: url('ms20_bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    border-left: 4px solid #fff;
+    color: #eee !important;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+}
+
+.korg-ms20-panel label { color: #fff; font-family: 'Consolas', monospace; font-size: 9px; }
+
+.korg-ms20-panel .knob {
+    border-radius: 2px; /* Más anguloso */
+    background: #111;
+    border: 2px solid #444;
+}
+
+/* --- KORG PROPHECY FAMILY KIT --- */
+.korg-prophecy-panel {
+    background-image: url('juno_bg.png'); /* Temporarily use juno_bg for prophecy until a silver one is final */
+    background-size: cover;
+    background-repeat: no-repeat;
+    border-left: 4px solid #444;
+    color: #111 !important;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1); /* Lighter shadow for silver panel */
+}
+
+.korg-prophecy-panel label { color: #222; font-weight: 900; }
+.korg-prophecy-panel .module-header { color: #000; border-bottom-color: #444; }
+
+.korg-prophecy-panel .knob {
+    background: radial-gradient(circle, #eee 0%, #aaa 100%);
+    border-color: #999;
+}
+
+.korg-prophecy-panel .knob-marker { background-color: #000; }
+
+/* --- SPACE ECHO FAMILY KIT --- */
+.space-panel {
+    background-image: url('space_echo_bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    border-left: 4px solid #88ff88;
+    color: #fff;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+}
+
+.space-panel label { color: #88ff88; font-style: italic; }
 
 .v-slider {
     -webkit-appearance: none;
@@ -487,59 +610,33 @@ button.sq.active.juno-red {
     border-color: #fff;
 }
 
-/* JP Panel */
-.jp-panel {
-    background-color: var(--jp-blue);
-    border-left: 4px solid var(--neon-cyan);
-    color: #eee;
-    width: 200px;
+/* Generic Controls Repurposing */
+.knob-control {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.jp-select {
-    background: #111;
-    color: var(--neon-cyan);
-    border: 1px solid var(--neon-cyan);
-    padding: 5px;
-    border-radius: 4px;
-    width: 80px;
-}
-
-.knob-placeholder {
-    width: 50px;
-    height: 50px;
+.knob {
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     background: radial-gradient(circle, #444 0%, #222 100%);
-    border: 2px solid #666;
+    border: 3px solid #666;
     position: relative;
-    cursor: pointer;
+    cursor: ns-resize;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
 }
 
-.knob-placeholder::after {
-    content: '';
+.knob-marker {
     position: absolute;
-    top: 5px;
+    top: 4px;
     left: 50%;
-    width: 2px;
-    height: 15px;
-    background: var(--neon-cyan);
-    transform-origin: bottom;
-    transform: translateX(-50%) rotate(calc(var(--val, 0) * 270deg - 135deg));
-}
-
-/* Korg Panel */
-.korg-panel {
-    background-color: #0d0d0d;
-    border-left: 4px solid #fff;
-    width: 220px;
-    background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 80%);
-}
-
-/* Space Echo Panel */
-.space-echo-panel {
-    background-color: #2b3a2a; /* Roland Green */
-    border-left: 4px solid #88ff88;
-    width: 280px;
-    color: #fff;
+    width: 4px;
+    height: 12px;
+    background: #fff;
+    border-radius: 2px;
+    transform-origin: 50% 19px;
 }
 
 .echo-tape-area {
@@ -584,7 +681,7 @@ button.sq.active.juno-orange {
     display: flex;
     align-items: center;
     padding: 0 15px;
-    z-index: 9000;
+    z-index: 21000;
     border-bottom: 1px solid #333;
     font-size: 0.75rem;
     letter-spacing: 1px;
@@ -609,13 +706,16 @@ button.sq.active.juno-orange {
 .dropdown {
     display: none;
     position: absolute;
-    top: 30px;
+    top: 32px;
     left: 0;
     background: #1a1a1a;
-    min-width: 150px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    min-width: 180px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8);
     border: 1px solid #333;
     z-index: 10001;
+    flex-direction: column; /* Force vertical in flex mode */
+    padding: 5px 0;
+    border-radius: 4px;
 }
 
 .menu-item:hover .dropdown {
@@ -624,14 +724,16 @@ button.sq.active.juno-orange {
 
 .dropdown a {
     color: #ccc;
-    padding: 10px 15px;
+    padding: 8px 15px;
     text-decoration: none;
     display: block;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
+    font-family: 'Outfit', sans-serif;
+    transition: background 0.1s, color 0.1s;
 }
 
 .dropdown a:hover {
-    background: #444;
+    background: #2a2a2a;
     color: var(--neon-cyan);
 }
 
@@ -639,7 +741,7 @@ button.sq.active.juno-orange {
 .modal {
     display: none;
     position: fixed;
-    z-index: 11000;
+    z-index: 30000;
     left: 0;
     top: 0;
     width: 100%;
@@ -976,53 +1078,157 @@ button.sq.active.juno-orange {
     border-color: var(--neon-cyan);
 }
 
-/* Expanded Modal laboratory view */
-.osc-modal-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(10px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-}
-
-.osc-modal-container {
-    width: 80%;
-    max-width: 1000px;
-    background: #111;
-    border: 2px solid #333;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 0 50px rgba(0,0,0,1);
+/* --- ADVANCED WAVE ANALYZER (MODAL) --- */
+.modal-scope-content {
+    width: 90vw !important;
+    height: 90vh !important;
+    max-width: 1200px !important;
+    background: #080808 !important;
+    border: 2px solid #333 !important;
+    padding: 30px !important;
     display: flex;
     flex-direction: column;
-    gap: 15px;
 }
 
-.osc-modal-container .osc-viewport {
-    height: 400px;
+.scope-modal-layout {
+    display: flex;
+    flex: 1;
+    gap: 25px;
+    margin-top: 20px;
+    min-height: 0;
+}
+
+.scope-main-view {
+    flex: 3;
+    background: #000;
+    border: 1px solid #222;
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 0 50px rgba(0, 242, 255, 0.05);
+}
+
+#scope-large-canvas {
     width: 100%;
+    height: 100%;
+    display: block;
+    background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
 }
 
-.osc-canvas-wrapper {
-    background: #050505 !important;
-    border: 1px solid #1a1a1a;
-    margin: 5px 10px !important;
-    height: 100px;
+/* CRT Scanline Effect for Large Canvas */
+.scope-main-view::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 4px, 3px 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.scope-canvas-overlay {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.scope-stats {
+    font-family: 'Consolas', monospace;
+    font-size: 14px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px var(--neon-cyan);
+    opacity: 0.8;
+}
+
+.scope-side-controls {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: #111;
+    padding: 20px;
+    border: 1px solid #222;
+    border-radius: 4px;
+}
+
+.scope-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.scope-control-group label {
+    font-size: 10px;
+    font-weight: 800;
+    color: #555;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.scope-select {
+    background: #000;
+    border: 1px solid #333;
+    color: #ccc;
+    font-size: 12px;
+    padding: 8px;
+    border-radius: 4px;
+    outline: none;
+}
+
+.scope-control-row {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 10px;
+    color: #888;
+    font-size: 11px;
 }
 
-.osc-footer {
-    padding: 2px 10px;
-    font-size: 0.5rem;
-    color: #444;
-    text-align: right;
-    font-family: monospace;
-    letter-spacing: 1px;
+.scope-control-row input[type="range"] {
+    flex: 1;
+}
+
+/* Oscilloscope Module (Mini View) Enhancements */
+.ModuleOscilloscope {
+    min-width: 280px !important;
+}
+
+.ModuleOscilloscope .module-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px !important;
+}
+
+.visualizer-container {
+    width: 100%;
+    aspect-ratio: 4/3;
+    flex: 1; /* Occupy all available space in vertical flex */
+    background: #050505;
+    border: 2px solid #1a1a1a;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    margin: 5px 0;
+    min-height: 120px; /* Base height in the rack slot */
+}
+
+#osc-canvas-mini, #scope-large-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Phosphor Glow for Mini Scope */
+.visualizer-container::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at center, transparent 30%, rgba(0, 242, 255, 0.05) 100%);
+    pointer-events: none;
+    z-index: 5;
 }
 
 /* MIDI Viewer specific */

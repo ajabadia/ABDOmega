@@ -3,7 +3,7 @@
  * Handles dynamic instantiation of Eurorack modules.
  */
 
-import { ModuleDescriptors } from './module_descriptors';
+import { ModuleDescriptors } from './module_descriptors.js';
 
 export class ModuleManager {
     private activeModules: Map<string, any> = new Map();
@@ -18,7 +18,9 @@ export class ModuleManager {
     }
 
     async updateRack(state: any): Promise<void> {
-        this.lastState = state;
+        console.log("[ModuleManager] updateRack called with state:", state ? "READY" : "NULL/EMPTY");
+        const safeState = state || {};
+        this.lastState = safeState;
         
         // @ts-ignore
         await window.metadataStore.ensureLoaded();
@@ -33,7 +35,13 @@ export class ModuleManager {
         this.midiViewer = null;
         
         // 1. Auxiliary (Direct from Preset)
-        const aux = state.preset?.auxiliary || [];
+        const aux = safeState.preset?.auxiliary || safeState.auxiliary || [];
+        
+        if (aux.length === 0 && (!safeState.mainChain || safeState.mainChain.length === 0)) {
+            console.log("[ModuleManager] No modules found. Injecting emergency module.");
+            await this.injectEmergencyModule();
+            return;
+        }
         
         for (const item of aux) {
             const rawType = (item.type || item.componentId || item.COMPONENTID || "").toLowerCase();
@@ -68,10 +76,37 @@ export class ModuleManager {
         const layerData = state.preset && state.preset.layers && state.preset.layers[0];
         if (layerData) {
             const arch = layerData.voiceArch || layerData.architecture;
+            const chain = layerData.voiceChain;
             const layer = "A";
             
-            if (arch) {
-                // Process Categories - Unify Root and Layer components
+            if (chain && chain.nodes && chain.nodes.length > 0) {
+                // --- Voice Architecture 2.0 (Graph Nodes) ---
+                console.log("[ModuleManager] Rendering VoiceChain 2.0 graph...");
+                for (const node of chain.nodes) {
+                    const componentId = node.componentId || node.id;
+                    const descriptor = (ModuleDescriptors as any)[componentId];
+                    
+                    // Map Role to CSS type
+                    let type = "core";
+                    const role = (node.role || "").toLowerCase();
+                    if (role === "source" || role === "oscillator") type = "osc";
+                    else if (role === "filter") type = "filter";
+                    else if (role === "amplifier") type = "amp";
+                    else if (role === "envelope" || role === "controller") type = "env";
+                    else if (role === "lfo") type = "lfo";
+                    else if (role === "fx") type = "fx";
+                    else if (role === "auxiliary" || role === "utility") type = "aux";
+
+                    if (descriptor && lower) {
+                        await this.addModule(node.nodeId || node.id || componentId, "ModuleRenderer", type, lower, { 
+                            descriptor, componentId, layer, group: "MAIN" 
+                        });
+                    } else if (lower) {
+                        await this.addPlaceholder(node.nodeId || node.id || componentId, type, lower, componentId);
+                    }
+                }
+            } else if (arch) {
+                // --- Legacy Voice Architecture (Category Lists) ---
                 const categories = [
                     { list: (arch.oscillators || arch.oscillatorList || []).concat(state.preset?.oscillators || []), type: "osc" },
                     { list: (arch.filters     || arch.filterList     || []).concat(state.preset?.filters || []), type: "filter" },
@@ -100,6 +135,12 @@ export class ModuleManager {
             }
         }
         
+        // Emergency Check: if no modules were rendered, show a trigger anyway
+        if (lower && lower.children.length === 0) {
+            console.warn("[ModuleManager] Rack empty. Injecting Emergency Trigger.");
+            await this.injectEmergencyModule();
+        }
+
         // Final Sync
         this.activeModules.forEach(mod => {
             if (mod.onStateUpdate) mod.onStateUpdate(state);
@@ -118,6 +159,12 @@ export class ModuleManager {
             </div>
         `;
         container.appendChild(el);
+    }
+
+    private async injectEmergencyModule(): Promise<void> {
+        console.log("[ModuleManager] Injecting Emergency Trigger Module...");
+        const lower = document.getElementById('lower-rack');
+        await this.addModule("EMERGENCY_TRIG", "ModuleMidiTrigger", "main", lower, { label: "Emergency Trigger" });
     }
 
     private async addModule(id: string, className: string, type: string, container: HTMLElement | null, options: any = {}): Promise<void> {

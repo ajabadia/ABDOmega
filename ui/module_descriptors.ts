@@ -3,15 +3,15 @@
  * Declarative layouts for modular components.
  */
 
-import type { ModuleDescriptor } from './module_renderer';
+import type { ModuleDescriptor } from './module_renderer.js';
 
 export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     // Juno DCO (OSC-VA-001)
     "OSC-VA-001": {
         id: "juno-dco",
         title: "JUNO DCO",
-        panelClass: "juno-panel dco",
-        grid: { columns: 2, gap: 10 },
+        panelClass: "juno-panel",
+        grid: { columns: 2, gap: 12 },
         items: [
             { paramId: "LAYERAMAINSAWON",     control: "toggle",   label: "SAW",   row: 0, col: 0, variant: "juno-red" },
             { paramId: "LAYERAMAINPULSEON",   control: "toggle",   label: "PULSE", row: 0, col: 1, variant: "juno-red" },
@@ -27,8 +27,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "FLT-VA-001": {
         id: "juno-vcf",
         title: "IR3109 VCF",
-        panelClass: "juno-panel vcf",
-        grid: { columns: 3, gap: 10 },
+        panelClass: "juno-panel",
+        grid: { columns: 3, gap: 12 },
         items: [
             { paramId: "LAYERAMAINCUTOFF",    control: "knob",     label: "FREQ",  row: 0, col: 0 },
             { paramId: "LAYERAMAINRESONANCE", control: "knob",     label: "RES",   row: 0, col: 1 },
@@ -46,7 +46,7 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         id: "space-echo",
         title: "SPACE ECHO",
         panelClass: "space-panel",
-        grid: { columns: 2, gap: 10 },
+        grid: { columns: 2, gap: 12 },
         items: [
             { paramId: "LAYERAFXSPACESPEED",     control: "knob",     label: "RATE",  row: 0, col: 0 },
             { paramId: "LAYERAFXSPACEINTENSITY", control: "knob",     label: "INTEN", row: 0, col: 1 },
@@ -66,8 +66,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "FX-DL-001": {
         id: "master-delay",
         title: "MASTER DELAY",
-        panelClass: "delay-panel",
-        grid: { columns: 2, gap: 8 },
+        panelClass: "universal-panel",
+        grid: { columns: 2, gap: 12 },
         items: [
             { paramId: "MASTERDELAYTIME",     control: "knob",     label: "TIME",  row: 0, col: 0 },
             { paramId: "MASTERDELAYFEEDBACK", control: "knob",     label: "FDBK",  row: 0, col: 1 },
@@ -83,8 +83,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "EG-STANDARD-001": {
         id: "adsr",
         title: "EG-ADSR",
-        panelClass: "env-panel",
-        grid: { columns: 2, gap: 8 },
+        panelClass: "universal-panel",
+        grid: { columns: 2, gap: 12 },
         items: [
             { paramId: "LAYERAMAINATTACK",  control: "knob", label: "A", row: 0, col: 0 },
             { paramId: "LAYERAMAINDECAY",   control: "knob", label: "D", row: 0, col: 1 },
@@ -96,8 +96,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "ENV-ADSR-GEN": {
         id: "adsr",
         title: "EG-ADSR",
-        panelClass: "env-panel",
-        grid: { columns: 2, gap: 8 },
+        panelClass: "universal-panel",
+        grid: { columns: 2, gap: 12 },
         items: [
             { paramId: "LAYERAMAINATTACK",  control: "knob", label: "A", row: 0, col: 0 },
             { paramId: "LAYERAMAINDECAY",   control: "knob", label: "D", row: 0, col: 1 },
@@ -111,8 +111,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "VCA-STANDARD-001": {
         id: "vca",
         title: "AMP-VCA",
-        panelClass: "vca-panel",
-        grid: { columns: 1, gap: 8 },
+        panelClass: "universal-panel",
+        grid: { columns: 1, gap: 12 },
         items: [
             { paramId: "LAYERAMAINVCAGAIN", control: "slider-v", label: "GAIN", row: 0, col: 0 },
             { paramId: "LAYERAMAINVCAMODE", control: "toggle",   label: "GATE", row: 1, col: 0 }
@@ -124,8 +124,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "LFO-STANDARD-001": {
         id: "lfo",
         title: "LFO-MOD",
-        panelClass: "lfo-panel",
-        grid: { columns: 1, gap: 10 },
+        panelClass: "universal-panel",
+        grid: { columns: 1, gap: 12 },
         items: [
             { paramId: "LAYERAMAINLFORATE", control: "knob", label: "RATE", row: 0, col: 0 },
             { paramId: "LAYERAMAINLFOWAVE", control: "select", label: "WAVE", row: 1, col: 0 }
@@ -137,8 +137,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "OSC-KORG-P": {
         id: "korg-osc",
         title: "KORG DCO",
-        panelClass: "korg-panel osc",
-        grid: { columns: 2, gap: 10 },
+        panelClass: "korg-prophecy-panel",
+        grid: { columns: 2, gap: 12 },
         items: [
             { paramId: "LAYERAMAINSAWON", control: "toggle", label: "SAW", row: 0, col: 0 },
             { paramId: "LAYERAMAINPULSEON", control: "toggle", label: "PULSE", row: 0, col: 1 }
@@ -150,8 +150,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "FLT-VA-003": {
         id: "korg-vcf",
         title: "KORG-35 VCF",
-        panelClass: "korg-panel vcf",
-        grid: { columns: 3, gap: 10 },
+        panelClass: "korg-ms20-panel",
+        grid: { columns: 3, gap: 12 },
         items: [
             { paramId: "LAYERAMAINCUTOFF",     control: "knob", label: "LPF", row: 0, col: 0 },
             { paramId: "LAYERAKORGHPFCUTOFF",  control: "knob", label: "HPF", row: 0, col: 1 },
@@ -164,11 +164,12 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "OSC-VA-004": {
         id: "jp-supersaw",
         title: "JP SUPERSAW",
-        panelClass: "jp-panel osc",
-        grid: { columns: 2, gap: 10 },
+        panelClass: "jp-panel",
+        grid: { columns: 3, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINJPDETUNE", control: "knob", label: "DETUNE", row: 0, col: 0 },
-            { paramId: "LAYERAMAINANALOGDRIFT", control: "knob", label: "DRIFT", row: 0, col: 1 }
+            { paramId: "LAYERAMAINJPDETUNE",    control: "knob", label: "DETUNE", row: 0, col: 0 },
+            { paramId: "LAYERAMAINJPSPREAD",    control: "knob", label: "SPREAD", row: 0, col: 1 },
+            { paramId: "LAYERAMAINANALOGDRIFT", control: "knob", label: "DRIFT",  row: 0, col: 2 }
         ],
         footer: { label: "ROLAND SUPERSAW" }
     },
@@ -177,11 +178,11 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
     "FX-CH-001": {
         id: "juno-chorus",
         title: "JUNO CHORUS",
-        panelClass: "juno-panel chorus",
-        grid: { columns: 2, gap: 10 },
+        panelClass: "juno-panel",
+        grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "LAYERACHORUSMODE", control: "select", label: "MODE", row: 0, col: 0 },
-            { paramId: "LAYERACHORUSMIX",  control: "knob",   label: "MIX",  row: 0, col: 1 }
+            { paramId: "MASTERCHORUSMODE", control: "select", label: "MODE", row: 0, col: 0 },
+            { paramId: "MASTERCHORUSMIX",  control: "knob",   label: "MIX",  row: 0, col: 1 }
         ],
         footer: { label: "BBD EFFECT" }
     }

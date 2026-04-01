@@ -41,6 +41,14 @@ namespace Preset {
         float sustain = 0.8f;
         float release = 500.0f;
 
+        // OMEGA Master LFO
+        float lfoRate = 1.0f;
+        int lfoWave = 0;
+
+        // Roland JP-808X
+        float jpDetune = 0.1f;
+        float jpSpread = 0.5f;
+
         // Korg Specific
         float korgHpCutoff = 100.0f;
         float korgHpResonance = 0.1f;
@@ -72,13 +80,45 @@ namespace Preset {
     };
 
     /**
+     * @brief Voice Architecture 2.0 - Dynamic Topology Node
+     */
+    enum class VoiceNodeRole {
+        Source,     // Oscillators, Noise
+        Sink,       // Master Out, Bus Out
+        Processor,  // Filters, Shapers, Amps
+        Controller, // Envelopes, LFOs
+        Auxiliary   // Visualizers, Analyzers
+    };
+
+    struct VoiceNode {
+        std::string id;
+        std::string componentId;
+        std::string slotName;
+        std::string slotType;
+        VoiceNodeRole role = VoiceNodeRole::Processor;
+        std::map<std::string, float> params;
+    };
+
+    struct VoiceConnection {
+        std::string from;
+        std::string to;
+        std::string bus; // "audio0", "mod0", etc.
+    };
+
+    struct VoiceChain {
+        std::vector<VoiceNode> nodes;
+        std::vector<VoiceConnection> connections;
+    };
+
+    /**
      * @brief High-level layer definition.
      */
     struct Layer {
         std::string id;
         std::string name;
         LayerParams params;
-        VoiceArchitecture voiceArch;
+        VoiceArchitecture voiceArch; // Legacy category-based
+        VoiceChain voiceChain;      // 2.0 Graph-based
     };
 
 } // namespace Preset
