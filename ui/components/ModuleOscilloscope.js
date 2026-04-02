@@ -42,6 +42,25 @@ export class ModuleOscilloscope {
         setTimeout(() => this.resize(), 100);
         setTimeout(() => this.resize(), 500);
     }
+    generateGroupedOptions(list) {
+        const groups = {};
+        for (const opt of list) {
+            const groupName = opt.instance || 'Global';
+            if (!groups[groupName])
+                groups[groupName] = [];
+            groups[groupName].push(opt);
+        }
+        let html = '';
+        for (const [group, items] of Object.entries(groups)) {
+            html += `<optgroup label="${group.toUpperCase()}">`;
+            for (const item of items) {
+                const displayName = item.name.replace(group, '').trim() || item.name;
+                html += `<option value="${item.telemetryIndex}">${displayName}</option>`;
+            }
+            html += `</optgroup>`;
+        }
+        return html;
+    }
     setupResizeObserver() {
         const area = this.content.querySelector('.visualizer-container');
         if (area && typeof ResizeObserver !== 'undefined') {
@@ -59,51 +78,18 @@ export class ModuleOscilloscope {
         if (window.omegaRPC) {
             try {
                 // @ts-ignore
-                const resp = await window.omegaRPC.send("getTelemetrySources", {});
-                if (resp && resp.audio) {
-                    this.allSources = [...resp.audio, ...resp.modulation];
-                    this.applyDynamicFiltering();
+                const resp = await window.omegaRPC.send("getModulationMetadata", {});
+                if (resp && resp.sources) {
+                    // Filter for ports that have a telemetryIndex (visualizable)
+                    this.allSources = resp.sources.filter((s) => s.telemetryIndex !== -1);
+                    this.filteredSources = this.allSources;
+                    this.updateSelectors();
                     return;
                 }
             }
             catch (e) { /* engine busy */ }
         }
         setTimeout(() => this.fetchSourcesWithRetry(), 2000);
-    }
-    applyDynamicFiltering() {
-        const activeModules = window.moduleManager?.activeModules;
-        if (!activeModules) {
-            console.warn("[Scope] ModuleManager activeModules not found, waiting...");
-            this.filteredSources = this.allSources; // Fallback
-            this.updateSelectors();
-            return;
-        }
-        const activeTypes = Array.from(activeModules.values()).map((m) => m.descriptor?.title?.toUpperCase() || "");
-        console.log("[Scope] Applying dynamic filtering for active modules:", activeTypes);
-        this.filteredSources = this.allSources.filter(s => {
-            const name = s.name.toUpperCase();
-            // Global Taps (Always show)
-            if (name.includes("FINAL") || name.includes("BUS") || name.includes("MASTER"))
-                return true;
-            // Contextual Taps (Strict filtering)
-            if (name.includes("DCO") || name.includes("OSC")) {
-                return activeTypes.some(t => t.includes("DCO") || t.includes("OSC") || t.includes("SUPERSAW"));
-            }
-            if (name.includes("VCF") || name.includes("FILTER") || name.includes("KORG") || name.includes("HPF")) {
-                return activeTypes.some(t => t.includes("VCF") || t.includes("FILTER") || t.includes("KORG") || t.includes("PROPHECY"));
-            }
-            if (name.includes("LFO") || name.includes("MOD")) {
-                return activeTypes.some(t => t.includes("LFO") || t.includes("MODULATOR"));
-            }
-            if (name.includes("ENV") || name.includes("ADSR")) {
-                return activeTypes.some(t => t.includes("ENV") || t.includes("ADSR") || t.includes("GENERATOR"));
-            }
-            if (name.includes("FX") || name.includes("DELAY") || name.includes("CHORUS") || name.includes("ECHO") || name.includes("SPACE")) {
-                return activeTypes.some(t => t.includes("FX") || t.includes("DELAY") || t.includes("CHORUS") || t.includes("ECHO") || t.includes("SPACE") || t.includes("REVERB"));
-            }
-            return false; // Strict filtering based on loaded modules
-        });
-        this.updateSelectors();
     }
     render() {
         const isMaster = this.el.closest('#upper-rack') !== null;
@@ -149,7 +135,7 @@ export class ModuleOscilloscope {
         const modSelB = document.getElementById('scope-modal-src-b');
         if (!selA || !selB)
             return;
-        const options = this.filteredSources.map(s => `<option value="${s.index}">${s.name}</option>`).join('');
+        const options = this.generateGroupedOptions(this.filteredSources);
         selA.innerHTML = options;
         selB.innerHTML = `<option value="-1">OFF</option>` + options;
         if (modSelA && modSelB) {
@@ -381,8 +367,8 @@ export class ModuleOscilloscope {
         ctx.shadowBlur = 0;
     }
     onStateUpdate(state) {
-        // Redraw filtering when preset changes
-        this.applyDynamicFiltering();
+        // Redraw filtering when preset changes (re-trigger discovery)
+        this.fetchSourcesWithRetry();
     }
     destroy() {
         if (this.resizeObserver)

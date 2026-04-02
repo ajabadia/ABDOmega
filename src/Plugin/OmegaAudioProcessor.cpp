@@ -11,6 +11,7 @@
 #include "../Core/Input/Midi2InputAdapter.h"
 #include "../Core/Modulation/ModulationTelemetryHub.h"
 #include "../Core/Modulation/ModulationTelemetryIndex.h"
+#include "../Core/Service/SemanticBrokerService.h"
 
 namespace Omega::Plugin {
     

@@ -14,6 +14,10 @@ export declare class ModuleMidiViewer {
     private lastSeenTs;
     constructor(el: HTMLElement, content: HTMLElement, descriptor: any);
     init(): Promise<void>;
+    private fetchMidiSources;
+    private updateSourceSelector;
+    private sources;
+    private selectedSource;
     private render;
     private bindEvents;
     private startPolling;

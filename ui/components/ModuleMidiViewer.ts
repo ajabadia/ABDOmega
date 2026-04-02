@@ -26,16 +26,66 @@ export class ModuleMidiViewer {
     async init(): Promise<void> {
         this.addLogLine({ ts: Date.now()/1000, type: 0, ch: 0, d1: 0, d2: 0 }, "SYSTEM READY");
         this.bindEvents();
+        await this.fetchMidiSources();
         this.startPolling();
     }
+
+    private async fetchMidiSources(): Promise<void> {
+        // @ts-ignore
+        if (window.omegaRPC) {
+            try {
+                // @ts-ignore
+                const resp = await window.omegaRPC.send("getModulationMetadata", {});
+                if (resp && resp.sources) {
+                    // Filter for ports that are MIDI type (3) and have a telemetryIndex
+                    this.sources = resp.sources.filter((s: any) => s.type === 3 && s.telemetryIndex !== -1);
+                    this.updateSourceSelector();
+                }
+            } catch (e) { console.error("[MidiProbe] Discovery failed", e); }
+        }
+    }
+
+    private updateSourceSelector(): void {
+        const sel = this.content.querySelector('#midi-source-sel') as HTMLSelectElement;
+        if (!sel) return;
+
+        let html = '<option value="64">GLOBAL TRAFFIC</option>';
+        const groups: {[key: string]: any[]} = {};
+        for (const s of this.sources) {
+            if (s.telemetryIndex === 64) continue; // Skip redundant global
+            const g = s.instance || 'Modules';
+            if (!groups[g]) groups[g] = [];
+            groups[g].push(s);
+        }
+
+        for (const [group, items] of Object.entries(groups)) {
+            html += `<optgroup label="${group.toUpperCase()}">`;
+            for (const item of items) {
+                const displayName = item.name.replace(group, '').trim() || item.name;
+                html += `<option value="${item.telemetryIndex}">${displayName}</option>`;
+            }
+            html += `</optgroup>`;
+        }
+        sel.innerHTML = html;
+        sel.value = this.selectedSource.toString();
+    }
+
+    private sources: any[] = [];
+    private selectedSource: number = 64; // Default MIDI_TRAFFIC
 
     private render(): void {
         this.content.innerHTML = `
             <div class="midi-viewer-container" style="display: flex; flex-direction: column; height: 100%; font-family: 'Inter', sans-serif; font-size: 10px; color: #00f2ff; background: #050505; border: 1px solid rgba(0,242,255,0.2); border-radius: 4px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
                 <div class="header-toolbar" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%); border-bottom: 1px solid rgba(0,242,255,0.3);">
-                    <div style="font-weight: 800; font-size: 10px; letter-spacing: 2px; color: #fff; text-shadow: 0 0 5px rgba(0,242,255,0.5);">MIDI MONITOR</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-weight: 800; font-size: 10px; letter-spacing: 2px; color: #fff; text-shadow: 0 0 5px rgba(0,242,255,0.5);">MIDI PROBE</div>
+                        <select id="midi-source-sel" style="background: #000; color: #00f2ff; border: 1px solid #333; font-size: 9px; padding: 2px 5px; outline: none; border-radius: 3px;">
+                            <option value="64">GLOBAL TRAFFIC</option>
+                        </select>
+                    </div>
                     <button id="midi-power-btn" class="sq active power-btn" style="width: 28px; height: 22px; font-size: 12px; color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 3px; background: linear-gradient(180deg, #333 0%, #111 100%); cursor: pointer;">⏻</button>
                 </div>
+                <!-- ... rest of render ... -->
                 <div class="midi-header" style="display: grid; grid-template-columns: 60px 80px 40px 1fr 50px; gap: 4px; padding: 5px 10px; background: rgba(0,242,255,0.05); font-weight: 900; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 9px; text-transform: uppercase; color: rgba(0,242,255,0.5);">
                     <span>TIME</span>
                     <span>STATUS</span>
@@ -51,6 +101,8 @@ export class ModuleMidiViewer {
 
     private bindEvents(): void {
         const pwrBtn = this.content.querySelector('#midi-power-btn') as HTMLButtonElement;
+        const sel = this.content.querySelector('#midi-source-sel') as HTMLSelectElement;
+
         if (pwrBtn) {
             pwrBtn.onclick = () => {
                 this.isPowered = !this.isPowered;
@@ -58,6 +110,14 @@ export class ModuleMidiViewer {
                 pwrBtn.style.boxShadow = this.isPowered ? "0 0 10px rgba(0,242,255,0.5)" : "none";
                 this.logEl.style.opacity = this.isPowered ? "1" : "0.2";
                 if (!this.isPowered) this.addLogLine({ ts: Date.now()/1000, type: 0, ch: 0, d1: 0, d2: 0 }, "MONITOR PAUSED");
+            };
+        }
+
+        if (sel) {
+            sel.onchange = () => {
+                this.selectedSource = parseInt(sel.value);
+                this.lastSeenTs = 0; // Reset to see historical context if available
+                this.addLogLine({ ts: Date.now()/1000, type: 0, ch: 0, d1: 0, d2: 0 }, `PROBE SWITCHED TO ID:${this.selectedSource}`);
             };
         }
     }
@@ -69,11 +129,12 @@ export class ModuleMidiViewer {
             if (window.omegaRPC) {
                 try {
                     // @ts-ignore
-                    const resp = await window.omegaRPC.send("getTelemetry", { indices: [64] });
-                    if (resp && resp["64"] && Array.isArray(resp["64"])) {
-                        const events = resp["64"];
+                    const resp = await window.omegaRPC.send("getTelemetry", { indices: [this.selectedSource] });
+                    const key = this.selectedSource.toString();
+                    if (resp && resp[key] && Array.isArray(resp[key])) {
+                        const events = resp[key];
                         // Newest to oldest from C++, so reverse for processing
-                        events.reverse().forEach((ev: any) => {
+                        events.slice().reverse().forEach((ev: any) => {
                             if (ev.ts > this.lastSeenTs) {
                                 this.addLogLine(ev);
                                 this.lastSeenTs = ev.ts;

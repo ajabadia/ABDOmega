@@ -144,10 +144,14 @@
 - [x] **WebUI Modular Renderer Implementation** (2026-03-31 10:30).
 - [x] **Legacy Fallback Purge & TypeScript Foundation (Phase 13.5)** (2026-03-31 10:45).
 
-### Phase 16: Semantic Architecture Hardening [DONE]
-- [x] **Universal Dotted Notation**: Migrated all parameters to strictly semantic identifiers (e.g., `layer.a.cutoff`). (2026-04-01 13:50)
-- [x] **Metadata-Driven Bridge (v2.0)**: Generic synchronization loop in `OmegaAudioProcessor` using `valueTreePropertyId`. (2026-04-01 13:52)
-- [x] **Legacy ID Purge**: Eliminated `SCREAMING_SNAKE_CASE` from normalizer and WebUI. (2026-04-01 13:55)
+### Phase 17: Inaugurating OMEGA Semantic Era (Build #160) [DONE]
+- [x] **Social Contract of Manifests**: Implemented `ModuleManifest` for self-describing modules (LFO, OSC, Filter). (2026-04-02 10:20)
+- [x] **Semantic Broker Service**: Central registry for real-time module and port discovery on preset load. (2026-04-02 10:22)
+- [x] **Aseptic UI Refactor**: 
+    - [x] **Mod Matrix**: Dynamic grouping by module instance with hierarchical selection. (2026-04-02 10:25)
+    - [x] **Semantic Oscilloscope**: Transformed into a universal "Probe" for any visualizable output. (2026-04-02 10:30)
+    - [x] **Midi Probe**: Dynamic source selection for monitoring specific module MIDI streams. (2026-04-02 10:35)
+- [x] **Zero-Coupling**: UI is now 100% independent of hardcoded port lists; it only shows what the Broker publishes. (2026-04-02 10:40)
 
 ---
-*Last Updated: 2026-04-01 14:15*
+*Last Updated: 2026-04-02 10:45*

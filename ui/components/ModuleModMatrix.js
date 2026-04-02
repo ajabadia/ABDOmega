@@ -350,8 +350,22 @@ export class ModuleModMatrix {
     }
     generateOptions(list, current) {
         let html = '<option value="">- NONE -</option>';
+        // Group by instance
+        const groups = {};
         for (const opt of list) {
-            html += `<option value="${opt.id}" ${opt.id === current ? 'selected' : ''}>${opt.name}</option>`;
+            const groupName = opt.instance || 'Global';
+            if (!groups[groupName])
+                groups[groupName] = [];
+            groups[groupName].push(opt);
+        }
+        for (const [group, items] of Object.entries(groups)) {
+            html += `<optgroup label="${group.toUpperCase()}">`;
+            for (const item of items) {
+                // Strip instance from name for cleaner display within group
+                const displayName = item.name.replace(group, '').trim() || item.name;
+                html += `<option value="${item.id}" ${item.id === current ? 'selected' : ''}>${displayName}</option>`;
+            }
+            html += `</optgroup>`;
         }
         return html;
     }

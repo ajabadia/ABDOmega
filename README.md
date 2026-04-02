@@ -17,13 +17,13 @@ The project follow a "Modular-without-Cables" architecture, focusing on expressi
 - `/SOURCE/Plugin`: JUCE Processor and Bridge/Adapter layers.
 - `/SOURCE/Core/Service`: High-level facades (`EngineConfigManager`, `PresetService`).
 
-## 🏗️ Architecture: The Service Layer Pattern
-OMEGA has transitioned to a **Service-Oriented Architecture** to ensure long-term maintainability and JUCE-decoupling:
+## 🏗️ Architecture: OMEGA 2.0 Semantic Era
+OMEGA has transitioned to a fully **Semantic, Aseptic Modular Architecture**. No module is hardcoded; the system operates on a dynamic **Social Contract of Manifests**:
 
-- **EngineConfigManager**: The architectural bridge that translates high-level parameters and `OmegaPreset` ValueTrees into low-level DSP execution.
-- **PresetService**: A dedicated lifecycle manager for loading, saving, and versioning sounds, keeping file I/O out of the audio thread.
-- **Real-Time Safety**: Core components (`OmegaInput`, `ModulationRuntime`) are strictly allocation-free and lock-free, guaranteed by our `PerformanceMonitor` instrumentation.
-- **Universal Metadata**: A single source of truth in C++ serves ranges, units, and UI labels via JSON-RPC, ensuring 100% synchronization with the WebUI.
+- **Aseptic Modular Registry**: Every module (LFO, OSC, Filter, EG) publishes its own `ModuleManifest` at runtime.
+- **Semantic Broker Service**: A central authority that scans the active rack and provides a real-time inventory of all inputs, outputs, and telemetry probes.
+- **Dynamic Probing**: The UI (Mod Matrix, Oscilloscope, MIDI Monitor) acts as a *subscriber* to these manifests. If a module is loaded, it's immediately available for modulation and visual analysis.
+- **Real-Time Safety**: All semantic discovery happens on preset load, ensuring that the audio thread (`processBlock`) remains 100% lock-free and allocation-free.
 
 ## 🛠 Active Features
 - **VA/ACE MVP 0.1: Flagship Synthesis**:

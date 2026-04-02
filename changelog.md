@@ -2,6 +2,22 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
  
+## [2.0.0] - 2026-04-02
+### Added
+- **OMEGA Semantic Era (Phase 17)**:
+    - **Aseptic Modular Architecture**: Transitioned to a fully manifest-driven system where modules are self-describing and the engine is zero-coupled from the UI.
+    - **Semantic Broker Service**: New central C++ registry that scans active presets to build a real-time inventory of module capabilities and ports.
+    - **Module Manifests**: Implemented `ModuleManifest` contract for LFO, OSC, Filter, EG, and MIDI modules, declaring I/O ports and visual telemetry mapping.
+    - **Semantic UI Probing**:
+        - **Oscilloscope (Universal Probe)**: Dynamic discovery of all visualizable ports; no more hardcoded indices.
+        - **MIDI Probe**: Precision monitoring of any MIDI-capable module output or global traffic.
+        - **Mod Matrix (Hierarchical)**: Automatic grouping by module instance (e.g., LFO-1, LFO-2) for professional, organized routing.
+    - **Governance**: Hardened agent skills (`zero-core-errors`, `documentation-manager`) to enforce the new "Social Contract of Manifests".
+
+### Fixed
+- **UI Consistency**: Eliminated "Ghost Modules" from selectors; the WebUI now strictly reflects the active DSP state.
+- **Build Integrity (Build #162)**: Resolved redefinition and type conversion errors in the Semantic Broker and RPC controllers.
+
 ## [1.9.6] - 2026-04-01
 ### Added
 - **Modulation Matrix 2.0 (Phase 4)**:

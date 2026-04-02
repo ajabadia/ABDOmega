@@ -1,5 +1,6 @@
 #include "RpcModulationController.h"
 #include <set>
+#include "../Core/Service/SemanticBrokerService.h"
 
 namespace Omega {
 namespace UI {
@@ -7,89 +8,40 @@ namespace UI {
     juce::var RpcModulationController::handleGetModulationMetadata(const juce::var& requestId, const juce::var& payload) {
         juce::DynamicObject::Ptr resp = new juce::DynamicObject();
         
-        // 1. Collect Active Semantic Types from Preset
-        std::set<std::string> activeTypes;
-        using IDs = Core::Identifiers;
-        auto state = mPreset.getState();
-        
-        auto collect = [&](juce::ValueTree node) {
-            for (int i = 0; i < node.getNumChildren(); ++i) {
-                auto c = node.getChild(i);
-                if (c.hasType(IDs::COMPONENT) || c.hasType(IDs::NODE)) {
-                    juce::String type = c.getProperty(IDs::slotType).toString().toLowerCase();
-                    juce::String cid = c.getProperty(IDs::componentId).toString().toLowerCase();
-                    juce::String id = c.getProperty(IDs::id).toString().toLowerCase();
-                    
-                    if (!type.isEmpty()) activeTypes.insert(type.toStdString());
-                    else if (!id.isEmpty()) activeTypes.insert(id.toStdString());
-                    
-                    // Prefix matching for absolute aseptic robustness
-                    if (cid.startsWith("lfo")) activeTypes.insert("lfo");
-                    if (cid.startsWith("eg") || cid.startsWith("env")) activeTypes.insert("eg");
-                    if (cid.startsWith("osc")) activeTypes.insert("osc");
-                    if (cid.startsWith("vcf") || cid.startsWith("flt")) activeTypes.insert("filter");
+        auto& broker = Core::Service::SemanticBrokerService::getInstance();
+        auto inventory = broker.getInventory();
+
+        // Lazy initialization: Rebuild if empty
+        if (inventory.empty()) {
+            broker.rebuildInventory(mPreset);
+            inventory = broker.getInventory();
+        }
+
+        juce::Logger::writeToLog("[RpcModulationController] Serving modulation metadata. Inventory size: " + juce::String((int)inventory.size()));
+
+        juce::Array<juce::var> sources;
+        juce::Array<juce::var> targets;
+
+        for (const auto& manifest : inventory) {
+            for (const auto& port : manifest.ports) {
+                juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+                // Format: InstanceID.PortID (e.g., "LFO-1.out")
+                obj->setProperty("id", juce::String(manifest.instanceId + "." + port.id));
+                obj->setProperty("name", juce::String(manifest.instanceId + " " + port.label));
+                obj->setProperty("type", (int)port.type);
+                obj->setProperty("instance", juce::String(manifest.instanceId));
+                obj->setProperty("category", juce::String(manifest.category));
+                obj->setProperty("telemetryIndex", port.telemetryIndex);
+
+                if (port.isInput) {
+                    targets.add(juce::var(obj.get()));
+                } else {
+                    sources.add(juce::var(obj.get()));
                 }
             }
-        };
-
-        // Scan Layers
-        auto layers = state.getChildWithName(IDs::layers);
-        for (int i = 0; i < layers.getNumChildren(); ++i) {
-            auto layer = layers.getChild(i);
-            auto arch = layer.getChildWithName(IDs::voiceArch);
-            for (int j = 0; j < arch.getNumChildren(); ++j) collect(arch.getChild(j));
         }
-        
-        // Scan Auxiliary & Global Modulators
-        collect(state.getChildWithName(IDs::auxiliary));
-        collect(state.getChildWithName(IDs::modulators));
 
-        // 2. Filter Sources
-        juce::Array<juce::var> sources;
-        for (const auto& s : Core::Modulation::ModulationRegistry::getAvailableSources()) {
-            bool isAvailable = false;
-            juce::String sid(s.id);
-            if (s.category == Core::Modulation::SourceCategory::MIDI) {
-                isAvailable = true; 
-            } else if (sid.startsWith("lfo")) {
-                isAvailable = activeTypes.count("lfo") > 0;
-            } else if (sid.startsWith("env")) {
-                isAvailable = activeTypes.count("eg") > 0 || activeTypes.count("env") > 0;
-            }
-            
-            if (isAvailable) {
-                juce::DynamicObject::Ptr obj = new juce::DynamicObject();
-                obj->setProperty("id", sid);
-                obj->setProperty("name", juce::String(s.name));
-                sources.add(juce::var(obj.get()));
-            }
-        }
         resp->setProperty("sources", sources);
-
-        // 3. Filter Targets
-        juce::Array<juce::var> targets;
-        for (const auto& t : Core::Modulation::ModulationRegistry::getAvailableTargets()) {
-            bool isAvailable = false;
-            juce::String tid(t.id);
-            if (tid.contains("vcf")) {
-                isAvailable = activeTypes.count("filter") > 0 || activeTypes.count("vcf") > 0;
-            } else if (tid.contains("osc")) {
-                isAvailable = activeTypes.count("osc") > 0 || activeTypes.count("osci") > 0;
-            } else if (tid.contains("vca")) {
-                isAvailable = activeTypes.count("amp") > 0 || activeTypes.count("vca") > 0;
-            } else if (tid.contains("lfo")) {
-                isAvailable = activeTypes.count("lfo") > 0;
-            } else if (tid.contains("env")) {
-                isAvailable = activeTypes.count("eg") > 0 || activeTypes.count("env") > 0;
-            }
-
-            if (isAvailable) {
-                juce::DynamicObject::Ptr obj = new juce::DynamicObject();
-                obj->setProperty("id", tid);
-                obj->setProperty("name", juce::String(t.name));
-                targets.add(juce::var(obj.get()));
-            }
-        }
         resp->setProperty("targets", targets);
 
         return createResponse("MOD_METADATA_ACK", requestId, {}, juce::var(resp.get()));

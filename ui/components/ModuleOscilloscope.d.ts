@@ -24,9 +24,9 @@ export declare class ModuleOscilloscope {
     private modalTimebase;
     constructor(el: HTMLElement, content: HTMLElement, descriptor: any);
     init(): Promise<void>;
+    private generateGroupedOptions;
     private setupResizeObserver;
     private fetchSourcesWithRetry;
-    private applyDynamicFiltering;
     private render;
     private updateSelectors;
     private bindEvents;
