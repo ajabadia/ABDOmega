@@ -78,6 +78,12 @@ namespace Preset {
         juce::ValueTree getScopeTree();
         void resetScopeToDefault();
 
+        // --- Modulation Matrix 2.0 ---
+        int getNumModSlots() const;
+        ModMatrixSlot getModSlot(int index) const;
+        void setModSlot(int index, const ModMatrixSlot& slot);
+        void clearModMatrix();
+
         bool isValid() const { return mState.isValid(); }
 
     private:

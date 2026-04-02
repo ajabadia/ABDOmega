@@ -35,8 +35,8 @@ class ModuleJunoBase {
 class ModuleJunoDCO extends ModuleJunoBase {
     constructor(el, content) {
         super("Juno DCO", el, content, [
-            "LAYERAMAINSAWON", "LAYERAMAINPULSEON", "LAYERASUBOSELEVEL", 
-            "LAYERANOISELEVEL", "LAYERAPWMMODE", "LAYERAPWMAMOUNT"
+            "layer.a.osc.saw.on", "layer.a.osc.pulse.on", "layer.a.osc.sub.level", 
+            "layer.a.osc.noise.level", "layer.a.osc.pwm.mode", "layer.a.osc.pwm.amount"
         ]);
         this.render();
     }
@@ -47,31 +47,31 @@ class ModuleJunoDCO extends ModuleJunoBase {
                 <div class="param-row">
                     <div class="control-group">
                         <label>SAW</label>
-                        <button class="sq juno-red" data-param="LAYERAMAINSAWON"></button>
+                        <button class="sq juno-red" data-param="layer.a.osc.saw.on"></button>
                     </div>
                     <div class="control-group">
                         <label>PULSE</label>
-                        <button class="sq juno-red" data-param="LAYERAMAINPULSEON"></button>
+                        <button class="sq juno-red" data-param="layer.a.osc.pulse.on"></button>
                     </div>
                 </div>
                 <div class="param-row">
                     <div class="control-group">
                         <label>SUB</label>
-                        <input type="range" class="v-slider" data-param="LAYERASUBOSELEVEL">
+                        <input type="range" class="v-slider" data-param="layer.a.osc.sub.level">
                     </div>
                     <div class="control-group">
                         <label>NOISE</label>
-                        <input type="range" class="v-slider" data-param="LAYERANOISELEVEL">
+                        <input type="range" class="v-slider" data-param="layer.a.osc.noise.level">
                     </div>
                 </div>
                 <div class="param-row">
                     <div class="control-group">
                         <label>PWM MODE</label>
-                        <button class="sq juno-orange" data-param="LAYERAPWMMODE"></button>
+                        <button class="sq juno-orange" data-param="layer.a.osc.pwm.mode"></button>
                     </div>
                     <div class="control-group">
                         <label>PWM AMT</label>
-                        <input type="range" class="v-slider" data-param="LAYERAPWMAMOUNT">
+                        <input type="range" class="v-slider" data-param="layer.a.osc.pwm.amount">
                     </div>
                 </div>
             </div>
@@ -107,8 +107,8 @@ class ModuleJunoDCO extends ModuleJunoBase {
 class ModuleJunoVCF extends ModuleJunoBase {
     constructor(el, content) {
         super("Juno VCF", el, content, [
-            "LAYERAMAINCUTOFF", "LAYERAMAINRESONANCE", "LAYERAMAINHPF",
-            "LAYERAVCFENVDEPTH", "LAYERAVCFMODDEPTH", "LAYERAVCFKYBD"
+            "layer.a.cutoff", "layer.a.resonance", "layer.a.hpf.pos",
+            "layer.a.vcf.env.depth", "layer.a.vcf.lfo.depth", "layer.a.vcf.keytrack"
         ]);
         this.render();
     }
@@ -119,27 +119,27 @@ class ModuleJunoVCF extends ModuleJunoBase {
                 <div class="param-row">
                     <div class="control-group">
                         <label>CUTOFF</label>
-                        <input type="range" class="v-slider large" data-param="LAYERAMAINCUTOFF" min="0" max="1" step="0.001">
+                        <input type="range" class="v-slider large" data-param="layer.a.cutoff" min="0" max="1" step="0.001">
                     </div>
                     <div class="control-group">
                         <label>RES</label>
-                        <input type="range" class="v-slider large" data-param="LAYERAMAINRESONANCE">
+                        <input type="range" class="v-slider large" data-param="layer.a.resonance">
                     </div>
                 </div>
                 <div class="param-row">
                     <div class="control-group">
                         <label>ENV</label>
-                        <input type="range" class="v-slider" data-param="LAYERAVCFENVDEPTH">
+                        <input type="range" class="v-slider" data-param="layer.a.vcf.env.depth">
                     </div>
                     <div class="control-group">
                         <label>LFO</label>
-                        <input type="range" class="v-slider" data-param="LAYERAVCFMODDEPTH">
+                        <input type="range" class="v-slider" data-param="layer.a.vcf.lfo.depth">
                     </div>
                 </div>
                 <div class="param-row">
                     <div class="control-group">
                         <label>HPF</label>
-                        <input type="range" class="v-slider" data-param="LAYERAMAINHPF" min="0" max="1" step="0.333">
+                        <input type="range" class="v-slider" data-param="layer.a.hpf.pos" min="0" max="1" step="0.333">
                     </div>
                 </div>
             </div>

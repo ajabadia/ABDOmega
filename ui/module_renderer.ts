@@ -7,7 +7,7 @@ import { MetadataStore, type ParamDescriptor } from './metadata_store.js';
 
 export interface LayoutItem {
     paramId: string;
-    control: 'knob' | 'slider-v' | 'toggle' | 'select';
+    control: 'knob' | 'slider-v' | 'toggle' | 'select' | 'telemetry';
     label?: string;
     row: number;
     col: number;
@@ -99,13 +99,13 @@ export class ModuleRenderer {
                         <button class="sq ${item.variant || 'juno-red'}" data-param="${param.id}"></button>
                     </div>
                 `;
-            case 'select':
+            case 'telemetry':
                 return `
-                    <div class="control-group" style="${style}">
+                    <div class="control-group telemetry-container" style="${style}" data-param="${param.id}">
                         <label>${label}</label>
-                        <select data-param="${param.id}">
-                            ${(param.options || []).map((o: any) => `<option value="${o.value}">${o.label}</option>`).join('')}
-                        </select>
+                        <div class="telemetry-display" style="height:40px; background:#000; border: 1px solid rgba(255,255,255,0.1); position:relative; overflow:hidden;">
+                            <div class="telemetry-bar" style="position:absolute; bottom:0; left:0; width:100%; height:2px; background:var(--juno-cyan); opacity:0.8; transition: height 0.05s ease-out;"></div>
+                        </div>
                     </div>
                 `;
             default:
@@ -151,6 +151,8 @@ export class ModuleRenderer {
                 if (sel) {
                     sel.addEventListener('change', (e) => this.setParam(param.id, parseFloat((e.target as HTMLSelectElement).value)));
                 }
+            } else if (item.control === 'telemetry') {
+                // Telemetry is read-only, no binding needed for input
             }
         });
 

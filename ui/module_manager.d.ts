@@ -8,10 +8,12 @@ export declare class ModuleManager {
     private midiViewer;
     private lastState;
     constructor();
+    private normalizeList;
     updateRack(state: any): Promise<void>;
     private addPlaceholder;
     private injectEmergencyModule;
     private addModule;
+    private resolveDescriptor;
 }
 export default ModuleManager;
 //# sourceMappingURL=module_manager.d.ts.map

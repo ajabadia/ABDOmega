@@ -9,6 +9,7 @@
 #include "RpcSystemController.h"
 #include "RpcMetadataController.h"
 #include "RpcInputController.h"
+#include "RpcModulationController.h"
 
 namespace Omega {
     namespace Core {
@@ -64,6 +65,7 @@ namespace Omega {
         std::unique_ptr<RpcSystemController> mSystemController;
         std::unique_ptr<RpcMetadataController> mMetadataController;
         std::unique_ptr<RpcInputController> mInputController;
+        std::unique_ptr<RpcModulationController> mModulationController;
 
         Plugin::OmegaAudioProcessor* mProcessor;
         Core::Preset::OmegaPreset& mPreset;

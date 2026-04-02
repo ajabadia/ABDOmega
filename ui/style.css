@@ -192,11 +192,18 @@ body, html {
 }
 
 .rack-row.upper {
-    height: 220px;
+    height: 240px;
     border-bottom: 2px solid #222;
     background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%);
     display: flex;
     align-items: center;
+    padding: 0 10px;
+}
+
+.ModuleOscilloscope.master-view {
+    width: 320px;
+    height: 220px;
+    margin: 0 5px;
 }
 
 .rack-row.lower {

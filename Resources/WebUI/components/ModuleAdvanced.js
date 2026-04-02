@@ -5,7 +5,7 @@
 class ModuleJP extends ModuleJunoBase {
     constructor(el, content) {
         super("JP Filter", el, content, [
-            "LAYERAMAINJPDETUNE", "LAYERAMAINJPFILTERMODE"
+            "layer.a.jp.detune", "layer.a.jp.filter.mode"
         ]);
         this.render();
     }
@@ -15,11 +15,11 @@ class ModuleJP extends ModuleJunoBase {
             <div class="panel jp-panel">
                 <div class="control-group">
                     <label>JP DETUNE</label>
-                    <div class="knob-placeholder" data-param="LAYERAMAINJPDETUNE"></div>
+                    <div class="knob-placeholder" data-param="layer.a.jp.detune"></div>
                 </div>
                 <div class="control-group">
                     <label>MODE</label>
-                    <select class="jp-select" data-param="LAYERAMAINJPFILTERMODE">
+                    <select class="jp-select" data-param="layer.a.jp.filter.mode">
                         <option value="0">LP</option>
                         <option value="1">BP</option>
                         <option value="2">HP</option>
@@ -60,7 +60,7 @@ class ModuleJP extends ModuleJunoBase {
 class ModuleKorg extends ModuleJunoBase {
     constructor(el, content) {
         super("Korg VCF", el, content, [
-            "LAYERAKORGHPFDCUTOFF", "LAYERAKORGHPFRESONANCE", "LAYERAKORGGRIT"
+            "layer.a.korg.hpf.cutoff", "layer.a.korg.hpf.res", "layer.a.korg.grit"
         ]);
         this.render();
     }
@@ -70,15 +70,15 @@ class ModuleKorg extends ModuleJunoBase {
             <div class="panel korg-panel">
                 <div class="control-group">
                     <label>HP CUTOFF</label>
-                    <input type="range" class="v-slider" data-param="LAYERAKORGHPFDCUTOFF">
+                    <input type="range" class="v-slider" data-param="layer.a.korg.hpf.cutoff">
                 </div>
                 <div class="control-group">
                     <label>HP RES</label>
-                    <input type="range" class="v-slider" data-param="LAYERAKORGHPFRESONANCE">
+                    <input type="range" class="v-slider" data-param="layer.a.korg.hpf.res">
                 </div>
                 <div class="control-group">
                     <label>GRIT</label>
-                    <input type="range" class="v-slider" data-param="LAYERAKORGGRIT" min="1" max="10" step="0.1">
+                    <input type="range" class="v-slider" data-param="layer.a.korg.grit" min="1" max="10" step="0.1">
                 </div>
             </div>
         `;

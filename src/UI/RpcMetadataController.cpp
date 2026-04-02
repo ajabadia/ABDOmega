@@ -1,5 +1,6 @@
 #include "RpcMetadataController.h"
 #include "../Plugin/OmegaAudioProcessor.h"
+#include "../Core/BuildVersion.h"
 
 namespace Omega {
 namespace UI {
@@ -12,8 +13,8 @@ namespace UI {
         
         juce::DynamicObject::Ptr root = new juce::DynamicObject();
         root->setProperty("version", "1.0.0");
-        root->setProperty("build", 128);
-        root->setProperty("timestamp", juce::Time::getCurrentTime().toString(true, true));
+        root->setProperty("build", OMEGA_BUILD_VERSION);
+        root->setProperty("timestamp", OMEGA_BUILD_TIMESTAMP);
         root->setProperty("engine", "Omega VA (Direct Sum)");
 
         juce::Array<juce::var> parameters;

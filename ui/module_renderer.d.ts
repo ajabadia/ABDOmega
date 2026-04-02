@@ -4,7 +4,7 @@
  */
 export interface LayoutItem {
     paramId: string;
-    control: 'knob' | 'slider-v' | 'toggle' | 'select';
+    control: 'knob' | 'slider-v' | 'toggle' | 'select' | 'telemetry';
     label?: string;
     row: number;
     col: number;

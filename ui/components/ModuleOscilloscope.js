@@ -45,10 +45,14 @@ export class ModuleOscilloscope {
     setupResizeObserver() {
         const area = this.content.querySelector('.visualizer-container');
         if (area && typeof ResizeObserver !== 'undefined') {
-            this.resizeObserver = new ResizeObserver(() => this.resize());
+            this.resizeObserver = new ResizeObserver(() => {
+                requestAnimationFrame(() => this.resize());
+            });
             this.resizeObserver.observe(area);
         }
-        window.addEventListener('resize', () => this.resize());
+        window.addEventListener('resize', () => {
+            requestAnimationFrame(() => this.resize());
+        });
     }
     async fetchSourcesWithRetry() {
         // @ts-ignore
@@ -67,55 +71,71 @@ export class ModuleOscilloscope {
         setTimeout(() => this.fetchSourcesWithRetry(), 2000);
     }
     applyDynamicFiltering() {
-        // @ts-ignore
-        const activeModules = window.moduleManager?.activeModules || new Map();
-        const activeIds = Array.from(activeModules.values()).map((m) => m.descriptor?.id || "");
-        const activeTypes = Array.from(activeModules.values()).map((m) => m.descriptor?.title || "");
+        const activeModules = window.moduleManager?.activeModules;
+        if (!activeModules) {
+            console.warn("[Scope] ModuleManager activeModules not found, waiting...");
+            this.filteredSources = this.allSources; // Fallback
+            this.updateSelectors();
+            return;
+        }
+        const activeTypes = Array.from(activeModules.values()).map((m) => m.descriptor?.title?.toUpperCase() || "");
         console.log("[Scope] Applying dynamic filtering for active modules:", activeTypes);
         this.filteredSources = this.allSources.filter(s => {
             const name = s.name.toUpperCase();
             // Global Taps (Always show)
-            if (name.includes("FINAL") || name.includes("BUS"))
+            if (name.includes("FINAL") || name.includes("BUS") || name.includes("MASTER"))
                 return true;
-            // Contextual Taps
+            // Contextual Taps (Strict filtering)
             if (name.includes("DCO") || name.includes("OSC")) {
                 return activeTypes.some(t => t.includes("DCO") || t.includes("OSC") || t.includes("SUPERSAW"));
             }
-            if (name.includes("VCF") || name.includes("FILTER") || name.includes("HPF")) {
-                return activeTypes.some(t => t.includes("VCF") || t.includes("FILTER") || t.includes("KORG"));
+            if (name.includes("VCF") || name.includes("FILTER") || name.includes("KORG") || name.includes("HPF")) {
+                return activeTypes.some(t => t.includes("VCF") || t.includes("FILTER") || t.includes("KORG") || t.includes("PROPHECY"));
             }
-            if (name.includes("LFO")) {
+            if (name.includes("LFO") || name.includes("MOD")) {
                 return activeTypes.some(t => t.includes("LFO") || t.includes("MODULATOR"));
             }
             if (name.includes("ENV") || name.includes("ADSR")) {
                 return activeTypes.some(t => t.includes("ENV") || t.includes("ADSR") || t.includes("GENERATOR"));
             }
-            if (name.includes("FX") || name.includes("DELAY") || name.includes("CHORUS") || name.includes("ECHO")) {
-                return activeTypes.some(t => t.includes("FX") || t.includes("DELAY") || t.includes("CHORUS") || t.includes("ECHO"));
+            if (name.includes("FX") || name.includes("DELAY") || name.includes("CHORUS") || name.includes("ECHO") || name.includes("SPACE")) {
+                return activeTypes.some(t => t.includes("FX") || t.includes("DELAY") || t.includes("CHORUS") || t.includes("ECHO") || t.includes("SPACE") || t.includes("REVERB"));
             }
-            return true; // Default show if unknown to avoid blocking
+            return false; // Strict filtering based on loaded modules
         });
         this.updateSelectors();
     }
     render() {
+        const isMaster = this.el.closest('#upper-rack') !== null;
+        if (isMaster)
+            this.el.classList.add('master-view');
         this.content.innerHTML = `
-            <div class="ModuleOscilloscope-inner" style="display: flex; flex-direction: column; height: 100%;">
-                <div class="module-controls" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px;">
-                    <button id="osc-power" class="juno-btn power-btn active" title="POWER">⏻</button>
+            <div class="ModuleOscilloscope-inner ${isMaster ? 'master-layout' : ''}" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="module-controls" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button id="osc-power" class="juno-btn power-btn active" style="width:24px; height:24px; font-size:10px;" title="POWER">⏻</button>
+                        <span class="module-title" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">SCOPE ${this.descriptor.label || "MASTER"}</span>
+                    </div>
                     <div style="display: flex; gap: 5px;">
-                        <button id="osc-modal-trigger" class="btn-scope-focus" title="Advanced Analyzer">⛶</button>
-                        <button id="osc-freeze" class="sq" title="FREEZE">❄️</button>
+                        <button id="osc-modal-trigger" class="btn-scope-focus" style="width:24px; height:24px;" title="Advanced Analyzer">⛶</button>
+                        <button id="osc-freeze" class="sq" style="width:24px; height:24px; font-size:10px;" title="FREEZE">❄️</button>
                     </div>
                 </div>
 
-                <div class="visualizer-container">
+                <div class="visualizer-container" style="flex: 1; min-height: 60px; position: relative; border: 1px solid #222; background: #000;">
                     <canvas id="osc-canvas-mini"></canvas>
-                    <div id="osc-standby" style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:rgba(0,242,255,0.1); font-size: 10px; letter-spacing: 4px; display: none;">STANDBY</div>
+                    <div id="osc-standby" style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:rgba(0,242,255,0.1); font-size: 8px; letter-spacing: 4px; display: none;">STANDBY</div>
                 </div>
 
-                <div class="scope-footer-row" style="display: flex; gap: 8px; margin-top: 8px;">
-                    <select id="sel-src-a" class="scope-select" style="flex: 1; font-size: 10px; height: 24px;"></select>
-                    <select id="sel-src-b" class="scope-select" style="flex: 1; font-size: 10px; height: 24px;"></select>
+                <div class="scope-footer-row" style="display: flex; gap: 4px; margin-top: 4px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                        <label style="font-size: 7px; text-transform: uppercase; opacity: 0.5;">Src A</label>
+                        <select id="sel-src-a" class="scope-select" style="width: 100%; font-size: 9px; height: 18px; padding: 0 2px;"></select>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                        <label style="font-size: 7px; text-transform: uppercase; opacity: 0.5;">Src B</label>
+                        <select id="sel-src-b" class="scope-select" style="width: 100%; font-size: 9px; height: 18px; padding: 0 2px;"></select>
+                    </div>
                 </div>
             </div>
         `;
@@ -277,9 +297,12 @@ export class ModuleOscilloscope {
         const area = this.content.querySelector('.visualizer-container');
         if (area) {
             const rect = area.getBoundingClientRect();
-            if (rect.width > 2 && rect.height > 2) {
-                this.canvas.width = rect.width;
-                this.canvas.height = rect.height;
+            const w = Math.floor(rect.width);
+            const h = Math.floor(rect.height);
+            // Avoid unnecessary updates and potential ResizeObserver recursion
+            if (w > 2 && h > 2 && (this.canvas.width !== w || this.canvas.height !== h)) {
+                this.canvas.width = w;
+                this.canvas.height = h;
             }
         }
     }

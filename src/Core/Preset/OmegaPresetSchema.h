@@ -121,6 +121,18 @@ namespace Preset {
         VoiceChain voiceChain;      // 2.0 Graph-based
     };
 
+    /**
+     * @brief A single modulation routing slot.
+     */
+    struct ModMatrixSlot {
+        std::string source;      // e.g. "lfo.1", "midi.vel"
+        std::string target;      // e.g. "layer.a.cutoff"
+        float amount = 0.0f;     // [-1.0, 1.0]
+        std::string via;         // Optional modifier, e.g. "midi.modwheel"
+        float viaAmount = 1.0f;  // [0.0, 1.0]
+        bool active = false;
+    };
+
 } // namespace Preset
 } // namespace Core
 } // namespace Omega

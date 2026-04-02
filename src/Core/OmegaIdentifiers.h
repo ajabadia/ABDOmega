@@ -98,6 +98,16 @@ namespace Core {
         static inline const juce::Identifier timebase         {"timebase"};
         static inline const juce::Identifier scale            {"scale"};
         static inline const juce::Identifier trigger          {"trigger"};
+
+        // --- Modulation Matrix 2.0 ---
+        static inline const juce::Identifier modMatrix        {"modMatrix"};
+        static inline const juce::Identifier slot             {"slot"};
+        static inline const juce::Identifier source           {"source"};
+        static inline const juce::Identifier target           {"target"};
+        static inline const juce::Identifier amount           {"amount"};
+        static inline const juce::Identifier via              {"via"};
+        static inline const juce::Identifier viaAmount        {"viaAmount"};
+        static inline const juce::Identifier active           {"active"};
     };
 
 } // namespace Core

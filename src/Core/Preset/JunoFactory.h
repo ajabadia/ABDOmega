@@ -282,61 +282,56 @@ namespace Preset {
             p.setName("VERIFICATION: MINIMAL");
             p.setAuthor("antigravity");
             
-            // Upper Rack: MIDI-MON & MIDI-TRIG
-            AceComponent midiTrig;
-            midiTrig.slotName = "MIDI TRIGGER";
-            midiTrig.componentId = "MIDI-TRIG";
-            midiTrig.slotType = "midi-trig";
-            p.addAuxiliary(midiTrig);
+            AceComponent trig;
+            trig.slotName = "MIDI TRIGGER";
+            trig.componentId = "MIDI-TRIGGER-001";
+            trig.slotType = "trig";
+            p.addAuxiliary(trig);
 
-            AceComponent midiMon;
-            midiMon.slotName = "MIDI MONITOR";
-            midiMon.componentId = "MIDI-MON";
-            midiMon.slotType = "midi-mon";
-            p.addAuxiliary(midiMon);
+            AceComponent mon;
+            mon.slotName = "MIDI MONITOR";
+            mon.componentId = "MIDI-MON";
+            mon.slotType = "mon";
+            p.addAuxiliary(mon);
 
             AceComponent osci;
             osci.slotName = "GLOBAL WAVE";
             osci.componentId = "OSCILLOSCOPE";
             osci.slotType = "osci";
-            osci.params["rack"] = 1.0f; // Lower rack
+            osci.params["rack"] = 0.0f; 
             p.addAuxiliary(osci);
 
-            // Lower Rack: ADSR 1 ONLY
-            AceComponent adsr;
-            adsr.slotName = "ADSR 1";
-            adsr.componentId = "EG-STANDARD-001";
-            adsr.params["attack"] = 1.0f;
-            adsr.params["decay"] = 100.0f;
-            adsr.params["sustain"] = 0.8f;
-            adsr.params["release"] = 100.0f;
-            p.addEnvelope(adsr);
-            
-            // Add a layer with Prophecy architecture
+            AceComponent matrix;
+            matrix.slotName = "MOD MATRIX";
+            matrix.componentId = "MOD-MATRIX-001";
+            matrix.slotType = "matrix";
+            p.addAuxiliary(matrix);
+
+            // Minimal Lower: Just LFO 1
+            AceComponent lfo;
+            lfo.slotName = "LFO 1";
+            lfo.componentId = "LFO-STANDARD-001";
+            lfo.slotType = "lfo";
+            lfo.params["rate"] = 5.0f;
+            lfo.params["wave"] = 0.0f; 
+
+            p.addModulator(lfo);
+
+            // Modulation Matrix 2.0 (Barely active)
+            juce::ValueTree mdata(Omega::Core::Identifiers::modMatrix);
+            for (int i = 0; i < 32; ++i) {
+                juce::ValueTree s(Omega::Core::Identifiers::slot);
+                s.setProperty(Omega::Core::Identifiers::active, false, nullptr);
+                s.setProperty(Omega::Core::Identifiers::amount, 0.0f, nullptr);
+                mdata.addChild(s, -1, nullptr);
+            }
+            p.getState().addChild(mdata, -1, nullptr);
+
             Layer l;
             l.id = "A";
             l.name = "Prophecy Core";
             l.params.sawOn = true;
-            l.params.pulseOn = false;
-            
-            l.params.jpDetune = 0.3f;
-            l.params.jpSpread = 0.5f;
-            l.params.lfoRate = 5.0f;
-
-            AceComponent osc;
-            osc.slotName = "JP SUPERSAW";
-            osc.componentId = "OSC-VA-004";
-            l.voiceArch.oscillators.push_back(osc);
-            
-            AceComponent flt;
-            flt.slotName = "KORG FILTER";
-            flt.componentId = "FLT-VA-003"; // This triggers Korg35 model
-            l.voiceArch.filters.push_back(flt);
-            
-            AceComponent chorus;
-            chorus.slotName = "CHORUS";
-            chorus.componentId = "FX-CH-001";
-            l.voiceArch.fxSlots.push_back(chorus);
+            l.voiceArch.lfos.push_back(lfo);
             
             p.addLayer(l);
 

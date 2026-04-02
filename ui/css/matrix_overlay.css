@@ -1,0 +1,272 @@
+/* OMEGA Modulation Hub & Matrix Workspace Styles */
+
+.modulation-modal-content {
+    width: 90vw !important;
+    height: 90vh !important;
+    max-width: 1200px !important;
+    background: #080808 !important;
+    border: 2px solid #333 !important;
+    padding: 30px !important;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.9), inset 0 0 50px rgba(0, 242, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+/* CRT Scanline Effect (Identical to Scope) */
+.modulation-modal-content::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 4px, 3px 100%;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0.3;
+}
+
+.modulation-workspace {
+    display: flex;
+    flex: 1;
+    gap: 25px;
+    margin-top: 20px;
+    min-height: 0;
+    z-index: 20; /* Above scanlines */
+}
+
+.matrix-grid-container {
+    flex: 3;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 12px;
+    height: 100%;
+    background: rgba(0,0,0,0.3);
+    padding: 10px;
+    border: 1px solid #222;
+    border-radius: 4px;
+}
+
+.matrix-inspector-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: #111;
+    padding: 20px;
+    border: 1px solid #222;
+    border-radius: 4px;
+}
+
+/* Matrix Card Styling */
+.matrix-card {
+    background: rgba(20, 20, 25, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.matrix-card:hover {
+    background: rgba(30, 30, 40, 0.8);
+    border-color: rgba(0, 242, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.matrix-card.selected {
+    background: rgba(0, 242, 255, 0.1);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+}
+
+.matrix-card.add-card {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    background: transparent;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.6;
+}
+
+.matrix-card.add-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--neon-cyan);
+    opacity: 1;
+}
+
+.add-icon {
+    font-size: 24px;
+    color: var(--neon-cyan);
+    font-weight: 300;
+}
+
+/* View Toggles */
+.juno-btn.active.juno-orange {
+    background: var(--juno-orange);
+    color: white;
+    border-color: white;
+    box-shadow: 0 0 10px var(--juno-orange);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    color: #555;
+    font-weight: 800;
+}
+
+.bipolar-slider-fill.gain-mode {
+    left: 0 !important;
+    border-radius: 0;
+    transition: width 0.1s ease-out, background-color 0.2s ease-in-out;
+}
+
+.bipolar-slider-bg::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    z-index: 1;
+}
+
+.card-index {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 4px;
+    border-radius: 2px;
+}
+
+.card-status {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #333;
+}
+
+.card-status.active { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
+.card-status.muted { background: var(--juno-red); }
+
+.matrix-card.duplicate-error {
+    border-color: #ff3333;
+    box-shadow: inset 0 0 10px rgba(255, 51, 51, 0.2);
+}
+
+.matrix-card.duplicate-error .card-index {
+    color: #ff3333;
+}
+
+.error-badge {
+    color: #ff3333;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    border: 1px solid #ff3333;
+    padding: 1px 3px;
+    border-radius: 2px;
+}
+
+.card-routing {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.card-label {
+    font-size: 10px;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-arrow {
+    font-size: 8px;
+    color: #444;
+    margin: 2px 0;
+}
+
+/* Bipolar Slider Styles */
+.bipolar-container {
+    margin-top: 4px;
+    position: relative;
+}
+
+.bipolar-slider-bg {
+    height: 4px;
+    background: #111;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.bipolar-slider-fill {
+    position: absolute;
+    height: 100%;
+    background: var(--neon-cyan);
+    top: 0;
+}
+
+.bipolar-center-mark {
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    width: 1px;
+    height: 8px;
+    background: #444;
+    z-index: 2;
+}
+
+.bipolar-value {
+    font-size: 9px;
+    color: #666;
+    text-align: right;
+    margin-top: 2px;
+    font-family: monospace;
+}
+
+/* Launcher LED (Dual state) */
+.launcher-led {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #222;
+    transition: background 0.1s, box-shadow 0.1s;
+}
+
+.launcher-led.activity-general {
+    background: #0088ff;
+    box-shadow: 0 0 8px rgba(0, 136, 255, 0.8);
+}
+
+.launcher-led.activity-manual {
+    background: #ffaa00;
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.8);
+}
+
+/* Inspector Layout */
+.inspector-title {
+    font-size: 12px;
+    color: var(--neon-cyan);
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+
+/* Utility classes */
+.hidden { display: none !important; }

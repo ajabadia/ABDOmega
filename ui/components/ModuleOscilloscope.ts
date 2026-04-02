@@ -124,24 +124,36 @@ export class ModuleOscilloscope {
     }
 
     private render(): void {
+        const isMaster = this.el.closest('#upper-rack') !== null;
+        if (isMaster) this.el.classList.add('master-view');
+
         this.content.innerHTML = `
-            <div class="ModuleOscilloscope-inner" style="display: flex; flex-direction: column; height: 100%;">
-                <div class="module-controls" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px;">
-                    <button id="osc-power" class="juno-btn power-btn active" title="POWER">⏻</button>
+            <div class="ModuleOscilloscope-inner ${isMaster ? 'master-layout' : ''}" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="module-controls" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button id="osc-power" class="juno-btn power-btn active" style="width:24px; height:24px; font-size:10px;" title="POWER">⏻</button>
+                        <span class="module-title" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">SCOPE ${this.descriptor.label || "MASTER"}</span>
+                    </div>
                     <div style="display: flex; gap: 5px;">
-                        <button id="osc-modal-trigger" class="btn-scope-focus" title="Advanced Analyzer">⛶</button>
-                        <button id="osc-freeze" class="sq" title="FREEZE">❄️</button>
+                        <button id="osc-modal-trigger" class="btn-scope-focus" style="width:24px; height:24px;" title="Advanced Analyzer">⛶</button>
+                        <button id="osc-freeze" class="sq" style="width:24px; height:24px; font-size:10px;" title="FREEZE">❄️</button>
                     </div>
                 </div>
 
-                <div class="visualizer-container">
+                <div class="visualizer-container" style="flex: 1; min-height: 60px; position: relative; border: 1px solid #222; background: #000;">
                     <canvas id="osc-canvas-mini"></canvas>
-                    <div id="osc-standby" style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:rgba(0,242,255,0.1); font-size: 10px; letter-spacing: 4px; display: none;">STANDBY</div>
+                    <div id="osc-standby" style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:rgba(0,242,255,0.1); font-size: 8px; letter-spacing: 4px; display: none;">STANDBY</div>
                 </div>
 
-                <div class="scope-footer-row" style="display: flex; gap: 8px; margin-top: 8px;">
-                    <select id="sel-src-a" class="scope-select" style="flex: 1; font-size: 10px; height: 24px;"></select>
-                    <select id="sel-src-b" class="scope-select" style="flex: 1; font-size: 10px; height: 24px;"></select>
+                <div class="scope-footer-row" style="display: flex; gap: 4px; margin-top: 4px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                        <label style="font-size: 7px; text-transform: uppercase; opacity: 0.5;">Src A</label>
+                        <select id="sel-src-a" class="scope-select" style="width: 100%; font-size: 9px; height: 18px; padding: 0 2px;"></select>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                        <label style="font-size: 7px; text-transform: uppercase; opacity: 0.5;">Src B</label>
+                        <select id="sel-src-b" class="scope-select" style="width: 100%; font-size: 9px; height: 18px; padding: 0 2px;"></select>
+                    </div>
                 </div>
             </div>
         `;

@@ -5,9 +5,9 @@
 class ModuleSpaceEcho extends ModuleJunoBase {
     constructor(el, content) {
         super("Space Echo", el, content, [
-            "LAYERAFXSPACEENABLE", "LAYERAFXSPACESPEED", "LAYERAFXSPACEINTENSITY",
-            "LAYERAFXSPACEECHOVOL", "LAYERAFXSPACEREVERBVOL", "LAYERAFXSPACEMODE",
-            "LAYERAFXSPACEWOW", "LAYERAFXSPACEDRIVE"
+            "layer.a.fx.space.enable", "layer.a.fx.space.speed", "layer.a.fx.space.intensity",
+            "layer.a.fx.space.echo.vol", "layer.a.fx.space.rev.vol", "layer.a.fx.space.mode",
+            "layer.a.fx.space.wow", "layer.a.fx.space.drive"
         ]);
         this.render();
     }
@@ -22,27 +22,27 @@ class ModuleSpaceEcho extends ModuleJunoBase {
                 <div class="param-row">
                     <div class="control-group">
                         <label>RATE</label>
-                        <input type="range" class="v-slider" data-param="LAYERAFXSPACESPEED">
+                        <input type="range" class="v-slider" data-param="layer.a.fx.space.speed">
                     </div>
                      <div class="control-group">
                         <label>INTENS</label>
-                        <input type="range" class="v-slider" data-param="LAYERAFXSPACEINTENSITY">
+                        <input type="range" class="v-slider" data-param="layer.a.fx.space.intensity">
                     </div>
                 </div>
                 <div class="param-row">
                     <div class="control-group">
                         <label>ECHO VOL</label>
-                        <input type="range" class="v-slider" data-param="LAYERAFXSPACEECHOVOL">
+                        <input type="range" class="v-slider" data-param="layer.a.fx.space.echo.vol">
                     </div>
                     <div class="control-group">
                         <label>REVERB</label>
-                        <input type="range" class="v-slider" data-param="LAYERAFXSPACEREVERBVOL">
+                        <input type="range" class="v-slider" data-param="layer.a.fx.space.rev.vol">
                     </div>
                 </div>
                 <div class="param-row">
                     <div class="control-group">
                         <label>MODE</label>
-                        <input type="range" class="v-slider" data-param="LAYERAFXSPACEMODE" min="1" max="12" step="1">
+                        <input type="range" class="v-slider" data-param="layer.a.fx.space.mode" min="1" max="12" step="1">
                     </div>
                 </div>
             </div>
@@ -63,7 +63,7 @@ class ModuleSpaceEcho extends ModuleJunoBase {
         if (el) el.value = value;
         
         // Visual animation for reels if speed changes
-        if (paramId === 'LAYERAFXSPACESPEED') {
+        if (paramId === 'layer.a.fx.space.speed') {
             const reels = this.content.querySelectorAll('.reel');
             reels.forEach(r => r.style.animationDuration = (2.0 - value) + 's');
         }

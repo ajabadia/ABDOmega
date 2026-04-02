@@ -72,6 +72,7 @@
     </script>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="css/preferences.css">
+    <link rel="stylesheet" href="css/matrix_overlay.css">
 </head>
 <body class="rack-bg">
     <nav class="top-menu">
@@ -215,6 +216,25 @@
                 <div id="version-control-container"></div>
             </div>
             <button class="modal-ok-btn" onclick="document.getElementById('presets-modal').style.display='none'">DONE</button>
+        </div>
+    </div>
+
+    <!-- Modulation Matrix Modal -->
+    <div id="modulation-modal" class="modal">
+        <div class="modal-content modulation-modal-content">
+            <span class="close-btn" onclick="document.getElementById('modulation-modal').style.display='none'">&times;</span>
+            <h2 class="modal-title">MODULATION HUB</h2>
+            <div id="modulation-workspace" class="modulation-workspace">
+                <div id="matrix-grid-container" class="matrix-grid-container">
+                    <!-- 8x4 Grid injected here -->
+                </div>
+                <div id="matrix-inspector-container" class="matrix-inspector-container">
+                    <!-- Inspector injected here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-ok-btn" onclick="document.getElementById('modulation-modal').style.display='none'">DONE</button>
+            </div>
         </div>
     </div>
 

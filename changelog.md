@@ -2,6 +2,15 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
  
+## [1.9.6] - 2026-04-01
+### Added
+- **Modulation Matrix 2.0 (Phase 4)**:
+    - **32-Slot High-Fidelity Grid**: Expanded modulation routing from 16 to 32 slots with bipolar depth control.
+    - **"Via" Secondary Modulation**: Implemented secondary depth modulation (e.g., LFO -> Cutoff controlled by ModWheel).
+    - **Real-Time Matrix Compiler**: New graph-based compiler that translates Matrix slots into low-level DSP routes on preset load.
+    - **Dynamic Metadata Resolution**: WebUI now fetches available modulation sources and targets dynamically from the engine via RPC.
+    - **RpcModulationController**: Dedicated bridge for real-time matrix manipulation without audio interruptions.
+
 ## [1.9.5] - 2026-04-01
 ### Added
 - **Modular ADSR Engine (Case 401)**: Implemented sample-accurate ADSR generator with POD-compatible state mapping for high-fidelity voice architecture integration.

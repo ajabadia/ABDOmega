@@ -185,6 +185,46 @@ namespace Preset {
         visual.addChild(OmegaPresetDefaults::createDefaultVisual().getChildWithName(IDs::scope).createCopy(), -1, nullptr);
     }
 
+    // --- Modulation Matrix 2.0 ---
+    int OmegaPreset::getNumModSlots() const {
+        return mState.getChildWithName(IDs::modMatrix).getNumChildren();
+    }
+
+    ModMatrixSlot OmegaPreset::getModSlot(int index) const {
+        auto matrix = mState.getChildWithName(IDs::modMatrix);
+        auto s = matrix.getChild(index);
+        ModMatrixSlot slot;
+        if (s.isValid()) {
+            slot.source = s[IDs::source].toString().toStdString();
+            slot.target = s[IDs::target].toString().toStdString();
+            slot.amount = (float)s[IDs::amount];
+            slot.via = s[IDs::via].toString().toStdString();
+            slot.viaAmount = (float)s[IDs::viaAmount];
+            slot.active = (bool)s[IDs::active];
+        }
+        return slot;
+    }
+
+    void OmegaPreset::setModSlot(int index, const ModMatrixSlot& slot) {
+        auto matrix = mState.getOrCreateChildWithName(IDs::modMatrix, nullptr);
+        auto s = matrix.getChild(index);
+        if (!s.isValid()) {
+            s = juce::ValueTree(IDs::slot);
+            matrix.addChild(s, index, nullptr);
+        }
+        s.setProperty(IDs::source, juce::String(slot.source), nullptr);
+        s.setProperty(IDs::target, juce::String(slot.target), nullptr);
+        s.setProperty(IDs::amount, slot.amount, nullptr);
+        s.setProperty(IDs::via, juce::String(slot.via), nullptr);
+        s.setProperty(IDs::viaAmount, slot.viaAmount, nullptr);
+        s.setProperty(IDs::active, slot.active, nullptr);
+    }
+
+    void OmegaPreset::clearModMatrix() {
+        mState.removeChild(mState.getChildWithName(IDs::modMatrix), nullptr);
+        mState.getOrCreateChildWithName(IDs::modMatrix, nullptr);
+    }
+
 } // namespace Preset
 } // namespace Core
 } // namespace Omega

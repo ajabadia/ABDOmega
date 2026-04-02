@@ -18,6 +18,7 @@ namespace UI {
         mSystemController = std::make_unique<RpcSystemController>(settings, repository);
         mMetadataController = std::make_unique<RpcMetadataController>(mProcessor);
         mInputController = std::make_unique<RpcInputController>(mProcessor);
+        mModulationController = std::make_unique<RpcModulationController>(mPreset);
 
         mScopeState = juce::var(new juce::DynamicObject());
 
@@ -119,7 +120,11 @@ namespace UI {
             return mInputController->handleTriggerNote(requestId, juce::var(triggerPayload.get()));
         }
 
-        // 6. Menu Actions & System
+        // 6. Modulation Matrix 2.0
+        if (type == "getModulationMetadata") return mModulationController->handleGetModulationMetadata(requestId, payload);
+        if (type == "updateModMatrixSlot")    return mModulationController->handleUpdateModMatrixSlot(requestId, payload);
+
+        // 7. Menu Actions & System
         if (type == "menuAction") {
             juce::String action = payload["action"].toString();
             DBG("[OMEGA BRIDGE] menuAction received: " << action);

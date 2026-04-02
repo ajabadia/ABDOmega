@@ -26,6 +26,30 @@ namespace Preset {
             layers.addChild(createDefaultLayer("Main Layer"), -1, nullptr);
             p.addChild(layers, -1, nullptr);
             
+            juce::ValueTree aux(IDs::auxiliary);
+            juce::ValueTree matrixMod(IDs::COMPONENT);
+            matrixMod.setProperty(IDs::slotName, "MOD MATRIX", nullptr);
+            matrixMod.setProperty(IDs::componentId, "MOD-MATRIX-001", nullptr);
+            aux.addChild(matrixMod, -1, nullptr);
+            p.addChild(aux, -1, nullptr);
+            
+            // Modulation Matrix 2.0 (Initialize with Slot 0 pre-configured for LFO 1 -> CUTOFF)
+            juce::ValueTree matrix(IDs::modMatrix);
+            for (int i = 0; i < 32; ++i) {
+                juce::ValueTree slot(IDs::slot);
+                if (i == 0) {
+                    slot.setProperty(IDs::active, true, nullptr);
+                    slot.setProperty(IDs::source, "lfo.1", nullptr);
+                    slot.setProperty(IDs::target, "layer.a.vcf.cutoff", nullptr);
+                    slot.setProperty(IDs::amount, 0.7f, nullptr);
+                } else {
+                    slot.setProperty(IDs::active, false, nullptr);
+                    slot.setProperty(IDs::amount, 0.0f, nullptr);
+                }
+                matrix.addChild(slot, -1, nullptr);
+            }
+            p.addChild(matrix, -1, nullptr);
+
             p.addChild(createDefaultVisual(), -1, nullptr);
             return p;
         }

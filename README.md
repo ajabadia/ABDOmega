@@ -38,6 +38,10 @@ OMEGA has transitioned to a **Service-Oriented Architecture** to ensure long-ter
 - **Smart Focus Diagnostic**: Sistema universal de iconos de enfoque ("Eye") para ruteo instantáneo al osciloscopio desde cualquier módulo.
 - **MIDI 2.0 Hybrid Input**: Soporte nativo para UMP en JUCE 8 con auto-detección de formato y procesamiento de alta resolución (16-bit velocity).
 - **Modular Envelopes (Case 401)**: Dynamic, sample-accurate ADSR state management integrated into the voice signal path.
+- **Modulation Matrix 2.0**:
+    - **32-Slot Routing Grid**: High-fidelity modulation matrix with bipolar depth control and secondary "Via" modulation path.
+    - **Live Graph Compiler**: Automated translation of matrix slots into low-level, lock-free DSP routes on preset load.
+    - **Dynamic Metadata**: RPC-driven source/target resolution, keeping the UI in perfect sync with engine capabilities.
 - **Build System**: Stabilized via `build_auto.bat` (CMake/Ninja) with automatic build tracking (**Build #142**).
 
 ---

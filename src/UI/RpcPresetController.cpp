@@ -176,7 +176,7 @@ namespace UI {
         static const std::vector<juce::String> collections = {
             "layers", "oscillators", "filters", "lfos", "envelopes", 
             "amplifiers", "modulators", "fxSlots", "auxiliary", "modGraph",
-            "nodes"
+            "nodes", "modMatrix"
         };
 
         if (std::find(collections.begin(), collections.end(), tag) != collections.end()) {

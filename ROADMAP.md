@@ -71,6 +71,7 @@
 - [x] **VA/ACE MVP 0.1: Flagship Synthesis** (2026-03-26 10:40):
     - [x] **ValueTree & Atomic Config Refit**: Complete migration of `OmegaPreset` and `EngineConfig` to JUCE 8 `ValueTree` (2026-03-27 12:45).
 - [x] **DSP Engine Synchronization**: Refactored `VirtualAnalogEngine` and `ISynthesisEngine` for atomic configuration swaps.
+- [x] **Modulation Matrix 2.0**: 32-slot high-fidelity routing grid with "Via" modulation and real-time engine compilation (2026-04-01 14:15).
 - [ ] **Engine C: Wavetable (OSC-WT-001)**: High-fidelity analysis and Waldorf-style playback.
 - [ ] **OSC-FM-001 (FM - DX7 style)**.
 
@@ -93,7 +94,7 @@
     - [x] **Schema Alignment**: Standardized `hpfPosition` and `vcfKeyTracking` across the engine.
 
 ### Phase 6: Architectural Maturity & Universal Metadata [DONE]
-- [x] **Universal Parameter Metadata**: Single source of truth in C++ for ranges, units, and UI mapping (2026-03-24 10:20).
+- [x] **Universal Metadata & Semantic IDs**: A single source of truth in C++ serves ranges, units, and UI labels via JSON-RPC. The system uses a strict **dotted semantic notation** (e.g., `layer.a.vcf.cutoff`) for 100% synchronization and automated bridge mapping between the WebUI and the `ValueTree` state.
 - [x] **Bridge Realignment & Binding Fix**: Resolved `setProperty` and identifier issues in Build #33 (2026-03-24 10:22).
 - [x] **Real-Time Safety Audit**: Lock-free compliance for `ModulationGraph` and `PresetRepository` (2026-03-24 10:25).
 - [x] **Modulation Telemetry**: High-speed data canal for real-time modulation visualization in the WebUI (2026-03-24 11:10).
@@ -143,12 +144,10 @@
 - [x] **WebUI Modular Renderer Implementation** (2026-03-31 10:30).
 - [x] **Legacy Fallback Purge & TypeScript Foundation (Phase 13.5)** (2026-03-31 10:45).
 
-### Phase 15: OMEGA Core 2.0 & High-Fidelity Expansion [IN PROGRESS]
-- [x] **Voice Architecture 2.0 Hardening**: Replaced compiler mocks with real AceCatalog lookup and implemented pre-registration logic (2026-04-01 08:30).
-- [x] **Modular Dispatcher Expansion**: Support for JP Supersaw and Korg-35 Filters in the dynamic signal path (2026-04-01 08:35).
-- [x] UI Alignment & Scope 2.0: Stabilized ResizeObserver & 4:3 Layout (2026-04-01 12:40).
-- [x] Case 401: Modular Envelopes (ADSR): Finalized per-unit dynamic ADSR state management in the audio thread (2026-04-01 10:30).
-- [ ] Phase 15.2: Multi-Sample Core: Initialize Multi-Sample synthesis layer and Granular subsystem.
+### Phase 16: Semantic Architecture Hardening [DONE]
+- [x] **Universal Dotted Notation**: Migrated all parameters to strictly semantic identifiers (e.g., `layer.a.cutoff`). (2026-04-01 13:50)
+- [x] **Metadata-Driven Bridge (v2.0)**: Generic synchronization loop in `OmegaAudioProcessor` using `valueTreePropertyId`. (2026-04-01 13:52)
+- [x] **Legacy ID Purge**: Eliminated `SCREAMING_SNAKE_CASE` from normalizer and WebUI. (2026-04-01 13:55)
 
 ---
-*Last Updated: 2026-04-01 12:45*
+*Last Updated: 2026-04-01 14:15*

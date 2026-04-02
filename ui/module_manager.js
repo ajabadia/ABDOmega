@@ -13,6 +13,17 @@ export class ModuleManager {
         this.oscilloscopes = [];
         this.midiViewer = null;
     }
+    normalizeList(data) {
+        if (!data)
+            return [];
+        let list = [];
+        if (Array.isArray(data))
+            list = data;
+        else if (typeof data === 'object')
+            list = Object.values(data);
+        // Defensive Flattening for Build #156
+        return list.map(item => Array.isArray(item) ? item[0] : item);
+    }
     async updateRack(state) {
         console.log("[ModuleManager] updateRack called with state:", state ? "READY" : "NULL/EMPTY");
         const safeState = state || {};
@@ -28,9 +39,19 @@ export class ModuleManager {
         this.activeModules.clear();
         this.oscilloscopes = [];
         this.midiViewer = null;
+        // --- FORENSIC LOGGING for Build #155 ---
+        if (safeState.preset) {
+            console.log("[ModuleManager] --- FORENSIC PRESET DUMP ---");
+            console.log(JSON.stringify(safeState.preset, null, 2));
+            console.log("[ModuleManager] ---------------------------");
+        }
+        // 2. Core (Lower) - Dynamic from Preset Architecture
+        const layerList = this.normalizeList(state.preset && state.preset.layers);
+        const layerData = layerList.length > 0 ? layerList[0] : null;
         // 1. Auxiliary (Direct from Preset)
-        const aux = safeState.preset?.auxiliary || safeState.auxiliary || [];
-        if (aux.length === 0 && (!safeState.mainChain || safeState.mainChain.length === 0)) {
+        const auxData = safeState.preset?.auxiliary || safeState.auxiliary || [];
+        const aux = this.normalizeList(auxData);
+        if (aux.length === 0 && (!layerList || layerList.length === 0) && (!safeState.mainChain || safeState.mainChain.length === 0)) {
             console.log("[ModuleManager] No modules found. Injecting emergency module.");
             await this.injectEmergencyModule();
             return;
@@ -42,8 +63,8 @@ export class ModuleManager {
             // Rack Selection
             let targetRack = upper;
             let rackType = "aux";
-            const rackValue = item.rack || (item.params && item.params.rack);
-            if (rackValue === "lower" || rackValue === 1 || rackValue === "main") {
+            const rackValue = item.rack !== undefined ? item.rack : (item.params && item.params.rack);
+            if (rackValue === "lower" || rackValue === 1 || rackValue === 1.0 || rackValue === "main") {
                 targetRack = lower;
                 rackType = "main";
             }
@@ -61,17 +82,19 @@ export class ModuleManager {
                     signalIndex: item.signalIndex !== undefined ? item.signalIndex : (item.params?.signalIndex || 32)
                 });
             }
+            else if (rawType.includes("matrix") || rawType.includes("modmatrix")) {
+                await this.addModule(id, "ModuleModMatrix", rackType, targetRack, { label });
+            }
         }
-        // 2. Core (Lower) - Dynamic from Preset Architecture
-        const layerData = state.preset && state.preset.layers && state.preset.layers[0];
         if (layerData) {
-            const arch = layerData.voiceArch || layerData.architecture;
+            const arch = layerData.voiceArch || layerData.architecture || {};
             const chain = layerData.voiceChain;
             const layer = "A";
             if (chain && chain.nodes && chain.nodes.length > 0) {
                 // --- Voice Architecture 2.0 (Graph Nodes) ---
                 console.log("[ModuleManager] Rendering VoiceChain 2.0 graph...");
-                for (const node of chain.nodes) {
+                const nodes = this.normalizeList(chain.nodes);
+                for (const node of nodes) {
                     const componentId = node.componentId || node.id;
                     const descriptor = ModuleDescriptors[componentId];
                     // Map Role to CSS type
@@ -104,19 +127,20 @@ export class ModuleManager {
             else if (arch) {
                 // --- Legacy Voice Architecture (Category Lists) ---
                 const categories = [
-                    { list: (arch.oscillators || arch.oscillatorList || []).concat(state.preset?.oscillators || []), type: "osc" },
-                    { list: (arch.filters || arch.filterList || []).concat(state.preset?.filters || []), type: "filter" },
-                    { list: (arch.envelopes || arch.envelopeList || []).concat(state.preset?.envelopes || []), type: "env" },
-                    { list: (arch.amplifiers || arch.amplifierList || []).concat(state.preset?.amplifiers || []), type: "amp" },
-                    { list: (arch.lfos || arch.lfoList || []).concat(state.preset?.lfos || []), type: "lfo" },
-                    { list: (arch.fxSlots || arch.fxList || []).concat(state.preset?.fxSlots || []), type: "fx" }
+                    { list: this.normalizeList(arch.oscillators || arch.oscillatorList).concat(this.normalizeList(state.preset?.oscillators)), type: "osc" },
+                    { list: this.normalizeList(arch.filters || arch.filterList).concat(this.normalizeList(state.preset?.filters)), type: "filter" },
+                    { list: this.normalizeList(arch.envelopes || arch.envelopeList).concat(this.normalizeList(state.preset?.envelopes)), type: "env" },
+                    { list: this.normalizeList(arch.amplifiers || arch.amplifierList).concat(this.normalizeList(state.preset?.amplifiers)), type: "amp" },
+                    { list: this.normalizeList(arch.lfos || arch.lfoList).concat(this.normalizeList(state.preset?.lfos)), type: "lfo" },
+                    { list: this.normalizeList(arch.fxSlots || arch.fxList).concat(this.normalizeList(state.preset?.fxSlots)), type: "fx" }
                 ];
                 for (const cat of categories) {
                     if (!cat.list || cat.list.length === 0)
                         continue;
                     for (const item of cat.list) {
                         const componentId = item.componentId || item.id || item.type;
-                        const descriptor = ModuleDescriptors[componentId];
+                        const descriptor = this.resolveDescriptor(item);
+                        const layer = "A";
                         if (descriptor && lower) {
                             await this.addModule(item.slotName || componentId, "ModuleRenderer", cat.type, lower, {
                                 descriptor, componentId, layer, group: "MAIN"
@@ -187,6 +211,23 @@ export class ModuleManager {
             if (className === "ModuleMidiViewer")
                 this.midiViewer = instance;
         }
+    }
+    resolveDescriptor(item) {
+        if (!item)
+            return null;
+        const id = item.componentId || item.id;
+        const type = item.slotType || item.type;
+        // 1. Try specific model ID
+        if (id && ModuleDescriptors[id])
+            return ModuleDescriptors[id];
+        // 2. Try semantic slot type
+        if (type && ModuleDescriptors[type])
+            return ModuleDescriptors[type];
+        // 3. Try lowercase variant
+        if (type && ModuleDescriptors[type.toLowerCase()])
+            return ModuleDescriptors[type.toLowerCase()];
+        console.warn(`[ModuleManager] Could not resolve descriptor for:`, item);
+        return null;
     }
 }
 // @ts-ignore

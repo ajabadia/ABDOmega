@@ -75,7 +75,7 @@ namespace Voice {
     struct CompiledVoicePlan {
         static constexpr int kMaxUnits = 16;
         static constexpr int kMaxConnections = 24;
-        static constexpr int kMaxModRoutes = 16;
+        static constexpr int kMaxModRoutes = 32;
         static constexpr int kMaxBuses = 16;
 
         std::array<CompiledUnit, kMaxUnits> units;

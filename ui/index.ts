@@ -14,6 +14,7 @@ import { ModuleRenderer } from './module_renderer.js';
 import { ModuleOscilloscope } from './components/ModuleOscilloscope.js';
 import { ModuleMidiTrigger } from './components/ModuleMidiTrigger.js';
 import { ModuleMidiViewer } from './components/ModuleMidiViewer.js';
+import { ModuleModMatrix } from './components/ModuleModMatrix.js';
 
 // Global instances for legacy bridge compatibility
 (window as any).omegaRPC = rpc;
@@ -25,6 +26,7 @@ import { ModuleMidiViewer } from './components/ModuleMidiViewer.js';
 (window as any).ModuleOscilloscope = ModuleOscilloscope;
 (window as any).ModuleMidiTrigger = ModuleMidiTrigger;
 (window as any).ModuleMidiViewer = ModuleMidiViewer;
+(window as any).ModuleModMatrix = ModuleModMatrix;
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {

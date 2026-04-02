@@ -64,53 +64,53 @@ namespace Omega::Plugin {
         mUiBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset& p) { this->loadPreset(p); });
 
         // Initialize Parameter Cache
-        mParamCache.cutoff = mApvts.getRawParameterValue("LAYERAMAINCUTOFF");
-        mParamCache.resonance = mApvts.getRawParameterValue("LAYERAMAINRESONANCE");
-        mParamCache.chorusMode = mApvts.getRawParameterValue("LAYERACHORUSMODE");
-        mParamCache.hpfPos = mApvts.getRawParameterValue("LAYERAMAINHPF");
-        mParamCache.vcaMode = mApvts.getRawParameterValue("LAYERAMAINVCAMODE");
-        mParamCache.drift = mApvts.getRawParameterValue("LAYERAMAINANALOGDRIFT");
-        mParamCache.sawOn = mApvts.getRawParameterValue("LAYERAMAINSAWON");
-        mParamCache.pulseOn = mApvts.getRawParameterValue("LAYERAMAINPULSEON");
-        mParamCache.subLevel = mApvts.getRawParameterValue("LAYERASUBOSELEVEL");
-        mParamCache.noiseLevel = mApvts.getRawParameterValue("LAYERANOISELEVEL");
-        mParamCache.pwmMode = mApvts.getRawParameterValue("LAYERAPWMMODE");
-        mParamCache.pwmAmount = mApvts.getRawParameterValue("LAYERAPWMAMOUNT");
-        mParamCache.vcfEnvDepth = mApvts.getRawParameterValue("LAYERAVCFENVDEPTH");
-        mParamCache.vcfLfoDepth = mApvts.getRawParameterValue("LAYERAVCFMODDEPTH");
-        mParamCache.vcfKybd = mApvts.getRawParameterValue("LAYERAVCFKYBD");
-        mParamCache.vcfEnvPol = mApvts.getRawParameterValue("LAYERAVCFENVPOL");
-        mParamCache.dcoLfoDepth = mApvts.getRawParameterValue("LAYERADCOMODDEPTH");
-        mParamCache.jpDetune = mApvts.getRawParameterValue("LAYERAMAINJPDETUNE");
-        mParamCache.jpFilterMode = mApvts.getRawParameterValue("LAYERAMAINJPFILTERMODE");
-        mParamCache.korgHpCutoff = mApvts.getRawParameterValue("LAYERAKORGHPFCUTOFF");
-        mParamCache.korgHpRes = mApvts.getRawParameterValue("LAYERAKORGHPFRESONANCE");
-        mParamCache.korgGrit = mApvts.getRawParameterValue("LAYERAKORGGRIT");
+        mParamCache.cutoff = mApvts.getRawParameterValue("layer.a.cutoff");
+        mParamCache.resonance = mApvts.getRawParameterValue("layer.a.resonance");
+        mParamCache.chorusMode = mApvts.getRawParameterValue("global.chorus.mode");
+        mParamCache.hpfPos = mApvts.getRawParameterValue("layer.a.hpf.pos");
+        mParamCache.vcaMode = mApvts.getRawParameterValue("layer.a.vca.mode");
+        mParamCache.drift = mApvts.getRawParameterValue("layer.a.drift");
+        mParamCache.sawOn = mApvts.getRawParameterValue("layer.a.osc.saw.on");
+        mParamCache.pulseOn = mApvts.getRawParameterValue("layer.a.osc.pulse.on");
+        mParamCache.subLevel = mApvts.getRawParameterValue("layer.a.osc.sub.level");
+        mParamCache.noiseLevel = mApvts.getRawParameterValue("layer.a.osc.noise.level");
+        mParamCache.pwmMode = mApvts.getRawParameterValue("layer.a.osc.pwm.mode");
+        mParamCache.pwmAmount = mApvts.getRawParameterValue("layer.a.osc.pwm.amount");
+        mParamCache.vcfEnvDepth = mApvts.getRawParameterValue("layer.a.vcf.env.depth");
+        mParamCache.vcfLfoDepth = mApvts.getRawParameterValue("layer.a.vcf.lfo.depth");
+        mParamCache.vcfKybd = mApvts.getRawParameterValue("layer.a.vcf.keytrack");
+        mParamCache.vcfEnvPol = mApvts.getRawParameterValue("layer.a.vcf.env.inv");
+        mParamCache.dcoLfoDepth = mApvts.getRawParameterValue("layer.a.dco.lfo.depth");
+        mParamCache.jpDetune = mApvts.getRawParameterValue("layer.a.jp.detune");
+        mParamCache.jpFilterMode = mApvts.getRawParameterValue("layer.a.jp.filter.mode");
+        mParamCache.korgHpCutoff = mApvts.getRawParameterValue("layer.a.korg.hpf.cutoff");
+        mParamCache.korgHpRes = mApvts.getRawParameterValue("layer.a.korg.hpf.res");
+        mParamCache.korgGrit = mApvts.getRawParameterValue("layer.a.korg.grit");
 
         // --- ADSR / VCA / LFO Cache ---
-        mParamCache.mainAttack = mApvts.getRawParameterValue("LAYERAMAINATTACK");
-        mParamCache.mainDecay = mApvts.getRawParameterValue("LAYERAMAINDECAY");
-        mParamCache.mainSustain = mApvts.getRawParameterValue("LAYERAMAINSUSTAIN");
-        mParamCache.mainRelease = mApvts.getRawParameterValue("LAYERAMAINRELEASE");
-        mParamCache.mainVcaGain = mApvts.getRawParameterValue("LAYERAMAINVCAGAIN");
-        mParamCache.mainLfoRate = mApvts.getRawParameterValue("LAYERAMAINLFORATE");
-        mParamCache.mainLfoWave = mApvts.getRawParameterValue("LAYERAMAINLFOWAVE");
+        mParamCache.mainAttack = mApvts.getRawParameterValue("layer.a.env.attack");
+        mParamCache.mainDecay = mApvts.getRawParameterValue("layer.a.env.decay");
+        mParamCache.mainSustain = mApvts.getRawParameterValue("layer.a.env.sustain");
+        mParamCache.mainRelease = mApvts.getRawParameterValue("layer.a.env.release");
+        mParamCache.mainVcaGain = mApvts.getRawParameterValue("layer.a.vca.gain");
+        mParamCache.mainLfoRate = mApvts.getRawParameterValue("layer.a.lfo.rate");
+        mParamCache.mainLfoWave = mApvts.getRawParameterValue("layer.a.lfo.wave");
         
         // --- Space Echo Cache ---
-        mParamCache.spaceEchoEnabled = mApvts.getRawParameterValue("LAYERAFXSPACEENABLE");
-        mParamCache.spaceEchoSpeed = mApvts.getRawParameterValue("LAYERAFXSPACESPEED");
-        mParamCache.spaceEchoIntensity = mApvts.getRawParameterValue("LAYERAFXSPACEINTENSITY");
-        mParamCache.spaceEchoEchoVol = mApvts.getRawParameterValue("LAYERAFXSPACEECHOVOL");
-        mParamCache.spaceEchoReverbVol = mApvts.getRawParameterValue("LAYERAFXSPACEREVERBVOL");
-        mParamCache.spaceEchoMode = mApvts.getRawParameterValue("LAYERAFXSPACEMODE");
-        mParamCache.spaceEchoWow = mApvts.getRawParameterValue("LAYERAFXSPACEWOW");
-        mParamCache.spaceEchoDrive = mApvts.getRawParameterValue("LAYERAFXSPACEDRIVE");
+        mParamCache.spaceEchoEnabled = mApvts.getRawParameterValue("layer.a.fx.space.enable");
+        mParamCache.spaceEchoSpeed = mApvts.getRawParameterValue("layer.a.fx.space.speed");
+        mParamCache.spaceEchoIntensity = mApvts.getRawParameterValue("layer.a.fx.space.intensity");
+        mParamCache.spaceEchoEchoVol = mApvts.getRawParameterValue("layer.a.fx.space.echo.vol");
+        mParamCache.spaceEchoReverbVol = mApvts.getRawParameterValue("layer.a.fx.space.rev.vol");
+        mParamCache.spaceEchoMode = mApvts.getRawParameterValue("layer.a.fx.space.mode");
+        mParamCache.spaceEchoWow = mApvts.getRawParameterValue("layer.a.fx.space.wow");
+        mParamCache.spaceEchoDrive = mApvts.getRawParameterValue("layer.a.fx.space.drive");
 
         // --- Master Delay Cache ---
-        mParamCache.delayEnabled = mApvts.getRawParameterValue("MASTERDELAYENABLED");
-        mParamCache.delayTime = mApvts.getRawParameterValue("MASTERDELAYTIME");
-        mParamCache.delayFeedback = mApvts.getRawParameterValue("MASTERDELAYFEEDBACK");
-        mParamCache.delayMix = mApvts.getRawParameterValue("MASTERDELAYMIX");
+        mParamCache.delayEnabled = mApvts.getRawParameterValue("global.delay.enable");
+        mParamCache.delayTime = mApvts.getRawParameterValue("global.delay.time");
+        mParamCache.delayFeedback = mApvts.getRawParameterValue("global.delay.feedback");
+        mParamCache.delayMix = mApvts.getRawParameterValue("global.delay.mix");
 
         // Carga inicial del preset de factoría
         logToFile("OmegaAudioProcessor: Loading initial preset (VERIFICATION)...");
@@ -215,42 +215,42 @@ namespace Omega::Plugin {
 
     void OmegaAudioProcessor::updateParameters() noexcept {
         for (auto const& [id, valuePtr] : {
-            std::pair{"LAYERAMAINCUTOFF", mParamCache.cutoff},
-            {"LAYERAMAINRESONANCE", mParamCache.resonance},
-            {"LAYERAMAINATTACK", mParamCache.mainAttack},
-            {"LAYERAMAINDECAY", mParamCache.mainDecay},
-            {"LAYERAMAINSUSTAIN", mParamCache.mainSustain},
-            {"LAYERAMAINRELEASE", mParamCache.mainRelease},
-            {"LAYERAMAINSAWON", mParamCache.sawOn},
-            {"LAYERAMAINPULSEON", mParamCache.pulseOn},
-            {"LAYERASUBOSELEVEL", mParamCache.subLevel},
-            {"LAYERAVCFMODDEPTH", mParamCache.vcfLfoDepth},
-            {"LAYERAMAINVCAGAIN", mParamCache.mainVcaGain},
-            {"LAYERAKORGGRIT", mParamCache.korgGrit},
-            {"LAYERAKORGHPFCUTOFF", mParamCache.korgHpCutoff},
-            {"LAYERAKORGHPFRESONANCE", mParamCache.korgHpRes},
-            {"LAYERACHORUSMODE", mParamCache.chorusMode},
-            {"LAYERAMAINHPF", mParamCache.hpfPos},
-            {"LAYERAMAINVCAMODE", mParamCache.vcaMode},
-            {"LAYERAPWMMODE", mParamCache.pwmMode},
-            {"LAYERAPWMAMOUNT", mParamCache.pwmAmount},
-            {"LAYERAVCFENVDEPTH", mParamCache.vcfEnvDepth},
-            {"LAYERAVCFKYBD", mParamCache.vcfKybd},
-            {"LAYERAVCFENVPOL", mParamCache.vcfEnvPol},
-            {"LAYERADCOLFODEPTH", mParamCache.dcoLfoDepth},
-            {"LAYERAMAINLFORATE", mParamCache.mainLfoRate},
-            {"LAYERAMAINLFOWAVE", mParamCache.mainLfoWave},
-            {"LAYERAMAINJPDETUNE", mParamCache.jpDetune},
-            {"LAYERAFXSPACEENABLE", mParamCache.spaceEchoEnabled},
-            {"LAYERAFXSPACESPEED", mParamCache.spaceEchoSpeed},
-            {"LAYERAFXSPACEINTENSITY", mParamCache.spaceEchoIntensity},
-            {"LAYERAFXSPACEECHOVOL", mParamCache.spaceEchoEchoVol},
-            {"LAYERAFXSPACEREVERBVOL", mParamCache.spaceEchoReverbVol},
-            {"LAYERAFXSPACEMODE", mParamCache.spaceEchoMode},
-            {"MASTERDELAYENABLED", mParamCache.delayEnabled},
-            {"MASTERDELAYTIME", mParamCache.delayTime},
-            {"MASTERDELAYFEEDBACK", mParamCache.delayFeedback},
-            {"MASTERDELAYMIX", mParamCache.delayMix}
+            std::pair{"layer.a.cutoff", mParamCache.cutoff},
+            {"layer.a.resonance", mParamCache.resonance},
+            {"layer.a.env.attack", mParamCache.mainAttack},
+            {"layer.a.env.decay", mParamCache.mainDecay},
+            {"layer.a.env.sustain", mParamCache.mainSustain},
+            {"layer.a.env.release", mParamCache.mainRelease},
+            {"layer.a.osc.saw.on", mParamCache.sawOn},
+            {"layer.a.osc.pulse.on", mParamCache.pulseOn},
+            {"layer.a.osc.sub.level", mParamCache.subLevel},
+            {"layer.a.vcf.lfo.depth", mParamCache.vcfLfoDepth},
+            {"layer.a.vca.gain", mParamCache.mainVcaGain},
+            {"layer.a.korg.grit", mParamCache.korgGrit},
+            {"layer.a.korg.hpf.cutoff", mParamCache.korgHpCutoff},
+            {"layer.a.korg.hpf.res", mParamCache.korgHpRes},
+            {"global.chorus.mode", mParamCache.chorusMode},
+            {"layer.a.hpf.pos", mParamCache.hpfPos},
+            {"layer.a.vca.mode", mParamCache.vcaMode},
+            {"layer.a.osc.pwm.mode", mParamCache.pwmMode},
+            {"layer.a.osc.pwm.amount", mParamCache.pwmAmount},
+            {"layer.a.vcf.env.depth", mParamCache.vcfEnvDepth},
+            {"layer.a.vcf.keytrack", mParamCache.vcfKybd},
+            {"layer.a.vcf.env.inv", mParamCache.vcfEnvPol},
+            {"layer.a.dco.lfo.depth", mParamCache.dcoLfoDepth},
+            {"layer.a.lfo.rate", mParamCache.mainLfoRate},
+            {"layer.a.lfo.wave", mParamCache.mainLfoWave},
+            {"layer.a.jp.detune", mParamCache.jpDetune},
+            {"layer.a.fx.space.enable", mParamCache.spaceEchoEnabled},
+            {"layer.a.fx.space.speed", mParamCache.spaceEchoSpeed},
+            {"layer.a.fx.space.intensity", mParamCache.spaceEchoIntensity},
+            {"layer.a.fx.space.echo.vol", mParamCache.spaceEchoEchoVol},
+            {"layer.a.fx.space.rev.vol", mParamCache.spaceEchoReverbVol},
+            {"layer.a.fx.space.mode", mParamCache.spaceEchoMode},
+            {"global.delay.enable", mParamCache.delayEnabled},
+            {"global.delay.time", mParamCache.delayTime},
+            {"global.delay.feedback", mParamCache.delayFeedback},
+            {"global.delay.mix", mParamCache.delayMix}
         }) {
             if (valuePtr != nullptr) {
                 mEngineConfig.updateParameter(id, valuePtr->load());
@@ -268,36 +268,29 @@ namespace Omega::Plugin {
         // 1. Delegar configuración del motor a la fachada
         mEngineConfig.applyPreset(mCurrentPreset);
 
-        // 2. SINCRONIZACION DE PARAMETROS (Build 64)
-        if (mCurrentPreset.getNumLayers() > 0) {
-            auto layer = mCurrentPreset.getLayerTree(0);
-            auto params = layer.getChildWithName(IDs::params);
-            
-            auto setVal = [&](const juce::String& apvtsId, const juce::Identifier& prop) {
-                if (auto* p = mApvts.getParameter(apvtsId)) {
-                    if (params.hasProperty(prop)) {
-                        float val = params.getProperty(prop);
-                        p->setValueNotifyingHost(p->getNormalisableRange().convertTo0to1(val));
-                    }
-                }
-            };
+        // 2. SINCRONIZACION DE PARAMETROS (Build 110 - Metadata Driven)
+        auto& registry = Core::ParameterMetadataRegistry::getInstance();
+        auto globalParams = mCurrentPreset.getState().getChildWithName(IDs::params);
+        auto layer0Params = mCurrentPreset.getNumLayers() > 0 ? 
+            mCurrentPreset.getLayerTree(0).getChildWithName(IDs::params) : juce::ValueTree();
 
-            // Usar IDs centralizados para las propiedades del ValueTree
-            setVal("LAYERAMAINCUTOFF", IDs::cutoff);
-            setVal("LAYERAMAINRESONANCE", IDs::resonance);
-            setVal("LAYERAMAINATTACK", IDs::attack);
-            setVal("LAYERAMAINDECAY", IDs::decay);
-            setVal("LAYERAMAINSUSTAIN", IDs::sustain);
-            setVal("LAYERAMAINRELEASE", IDs::release);
-            setVal("LAYERASUBOSELEVEL", IDs::subLevel);
-            setVal("LAYERANOISELEVEL", IDs::noiseLevel);
-            setVal("LAYERAMAINSAWON", IDs::sawOn);
-            setVal("LAYERAMAINPULSEON", IDs::pulseOn);
-            setVal("LAYERAMAINHPF", IDs::hpfPosition);
-            setVal("LAYERAVCFENVDEPTH", IDs::vcfEnvDepth);
-            setVal("LAYERAVCFKYBD", IDs::vcfKeyTracking);
-            setVal("LAYERAVCFENVPOL", IDs::vcfEnvInverted);
-            // ... (resto se irá moviendo al Bridge en Fase 5)
+        for (auto const& [id, desc] : registry.getAllParameters()) {
+            if (!desc.valueTreePropertyId.isValid()) continue;
+
+            juce::ValueTree sourceTree;
+            juce::String jId(id);
+            if (jId.startsWith("global")) {
+                sourceTree = globalParams;
+            } else if (jId.startsWith("layer.a")) {
+                sourceTree = layer0Params;
+            }
+
+            if (sourceTree.isValid() && sourceTree.hasProperty(desc.valueTreePropertyId)) {
+                if (auto* p = mApvts.getParameter(id)) {
+                    float val = sourceTree.getProperty(desc.valueTreePropertyId);
+                    p->setValueNotifyingHost(p->getNormalisableRange().convertTo0to1(val));
+                }
+            }
         }
     }
 

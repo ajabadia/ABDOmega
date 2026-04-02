@@ -13,12 +13,12 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "juno-panel",
         grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINSAWON",     control: "toggle",   label: "SAW",   row: 0, col: 0, variant: "juno-red" },
-            { paramId: "LAYERAMAINPULSEON",   control: "toggle",   label: "PULSE", row: 0, col: 1, variant: "juno-red" },
-            { paramId: "LAYERASUBOSELEVEL",   control: "slider-v", label: "SUB",   row: 1, col: 0 },
-            { paramId: "LAYERANOISELEVEL",    control: "slider-v", label: "NOISE", row: 1, col: 1 },
-            { paramId: "LAYERADCOMODDEPTH",   control: "knob",     label: "LFO",   row: 2, col: 0 },
-            { paramId: "LAYERAPWMAMOUNT",     control: "slider-v", label: "PWM",   row: 2, col: 1 }
+            { paramId: "layer.a.osc.saw.on",     control: "toggle",   label: "SAW",   row: 0, col: 0, variant: "juno-red" },
+            { paramId: "layer.a.osc.pulse.on",   control: "toggle",   label: "PULSE", row: 0, col: 1, variant: "juno-red" },
+            { paramId: "layer.a.osc.sub.level",   control: "slider-v", label: "SUB",   row: 1, col: 0 },
+            { paramId: "layer.a.osc.noise.level",    control: "slider-v", label: "NOISE", row: 1, col: 1 },
+            { paramId: "layer.a.dco.lfo.depth",   control: "knob",     label: "LFO",   row: 2, col: 0 },
+            { paramId: "layer.a.osc.pwm.amount",     control: "slider-v", label: "PWM",   row: 2, col: 1 }
         ],
         footer: { label: "DIGITALLY CONTROLLED OSC" }
     },
@@ -30,13 +30,13 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "juno-panel",
         grid: { columns: 3, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINCUTOFF",    control: "knob",     label: "FREQ",  row: 0, col: 0 },
-            { paramId: "LAYERAMAINRESONANCE", control: "knob",     label: "RES",   row: 0, col: 1 },
-            { paramId: "LAYERAVCFKYBD",       control: "knob",     label: "KEY",   row: 0, col: 2 },
-            { paramId: "LAYERAVCFENVDEPTH",   control: "knob",     label: "ENV",   row: 1, col: 0 },
-            { paramId: "LAYERAVCFMODDEPTH",   control: "knob",     label: "LFO",   row: 1, col: 1 },
-            { paramId: "LAYERAVCFENVPOL",     control: "toggle",   label: "POL",   row: 1, col: 2, variant: "juno-orange" },
-            { paramId: "LAYERAMAINHPF",       control: "select",   label: "HPF",   row: 2, col: 0, colSpan: 3 }
+            { paramId: "layer.a.cutoff",    control: "knob",     label: "FREQ",  row: 0, col: 0 },
+            { paramId: "layer.a.resonance", control: "knob",     label: "RES",   row: 0, col: 1 },
+            { paramId: "layer.a.vcf.keytrack",       control: "knob",     label: "KEY",   row: 0, col: 2 },
+            { paramId: "layer.a.vcf.env.depth",   control: "knob",     label: "ENV",   row: 1, col: 0 },
+            { paramId: "layer.a.vcf.lfo.depth",   control: "knob",     label: "LFO",   row: 1, col: 1 },
+            { paramId: "layer.a.vcf.env.inv",     control: "toggle",   label: "POL",   row: 1, col: 2, variant: "juno-orange" },
+            { paramId: "layer.a.hpf.pos",       control: "select",   label: "HPF",   row: 2, col: 0, colSpan: 3 }
         ],
         footer: { label: "ANALOG LOW PASS FILTER" }
     },
@@ -48,16 +48,16 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "space-panel",
         grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "LAYERAFXSPACESPEED",     control: "knob",     label: "RATE",  row: 0, col: 0 },
-            { paramId: "LAYERAFXSPACEINTENSITY", control: "knob",     label: "INTEN", row: 0, col: 1 },
-            { paramId: "LAYERAFXSPACEECHOVOL",   control: "knob",     label: "ECHO",  row: 1, col: 0 },
-            { paramId: "LAYERAFXSPACEREVERBVOL", control: "knob",     label: "REV",   row: 1, col: 1 },
-            { paramId: "LAYERAFXSPACEMODE",      control: "select",   label: "MODE",  row: 2, col: 0, colSpan: 2 },
-            { paramId: "LAYERAFXSPACEWOW",       control: "knob",     label: "WOW",   row: 3, col: 0 },
-            { paramId: "LAYERAFXSPACEDRIVE",     control: "knob",     label: "DRIVE", row: 3, col: 1 }
+            { paramId: "layer.a.fx.space.speed",     control: "knob",     label: "RATE",  row: 0, col: 0 },
+            { paramId: "layer.a.fx.space.intensity", control: "knob",     label: "INTEN", row: 0, col: 1 },
+            { paramId: "layer.a.fx.space.echo.vol",   control: "knob",     label: "ECHO",  row: 1, col: 0 },
+            { paramId: "layer.a.fx.space.rev.vol", control: "knob",     label: "REV",   row: 1, col: 1 },
+            { paramId: "layer.a.fx.space.mode",      control: "select",   label: "MODE",  row: 2, col: 0, colSpan: 2 },
+            { paramId: "layer.a.fx.space.wow",       control: "knob",     label: "WOW",   row: 3, col: 0 },
+            { paramId: "layer.a.fx.space.drive",     control: "knob",     label: "DRIVE", row: 3, col: 1 }
         ],
         footer: {
-            paramId: "LAYERAFXSPACEENABLE",
+            paramId: "layer.a.fx.space.enable",
             label: "RE-201 TAPE ECHO"
         }
     },
@@ -69,12 +69,12 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "universal-panel",
         grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "MASTERDELAYTIME",     control: "knob",     label: "TIME",  row: 0, col: 0 },
-            { paramId: "MASTERDELAYFEEDBACK", control: "knob",     label: "FDBK",  row: 0, col: 1 },
-            { paramId: "MASTERDELAYMIX",      control: "slider-v", label: "MIX",   row: 1, col: 0, colSpan: 2 }
+            { paramId: "global.delay.time",     control: "knob",     label: "TIME",  row: 0, col: 0 },
+            { paramId: "global.delay.feedback", control: "knob",     label: "FDBK",  row: 0, col: 1 },
+            { paramId: "global.delay.mix",      control: "slider-v", label: "MIX",   row: 1, col: 0, colSpan: 2 }
         ],
         footer: {
-            paramId: "MASTERDELAYENABLED",
+            paramId: "global.delay.enable",
             label: "DIGITAL FX CORE"
         }
     },
@@ -86,10 +86,10 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "universal-panel",
         grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINATTACK",  control: "knob", label: "A", row: 0, col: 0 },
-            { paramId: "LAYERAMAINDECAY",   control: "knob", label: "D", row: 0, col: 1 },
-            { paramId: "LAYERAMAINSUSTAIN", control: "knob", label: "S", row: 1, col: 0 },
-            { paramId: "LAYERAMAINRELEASE", control: "knob", label: "R", row: 1, col: 1 }
+            { paramId: "layer.a.env.attack",  control: "knob", label: "A", row: 0, col: 0 },
+            { paramId: "layer.a.env.decay",   control: "knob", label: "D", row: 0, col: 1 },
+            { paramId: "layer.a.env.sustain", control: "knob", label: "S", row: 1, col: 0 },
+            { paramId: "layer.a.env.release", control: "knob", label: "R", row: 1, col: 1 }
         ],
         footer: { label: "ENV GENERATOR" }
     },
@@ -99,10 +99,10 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "universal-panel",
         grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINATTACK",  control: "knob", label: "A", row: 0, col: 0 },
-            { paramId: "LAYERAMAINDECAY",   control: "knob", label: "D", row: 0, col: 1 },
-            { paramId: "LAYERAMAINSUSTAIN", control: "knob", label: "S", row: 1, col: 0 },
-            { paramId: "LAYERAMAINRELEASE", control: "knob", label: "R", row: 1, col: 1 }
+            { paramId: "layer.a.env.attack",  control: "knob", label: "A", row: 0, col: 0 },
+            { paramId: "layer.a.env.decay",   control: "knob", label: "D", row: 0, col: 1 },
+            { paramId: "layer.a.env.sustain", control: "knob", label: "S", row: 1, col: 0 },
+            { paramId: "layer.a.env.release", control: "knob", label: "R", row: 1, col: 1 }
         ],
         footer: { label: "ENV GENERATOR" }
     },
@@ -114,8 +114,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "universal-panel",
         grid: { columns: 1, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINVCAGAIN", control: "slider-v", label: "GAIN", row: 0, col: 0 },
-            { paramId: "LAYERAMAINVCAMODE", control: "toggle",   label: "GATE", row: 1, col: 0 }
+            { paramId: "layer.a.vca.gain", control: "slider-v", label: "GAIN", row: 0, col: 0 },
+            { paramId: "layer.a.vca.mode", control: "toggle",   label: "GATE", row: 1, col: 0 }
         ],
         footer: { label: "AMPLIFIER" }
     },
@@ -127,8 +127,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "universal-panel",
         grid: { columns: 1, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINLFORATE", control: "knob", label: "RATE", row: 0, col: 0 },
-            { paramId: "LAYERAMAINLFOWAVE", control: "select", label: "WAVE", row: 1, col: 0 }
+            { paramId: "layer.a.lfo.rate", control: "knob", label: "RATE", row: 0, col: 0 },
+            { paramId: "layer.a.lfo.wave", control: "select", label: "WAVE", row: 1, col: 0 }
         ],
         footer: { label: "MODULATOR" }
     },
@@ -140,8 +140,8 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "korg-prophecy-panel",
         grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINSAWON", control: "toggle", label: "SAW", row: 0, col: 0 },
-            { paramId: "LAYERAMAINPULSEON", control: "toggle", label: "PULSE", row: 0, col: 1 }
+            { paramId: "layer.a.osc.saw.on", control: "toggle", label: "SAW", row: 0, col: 0 },
+            { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1 }
         ],
         footer: { label: "MOSS ENGINE" }
     },
@@ -153,9 +153,9 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "korg-ms20-panel",
         grid: { columns: 3, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINCUTOFF",     control: "knob", label: "LPF", row: 0, col: 0 },
-            { paramId: "LAYERAKORGHPFCUTOFF",  control: "knob", label: "HPF", row: 0, col: 1 },
-            { paramId: "LAYERAKORGGRIT",       control: "knob", label: "DRIVE", row: 0, col: 2 }
+            { paramId: "layer.a.cutoff",     control: "knob", label: "LPF", row: 0, col: 0 },
+            { paramId: "layer.a.korg.hpf.cutoff",  control: "knob", label: "HPF", row: 0, col: 1 },
+            { paramId: "layer.a.korg.grit",       control: "knob", label: "DRIVE", row: 0, col: 2 }
         ],
         footer: { label: "VCF (ANALOG)" }
     },
@@ -167,9 +167,9 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "jp-panel",
         grid: { columns: 3, gap: 12 },
         items: [
-            { paramId: "LAYERAMAINJPDETUNE",    control: "knob", label: "DETUNE", row: 0, col: 0 },
-            { paramId: "LAYERAMAINJPSPREAD",    control: "knob", label: "SPREAD", row: 0, col: 1 },
-            { paramId: "LAYERAMAINANALOGDRIFT", control: "knob", label: "DRIFT",  row: 0, col: 2 }
+            { paramId: "layer.a.jp.detune",    control: "knob", label: "DETUNE", row: 0, col: 0 },
+            { paramId: "layer.a.jp.spread",    control: "knob", label: "SPREAD", row: 0, col: 1 },
+            { paramId: "layer.a.drift",        control: "knob", label: "DRIFT",  row: 0, col: 2 }
         ],
         footer: { label: "ROLAND SUPERSAW" }
     },
@@ -181,10 +181,116 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "juno-panel",
         grid: { columns: 2, gap: 12 },
         items: [
-            { paramId: "MASTERCHORUSMODE", control: "select", label: "MODE", row: 0, col: 0 },
-            { paramId: "MASTERCHORUSMIX",  control: "knob",   label: "MIX",  row: 0, col: 1 }
+            { paramId: "global.chorus.mode", control: "select", label: "MODE", row: 0, col: 0 },
+            { paramId: "global.chorus.mix",  control: "knob",   label: "MIX",  row: 0, col: 1 }
         ],
         footer: { label: "BBD EFFECT" }
+    },
+
+    // --- Semantic Generics for Build #158 (Aseptic Upgrade) ---
+    "lfo": {
+        id: "lfo",
+        title: "LFO-MOD",
+        panelClass: "universal-panel",
+        grid: { columns: 2, gap: 12 },
+        items: [
+            { paramId: "layer.a.lfo.rate", control: "knob", label: "RATE", row: 0, col: 0 },
+            { paramId: "layer.a.lfo.wave", control: "select", label: "WAVE", row: 0, col: 1 }
+        ],
+        footer: { label: "MODULATOR" }
+    },
+
+    "eg": {
+        id: "adsr",
+        title: "EG-ADSR",
+        panelClass: "universal-panel",
+        grid: { columns: 2, gap: 12 },
+        items: [
+            { paramId: "layer.a.env.attack",  control: "knob", label: "A", row: 0, col: 0 },
+            { paramId: "layer.a.env.decay",   control: "knob", label: "D", row: 0, col: 1 },
+            { paramId: "layer.a.env.sustain", control: "knob", label: "S", row: 1, col: 0 },
+            { paramId: "layer.a.env.release", control: "knob", label: "R", row: 1, col: 1 }
+        ],
+        footer: { label: "ENV GENERATOR" }
+    },
+
+    "filter": {
+        id: "vcf",
+        title: "VCF-CORE",
+        panelClass: "universal-panel",
+        grid: { columns: 2, gap: 12 },
+        items: [
+            { paramId: "layer.a.cutoff",    control: "knob", label: "FREQ", row: 0, col: 0 },
+            { paramId: "layer.a.resonance", control: "knob", label: "RES",  row: 0, col: 1 }
+        ],
+        footer: { label: "FILTER" }
+    },
+
+    "osc": {
+        id: "osc",
+        title: "OSC-CORE",
+        panelClass: "universal-panel",
+        grid: { columns: 2, gap: 12 },
+        items: [
+            { paramId: "layer.a.osc.saw.on",   control: "toggle", label: "SAW",   row: 0, col: 0 },
+            { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1 }
+        ],
+        footer: { label: "OSCILLATOR" }
+    },
+
+    "amp": {
+        id: "vca",
+        title: "AMP-VCA",
+        panelClass: "universal-panel",
+        grid: { columns: 1, gap: 12 },
+        items: [
+            { paramId: "layer.a.vca.gain", control: "slider-v", label: "GAIN", row: 0, col: 0 }
+        ],
+        footer: { label: "AMPLIFIER" }
+    },
+
+    "matrix": {
+        id: "mod-matrix",
+        title: "MOD MATRIX",
+        panelClass: "matrix-panel",
+        grid: { columns: 1, gap: 0 },
+        items: [
+            { paramId: "global.matrix.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
+        ],
+        footer: { label: "MODULATION HUB" }
+    },
+
+    "trig": {
+        id: "trig",
+        title: "MIDI TRIGGER",
+        panelClass: "utility-panel",
+        grid: { columns: 1, gap: 0 },
+        items: [
+            { paramId: "global.midi.trig", control: "knob", label: "GATE", row: 0, col: 0 }
+        ],
+        footer: { label: "MIDI INPUT" }
+    },
+
+    "mon": {
+        id: "mon",
+        title: "MIDI MONITOR",
+        panelClass: "utility-panel",
+        grid: { columns: 1, gap: 0 },
+        items: [
+            { paramId: "global.midi.mon", control: "telemetry", label: "TRAFFIC", row: 0, col: 0 }
+        ],
+        footer: { label: "RE-TIME ANALYZER" }
+    },
+
+    "osci": {
+        id: "osci",
+        title: "OSCILLOSCOPE",
+        panelClass: "utility-panel",
+        grid: { columns: 1, gap: 0 },
+        items: [
+            { paramId: "global.scope", control: "telemetry", label: "WAVE", row: 0, col: 0 }
+        ],
+        footer: { label: "GLOBAL WAVE" }
     }
 };
 
