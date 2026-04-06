@@ -1,7 +1,7 @@
-#include <catch2/catch_test_macros.hpp>
+﻿#include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include "../Core/Modulation/ModulationGraph.h"
-#include "../Core/Modulation/ModulationRuntime.h"
+#include "../Engine/Modulation/ModulationGraph.h"
+#include "../Engine/Modulation/ModulationRuntime.h"
 #include <iostream>
 
 using namespace Omega::Core::Modulation;
@@ -26,7 +26,7 @@ TEST_CASE("ModulationGraph: Filter Curve Response", "[modgraph][curve]") {
         REQUIRE(result.success);
         auto& rt = *result.runtime;
 
-        // El nodo Curve es el segundo en ser añadido (si no hay otros)
+        // El nodo Curve es el segundo en ser aÃ±adido (si no hay otros)
         // Pero el orden depende del Toposort. Env (0) -> Curve (1) -> Cutoff (2)
         
         // 1. Lineal (exp = 1.0)
@@ -40,7 +40,7 @@ TEST_CASE("ModulationGraph: Filter Curve Response", "[modgraph][curve]") {
         rt.processBlock(1);
         REQUIRE(rt.getSignalValue(rt.getRuntimeNode(2).outputIndex) == 0.25f); // 0.5^2
 
-        // 3. Logarítmico (exp = 0.5)
+        // 3. LogarÃ­tmico (exp = 0.5)
         rt.getRuntimeNode(1).state.raw[0] = 0.5f;
         rt.processBlock(1);
         REQUIRE_THAT(rt.getSignalValue(rt.getRuntimeNode(2).outputIndex), Catch::Matchers::WithinAbs(0.7071f, 0.0001f)); // sqrt(0.5)
@@ -54,7 +54,7 @@ TEST_CASE("ModulationGraph: Filter Curve Response", "[modgraph][curve]") {
         // Configurar Curva Exponencial (x^3 para ver mayor diferencia)
         rt.getRuntimeNode(1).state.raw[0] = 3.0f;
         
-        std::cout << "\n--- Evolución de Curva Exponencial (x^3) ---" << std::endl;
+        std::cout << "\n--- EvoluciÃ³n de Curva Exponencial (x^3) ---" << std::endl;
         for (int i = 0; i <= 10; ++i) {
             float envValue = i / 10.0f;
             rt.setSourceValue(1, envValue); // Simulamos que la env sube
@@ -62,14 +62,14 @@ TEST_CASE("ModulationGraph: Filter Curve Response", "[modgraph][curve]") {
             float cutoffMod = rt.getSignalValue(rt.getRuntimeNode(2).outputIndex);
             std::cout << "Env: " << envValue << " -> Cutoff Mod: " << cutoffMod << std::endl;
             
-            // Verificación: cutoffMod debe ser envValue^3
+            // VerificaciÃ³n: cutoffMod debe ser envValue^3
             REQUIRE_THAT(cutoffMod, Catch::Matchers::WithinAbs(std::pow(envValue, 3.0f), 0.001f));
         }
     }
 
     SECTION("Mathematical Verification") {
-        // Vamos a verificar la lógica de processNode directamente para validar la curva
-        // ya que el compilador actual no mapea 'state.raw[0]' desde la capa lógica aún.
+        // Vamos a verificar la lÃ³gica de processNode directamente para validar la curva
+        // ya que el compilador actual no mapea 'state.raw[0]' desde la capa lÃ³gica aÃºn.
         
         RuntimeNode node;
         node.type = (uint8_t)NodeType::Curve;
@@ -87,9 +87,9 @@ TEST_CASE("ModulationGraph: Filter Curve Response", "[modgraph][curve]") {
         // 0.5^2 = 0.25
         REQUIRE_THAT(rt_test.getSignalValue(1), Catch::Matchers::WithinAbs(0.25f, 0.001f));
 
-        // Caso 2: Logarítmico (exp = 0.5) -> sqrt(x)
+        // Caso 2: LogarÃ­tmico (exp = 0.5) -> sqrt(x)
         node.state.raw[0] = 0.5f;
-        // Re-añadir o modificar el nodo no es trivial en el diseño actual sin reset.
-        // Pero para validación matemática de processNode es suficiente.
+        // Re-aÃ±adir o modificar el nodo no es trivial en el diseÃ±o actual sin reset.
+        // Pero para validaciÃ³n matemÃ¡tica de processNode es suficiente.
     }
 }

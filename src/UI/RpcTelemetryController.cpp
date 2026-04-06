@@ -4,7 +4,8 @@ namespace Omega {
 namespace UI {
 
     juce::var RpcTelemetryController::handleGetTelemetry(const juce::var& requestId, const juce::var& payload) {
-        using namespace Core::Modulation;
+        using namespace Core::Providers;
+        using namespace Core::Input;
         auto indices = payload["indices"];
         auto& hub = ModulationTelemetryHub::getInstance();
         juce::DynamicObject::Ptr results = new juce::DynamicObject();
@@ -36,7 +37,7 @@ namespace UI {
 
                     juce::DynamicObject::Ptr signalObj = new juce::DynamicObject();
                     signalObj->setProperty("history", traceData);
-                    signalObj->setProperty("latest", hub.getLatest(idx));
+                    signalObj->setProperty("latest", (double)hub.getLatest(idx));
                     results->setProperty(idKey, juce::var(signalObj.get()));
                 }
             }
@@ -45,7 +46,7 @@ namespace UI {
     }
 
     juce::var RpcTelemetryController::handleGetTelemetrySources(const juce::var& requestId, const juce::var&) {
-        using namespace Core::Modulation;
+        using namespace Core::Providers;
         juce::Array<juce::var> audioSources;
         juce::Array<juce::var> modSources;
         
@@ -69,7 +70,7 @@ namespace UI {
             { (int)TelemetryIndex::Mod_Pitch,        "Pitch",     "Modulation" }
         };
 
-        for (int i=0; i < sizeof(defs)/sizeof(defs[0]); ++i) {
+        for (int i=0; i < (int)(sizeof(defs)/sizeof(defs[0])); ++i) {
             auto const& d = defs[i];
             juce::DynamicObject::Ptr obj = new juce::DynamicObject();
             obj->setProperty(juce::Identifier("index"), juce::var(d.index));

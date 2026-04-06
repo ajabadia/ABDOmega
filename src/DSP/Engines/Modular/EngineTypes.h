@@ -1,30 +1,6 @@
 #pragma once
 
-namespace Omega::DSP::Engines::Modular {
+#include "../../../Core/Providers/EngineConfigTypes.h"
 
-    enum class FilterType { JunoIR3109, Korg35, JP8080, JPFormant };
-    
-    enum class OscillatorMode { 
-        JunoDco, 
-        JpSuperSaw,
-        ProphecyPluck,
-        ProphecyBrass,
-        ProphecyReed,
-        ProphecyVpm,
-        ProphecyBowed,
-        ProphecyNoiseComb,
-        ProphecyElectricPiano,
-        ProphecyOrgan,
-        JpFeedback,
-        JpDual,
-        KorgMs20Vco,
-        Jp8080Supersaw = JpSuperSaw,
-        None = 99
-    };
-    
-    enum class FilterSlotMode {
-        Standard,
-        ResonantBank
-    };
-
-} // namespace Omega::DSP::Engines::Modular
+// Types are now defined in Core and aliased in EngineConfigTypes.h
+// for the Omega::DSP::Engines::Modular namespace.

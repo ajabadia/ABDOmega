@@ -40,7 +40,6 @@ class OmegaApp {
     private sysexMirror: number[] = new Array(23).fill(0);
 
     private store: MetadataStore | null = null;
-    private moduleManager = new ModuleManager();
     private initialized: boolean = false;
     private keyboard: any;
 
@@ -91,14 +90,6 @@ class OmegaApp {
         // Notify C++ that UI is ready
         if (window.juce && (window as any).juce.uiReady) {
             (window as any).juce.uiReady();
-        }
-        
-        // Force Rack Update - Trigger Emergency Module if nothing is loaded
-        console.log("[OMEGA TS] Forcing initial rack update...");
-        if (this.moduleManager) {
-            this.moduleManager.updateRack({}).then(() => {
-                console.log("[OMEGA TS] Initial Rack Update Finished");
-            });
         }
         
         // Clear "DISCONNECTED" if we have store data
@@ -215,6 +206,12 @@ class OmegaApp {
         console.log("[OMEGA] Handling Menu Action:", action);
         
         switch (action) {
+            case 'new_preset':
+                const presetName = window.prompt("¿Deseas vaciar el rack y crear un nuevo preset? Introduce el nombre:", "Init Preset");
+                if (presetName !== null) {
+                    if (window.juce) window.juce.menuAction('new_preset', presetName);
+                }
+                break;
             case 'about':
                 this.showModal('about-modal');
                 break;
@@ -466,12 +463,42 @@ const app = new OmegaApp();
 window.handleOmegaMessage = (msg: any) => {
     try {
         const payload = typeof msg === 'string' ? JSON.parse(msg) : msg;
-        console.log("[OMEGA TS] Message Received:", payload.type);
+        const type = payload.type || "";
+        const state = payload.payload || payload;
+        
+        console.log("[OMEGA TS] Message Received:", type);
 
-        if (payload.type === "onStateUpdate") {
+        if (type === "onStateUpdate") {
+            // 1. Structural update (e.g. Preset Load)
             const manager = (window as any).moduleManager;
-            if (manager) manager.updateRack(payload.payload || payload);
-        } else if (payload.type === "menuAction") {
+            if (manager) manager.updateRack(state);
+
+            // 2. Reactive Sync
+            if ((window as any).modMatrixInstance) (window as any).modMatrixInstance.onStateUpdate(state);
+            if ((window as any).modulePatchModal) (window as any).modulePatchModal.onStateUpdate(state);
+
+        } else if (type === "onModMatrixUpdate") {
+            // 2. Value update (e.g. Modulation Drag)
+            // Skip updateRack() to avoid heavy DOM rebuilds!
+
+            // Update modulation values in Hub and Modal
+            if ((window as any).modMatrixInstance) {
+                console.log("[OMEGA TS] Syncing Matrix Hub...");
+                (window as any).modMatrixInstance.onStateUpdate(state);
+            }
+            if ((window as any).modulePatchModal) {
+                console.log("[OMEGA TS] Syncing Patch Modal...");
+                (window as any).modulePatchModal.onStateUpdate(state);
+            }
+            
+            // Notify active modules to update their internal gauges/cables
+            const manager = (window as any).moduleManager;
+            if (manager && manager.activeModules) {
+                manager.activeModules.forEach((mod: any) => {
+                    if (mod.onStateUpdate) mod.onStateUpdate(state);
+                });
+            }
+        } else if (type === "menuAction") {
             app.handleMenuAction(payload.action || payload.payload?.action);
         }
     } catch (e) {

@@ -1,0 +1,30 @@
+components:
+  - id: "MIDI-CV-001"
+    name: "MIDI to CV Converter"
+    family: "Utility"
+    engine: "Modular"
+    modelId: "ACE-UTIL-MCV"
+    origin: "ABD OMEGA"
+    status: "active"
+    version: 1
+    tags: ["midi", "cv", "utility", "converter"]
+    parameters:
+      - id: "midiChannel"
+        label: "MIDI Channel"
+        unit: "ch"
+        min: 0
+        max: 16
+        default: 0
+    modulationTargets:
+      - id: "pitch"
+        label: "Pitch (Hz)"
+        unit: "Hz"
+      - id: "trigger"
+        label: "Trigger (Gate)"
+        unit: "bool"
+      - id: "velocity"
+        label: "Velocity"
+        unit: "0..1"
+      - id: "midi"
+        label: "MIDI Stream"
+        unit: "midi"

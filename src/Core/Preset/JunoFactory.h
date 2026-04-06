@@ -331,6 +331,20 @@ namespace Preset {
             l.id = "A";
             l.name = "Prophecy Core";
             l.params.sawOn = true;
+            l.params.cutoff = 2000.0f;
+            l.params.resonance = 0.2f;
+
+            // Added for OMEGA 2.0 Patch Modal verification
+            AceComponent osc;
+            osc.slotName = "OSC 1";
+            osc.componentId = "OSC-VA-001";
+            l.voiceArch.oscillators.push_back(osc);
+
+            AceComponent flt;
+            flt.slotName = "VCF 1";
+            flt.componentId = "FLT-VA-001";
+            l.voiceArch.filters.push_back(flt);
+
             l.voiceArch.lfos.push_back(lfo);
             
             p.addLayer(l);

@@ -55,6 +55,13 @@ export class MetadataStore {
     getGroup(id) {
         return this.groups.get(id);
     }
+    async getModulationMetadata() {
+        // @ts-ignore
+        if (!window.omegaRPC)
+            return { inventory: [], sources: [], targets: [] };
+        // @ts-ignore
+        return await window.omegaRPC.send("getModulationMetadata", {});
+    }
     getVersion() { return this.version; }
     getBuild() { return this.build; }
     getTimestamp() { return this.timestamp; }

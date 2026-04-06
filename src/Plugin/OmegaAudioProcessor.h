@@ -5,26 +5,27 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <atomic>
 #include <memory>
-#include "../DSP/Engines/Modular/VirtualAnalogEngine.h"
+/** [BUILD_FORCE_15] Absolute Aseptic Restoration of OMEGA Processor. **/
+#include "../Engine/Modular/VirtualAnalogEngine.h"
 #include "../Core/Preset/OmegaPreset.h"
 #include "../Core/Preset/PresetRepository.h"
 #include "../Core/Ace/AceCatalog.h"
 #include "../Core/Ace/AceValidator.h"
 #include "../Core/Input/OmegaInput.h"
 #include "../Core/Input/Midi1InputAdapter.h"
-#include "../Core/Service/SystemSettingsManager.h"
-#include "../Core/Service/EngineConfigManager.h"
-#include "../Core/Service/PresetService.h"
+#include "../Core/Providers/SystemSettingsManager.h"
+#include "../Core/Providers/EngineConfigManager.h"
+#include "../Core/Providers/PresetService.h"
 #include "../UI/OmegaUiBridge.h"
 #include "../DSP/FX/Delay.h"
-
 
 namespace Omega::Plugin {
 
     /**
      * @brief Procesador Principal de OMEGA.
-     * [Architecture]: Coordina el motor DSP, el sistema de presets ACE y el grafo de modulación.
+     * [Architecture]: Coordina el motor DSP, el sistema de presets ACE y el grafo de modulaciÃ³n.
      * [AudioThreadSafety]: Renderizado lock-free en processBlock.
+     * [Identity]: Synchronized with Omega::Engine::Modular::VirtualAnalogEngine.
      */
     class OmegaAudioProcessor : public juce::AudioProcessor, private juce::Timer {
     public:
@@ -71,8 +72,8 @@ namespace Omega::Plugin {
         // Global Services
         Core::Service::SystemSettingsManager mSystemSettings;
 
-        // Audio Engine & Input
-        DSP::Engines::Modular::VirtualAnalogEngine mEngine;
+        // Audio Engine & Input (Synchronized namespace)
+        ::Omega::Engine::Modular::VirtualAnalogEngine mEngine;
         Core::Input::OmegaInput mInput;
         
         // State

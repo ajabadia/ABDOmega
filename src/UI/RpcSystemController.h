@@ -1,7 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include "RpcBaseController.h"
-#include "../Core/Service/SystemSettingsManager.h"
+#include "../Core/Providers/SystemSettingsManager.h"
 #include "../Core/Preset/PresetRepository.h"
 
 namespace Omega {

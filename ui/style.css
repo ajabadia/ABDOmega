@@ -10,6 +10,11 @@
     --korg-black: #0d0d0d;
     --korg-silver: #c0c0c0;
     --space-green: #2b3a2a;
+    
+    /* OMEGA 2.0 Modular Signal Colors */
+    --signal-midi: #ca00ff;
+    --signal-cv: #00f2ff;
+    --signal-audio: #39ff14;
 }
 
 body, html {
@@ -1559,4 +1564,263 @@ label.silver {
     font-weight: bold;
     text-align: center;
     padding: 20px 10px;
+}
+
+/* --- POCKET PATCH BAY (MODULE MODAL) --- */
+.module-patch-content {
+    max-width: 900px !important;
+    width: 90%;
+    background: linear-gradient(135deg, #0a0a0a 0%, #111 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,229,255,0.1) !important;
+}
+
+.patch-modal-subtitle {
+    margin-top: -15px;
+    margin-bottom: 25px;
+    font-size: 11px;
+    color: #666;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.patch-bay-layout {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+    min-height: 400px;
+}
+
+.patch-column {
+    flex: 1;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    padding: 15px;
+    border: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-y: auto;
+    max-height: 60vh;
+}
+
+.patch-section-title {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #666;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.patch-port-group {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.patch-port-header {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.05);
+    padding: 8px 12px;
+    gap: 12px;
+}
+
+.patch-port-id {
+    flex: 1;
+    font-family: 'SevenSegment', monospace;
+    font-size: 12px;
+    color: #00e5ff;
+}
+
+.patch-add-btn {
+    background: rgba(0,229,255,0.1);
+    border: 1px solid rgba(0,229,255,0.3);
+    color: #00e5ff;
+    border-radius: 3px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.patch-add-btn:hover {
+    background: #00e5ff;
+    color: #000;
+}
+
+.patch-slot-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 15px;
+    border-top: 1px solid rgba(255,255,255,0.03);
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.patch-selector-container {
+    flex: 1.5;
+}
+
+.patch-selector {
+    background: #000;
+    color: #fff;
+    border: 1px solid #333;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 2px;
+    width: 100%;
+}
+
+.patch-amount-container {
+    flex: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.patch-amount-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: #222;
+    border-radius: 2px;
+    outline: none;
+}
+
+.patch-amount-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00e5ff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0,229,255,0.5);
+}
+
+.patch-amount-value {
+    font-family: 'Consolas', monospace;
+    font-size: 10px;
+    color: #888;
+    min-width: 40px;
+    text-align: right;
+}
+
+.patch-remove-btn {
+    background: none;
+    border: none;
+    color: #444;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 5px;
+    transition: color 0.2s;
+}
+
+.patch-remove-btn:hover {
+    color: #ff5555;
+}
+
+.patch-empty-msg {
+    padding: 10px;
+    font-size: 9px;
+    color: #333;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+.patch-type-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    text-transform: uppercase;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* Signal Types */
+.type-audio { background: #00e5ff; color: #000; }
+.type-cv    { background: #ffff00; color: #000; }
+.type-midi  { background: #ff8c00; color: #000; }
+.type-gate  { background: #ff00ff; color: #000; }
+
+.patch-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.matrix-usage-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.matrix-usage-container label {
+    font-size: 10px;
+    color: #555;
+    font-weight: bold;
+}
+
+.matrix-usage-bar {
+    width: 200px;
+    height: 6px;
+    background: #111;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.usage-fill {
+    height: 100%;
+    background: var(--juno-cyan);
+    transition: width 0.3s ease-out;
+}
+
+#matrix-usage-text {
+    font-size: 10px;
+    color: #666;
+    min-width: 80px;
+}
+
+/* Module Gear Icon */
+.module-patch-icon {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    z-index: 10;
+    transition: all 0.2s;
+    color: #666;
+}
+
+.module-patch-icon:hover {
+    background: rgba(0, 229, 255, 0.1);
+    color: #00e5ff;
+    border-color: #00e5ff;
 }

@@ -48,4 +48,4 @@ namespace Omega::DSP::Engines::Korg::Prophecy {
         }
     };
 
-} // namespace Omega::DSP::Engines::Korg
+} // namespace Omega::DSP::Engines::Korg::Prophecy

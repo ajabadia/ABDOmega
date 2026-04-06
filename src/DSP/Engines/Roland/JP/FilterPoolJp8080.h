@@ -2,28 +2,31 @@
 
 #include <vector>
 #include <cmath>
-#include <numbers>
 #include <array>
 #include <algorithm>
 
-namespace Omega::DSP::Engines::Roland::JP {
+namespace Omega {
+namespace DSP {
+namespace Engines {
+namespace Roland {
+namespace JP {
 
     /**
      * @brief Pool de filtros para la familia JP-808X.
-     * Refinado en Sprint 6: SVF de 12/24dB con saturación no lineal optimizada.
-     * [ID]: FLT-VA-008
+     * Refinado en Build 213: SVF de 12/24dB con saturación no lineal optimizada.
+     * Soporta 6 modos (LP12, BP12, HP12, LP24, BP24, HP24).
      */
     class FilterPoolJp8080 {
     public:
         static constexpr int kMaxVoices = 16;
 
         struct State {
-            float ic1eq[2] = {0.0f, 0.0f}; // Dos etapas para soporte de 24dB
+            float ic1eq[2] = {0.0f, 0.0f}; 
             float ic2eq[2] = {0.0f, 0.0f};
         };
 
     private:
-        // Soft-clipper "Roland-tuned" para preservar la pegada en resonancias altas
+        // Soft-clipper "Roland-tuned"
         inline float softClip(float x) const noexcept {
             if (x > 1.0f) return 1.0f;
             if (x < -1.0f) return -1.0f;
@@ -56,13 +59,16 @@ namespace Omega::DSP::Engines::Roland::JP {
         float process(int v, float sample, float cutoff, float resonance, int mode = 0) {
             auto& s = mStates[v];
             
-            // Warp cutoff para TPT
-            float g = std::tan(static_cast<float>(std::numbers::pi * cutoff / mSampleRate));
+            // Warp cutoff para TPT (Usando PI manual para compatibilidad)
+            const float pi = 3.14159265358979323846f;
+            float g = std::tan(pi * cutoff / static_cast<float>(mSampleRate));
+            
             // Respuesta de resonancia ajustada (exponencial suave para el "grip" de Roland)
             float k = 2.0f * (1.0f - std::pow(resonance, 0.25f)); 
 
-            // Límites de seguridad para evitar explosiones numéricas
-            g = std::clamp(g, 0.0001f, 10.0f);
+            // Límites de seguridad manuales (std::clamp es C++17, pero lo implementamos manual)
+            if (g < 0.0001f) g = 0.0001f;
+            if (g > 10.0f) g = 10.0f;
 
             auto processStage = [&](int stage, float input) -> std::array<float, 3> {
                 float a1 = 1.0f / (1.0f + g * (g + k));
@@ -90,8 +96,8 @@ namespace Omega::DSP::Engines::Roland::JP {
                 return res1[subMode];
             }
 
-            // Para 24dB cascamos dos etapas idénticas
-            auto res2 = processStage(1, res1[0]); 
+            // Para 24dB cascamos las etapas
+            auto res2 = processStage(1, res1[subMode]); 
             return res2[subMode];
         }
 
@@ -100,4 +106,8 @@ namespace Omega::DSP::Engines::Roland::JP {
         std::array<State, kMaxVoices> mStates{};
     };
 
-} // namespace Omega::DSP::Engines::JP
+} // namespace JP
+} // namespace Roland
+} // namespace Engines
+} // namespace DSP
+} // namespace Omega

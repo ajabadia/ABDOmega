@@ -14,7 +14,7 @@ export const ModuleDescriptors = {
             { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1, variant: "juno-red" },
             { paramId: "layer.a.osc.sub.level", control: "slider-v", label: "SUB", row: 1, col: 0 },
             { paramId: "layer.a.osc.noise.level", control: "slider-v", label: "NOISE", row: 1, col: 1 },
-            { paramId: "layer.a.dco.lfo.depth", control: "knob", label: "LFO", row: 2, col: 0 },
+            { paramId: "layer.a.osc.lfo.depth", control: "knob", label: "LFO", row: 2, col: 0 },
             { paramId: "layer.a.osc.pwm.amount", control: "slider-v", label: "PWM", row: 2, col: 1 }
         ],
         footer: { label: "DIGITALLY CONTROLLED OSC" }

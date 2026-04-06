@@ -7,7 +7,7 @@ preset:
     engine: "VirtualAnalog"
     masterGainDb: -3.0
   layers:
-    - id: "A"
+    - id: "layer.a"
       name: "Juno Layer"
       active: true
       gainDb: 0.0

@@ -108,6 +108,9 @@ namespace Core {
         static inline const juce::Identifier via              {"via"};
         static inline const juce::Identifier viaAmount        {"viaAmount"};
         static inline const juce::Identifier active           {"active"};
+        static inline const juce::Identifier gate             {"gate"};
+        static inline const juce::Identifier pitch            {"pitch"};
+        static inline const juce::Identifier sync             {"sync"};
     };
 
 } // namespace Core

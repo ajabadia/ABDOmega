@@ -33,6 +33,7 @@ namespace Preset {
         static OmegaPreset createEmpty() { return OmegaPreset(); }
         static OmegaPreset createDefault();
         static OmegaPreset createDefaultVirtualAnalog();
+        static OmegaPreset createMinimal();
         
         // --- Serialization & Normalization ---
         static bool fromYaml(const std::string& yamlSource, OmegaPreset& outPreset);

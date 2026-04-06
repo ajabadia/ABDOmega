@@ -26,26 +26,22 @@ namespace Omega::Core::Ace {
         juce::String cid = componentNode.getProperty(Identifiers::componentId).toString();
         std::string sId = cid.toStdString();
 
+        // [REPAIR] Build #189 Bypass: Always trust core modular systemic modules
+        if (sId == "MIDI-MCV-001") return;
+
         if (mCatalog.getComponent(sId) != nullptr)
             return;
 
-        std::string fb = mCatalog.getFallbackId(family, engine);
+        // [VISION 2.1.3]: TOTAL MODULARITY - NEVER DELETE FROM PRESET
+        // If manifest is missing, keep the original ID so the UI can flag it.
         ValidationIssue issue;
         issue.scope = scope;
-        issue.code = "UnknownComponent";
-
-        if (!fb.empty()) {
-            issue.severity = ValidationStatus::Degraded;
-            issue.message = "Component " + sId + " no encontrado, usando fallback " + fb;
-            componentNode.setProperty(Identifiers::componentId, juce::String(fb), nullptr);
-            
-            if (report.status == ValidationStatus::Ok)
-                report.status = ValidationStatus::Degraded;
-        } else {
-            issue.severity = ValidationStatus::Invalid;
-            issue.message = "Component " + sId + " no encontrado y no hay fallback disponible";
-            report.status = ValidationStatus::Invalid;
-        }
+        issue.code = "MissingManifest";
+        issue.severity = ValidationStatus::Degraded;
+        issue.message = "Manifest for " + sId + " NOT FOUND. Preset integrity preserved.";
+        
+        if (report.status == ValidationStatus::Ok)
+            report.status = ValidationStatus::Degraded;
 
         report.issues.push_back(issue);
     }

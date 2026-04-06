@@ -16,4 +16,5 @@ target_link_libraries(omega_dsp
     PUBLIC
         juce::juce_dsp
         omega_core
+        omega_engine
 )

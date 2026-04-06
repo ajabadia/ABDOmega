@@ -76,6 +76,10 @@ export class OmegaRPC {
         }
     }
 
+    public async call(type: string, payload: any = {}): Promise<any> {
+        return this.send(type, payload);
+    }
+
     private _getMock(type: string): any {
         // Reduced mock for TS baseline
         if (type === "getState") return { preset: { name: "TS MOCK PATCH" }, params: {} };

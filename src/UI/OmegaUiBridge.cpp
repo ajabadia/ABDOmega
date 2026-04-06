@@ -95,12 +95,13 @@ namespace UI {
         if (type == "getTempo") return mMetadataController->handleGetTempo(requestId, payload);
         if (type == "uiReady") {
             // Proactive Push: Ensure UI is in sync with real engine state immediately
-            // We use the same format as onStateUpdate so ModuleManager handles it.
+            // We use both explicit push and forceRepaint for redundancy during boot.
             juce::DynamicObject::Ptr push = new juce::DynamicObject();
             push->setProperty("type", "onStateUpdate");
             push->setProperty("payload", mPresetController->presetToVar(mPreset));
             notifyUi(juce::var(push.get()));
             
+            forceRepaint();
             return createResponse("UI_READY_ACK", requestId, {});
         }
 
@@ -122,12 +123,41 @@ namespace UI {
 
         // 6. Modulation Matrix 2.0
         if (type == "getModulationMetadata") return mModulationController->handleGetModulationMetadata(requestId, payload);
-        if (type == "updateModMatrixSlot")    return mModulationController->handleUpdateModMatrixSlot(requestId, payload);
+        if (type == "updateModMatrixSlot") {
+            juce::var result = mModulationController->handleUpdateModMatrixSlot(requestId, payload);
+            
+            // Vision Alignment: Broadcast change to ALL UI components immediately
+            // We use 'onModMatrixUpdate' instead of 'onStateUpdate' to avoid heavy rack rebuilds.
+            juce::DynamicObject::Ptr push = new juce::DynamicObject();
+            push->setProperty("type", "onModMatrixUpdate");
+            push->setProperty("payload", mPresetController->presetToVar(mPreset));
+            notifyUi(juce::var(push.get()));
+            
+            return result;
+        }
 
         // 7. Menu Actions & System
         if (type == "menuAction") {
             juce::String action = payload["action"].toString();
             DBG("[OMEGA BRIDGE] menuAction received: " << action);
+            
+            if (action == "new_preset") {
+                DBG("[OMEGA BRIDGE] Loading Minimal Preset (Auto-Heal / New)");
+                
+                juce::String presetName = "Init Preset";
+                if (payload.hasProperty("args") && payload["args"].isArray()) {
+                    auto* arr = payload["args"].getArray();
+                    if (arr->size() > 0) presetName = (*arr)[0].toString();
+                }
+
+                // Force an application-level reload so audio engine updates completely 
+                juce::MessageManager::callAsync([this, presetName]() {
+                    auto p = Core::Preset::OmegaPreset::createMinimal();
+                    p.setName(presetName);
+                    mProcessor->loadPreset(p);
+                });
+                return createResponse("NEW_PRESET_ACK", requestId, {});
+            }
             
             if (action == "exit") {
                 DBG("[OMEGA BRIDGE] Executing System Quit");
@@ -163,6 +193,19 @@ namespace UI {
 
     void OmegaUiBridge::setUiMessageCallback(MessageCallback callback) { mUiCallback = callback; }
     void OmegaUiBridge::setOnLoadCallback(std::function<void(const Core::Preset::OmegaPreset&)> callback) { mOnLoadPreset = callback; }
+
+    void OmegaUiBridge::forceRepaint() {
+        juce::DynamicObject::Ptr push = new juce::DynamicObject();
+        push->setProperty("type", "onStateUpdate");
+        juce::var payload = mPresetController->presetToVar(mPreset);
+        push->setProperty("payload", payload);
+        juce::String jsonStr = juce::JSON::toString(juce::var(push.get()));
+        
+        juce::File dumpFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("OMEGA_PAYLOAD_DUMP.json");
+        dumpFile.replaceWithText(jsonStr);
+        
+        notifyUi(juce::var(push.get()));
+    }
 
 } // namespace UI
 } // namespace Omega

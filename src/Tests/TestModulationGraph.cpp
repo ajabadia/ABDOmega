@@ -1,6 +1,6 @@
-#include <catch2/catch_test_macros.hpp>
-#include "../Core/Modulation/ModulationGraph.h"
-#include "../Core/Modulation/ModulationRuntime.h"
+﻿#include <catch2/catch_test_macros.hpp>
+#include "../Engine/Modulation/ModulationGraph.h"
+#include "../Engine/Modulation/ModulationRuntime.h"
 
 using namespace Omega::Core::Modulation;
 
@@ -33,7 +33,7 @@ TEST_CASE("ModulationGraph Compilation and Runtime", "[modgraph]") {
         REQUIRE(result.success);
         
         // El LFO (id 1) debe ejecutarse antes que el Mix (id 2)
-        // En nuestro código, el outputIndex es el ID por ahora
+        // En nuestro cÃ³digo, el outputIndex es el ID por ahora
         // Solo podemos verificar que el runtime procesa 2 nodos
     }
 }

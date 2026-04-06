@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <juce_audio_basics/juce_audio_basics.h>
 
 namespace Omega {
 namespace DSP {
@@ -18,6 +19,17 @@ namespace FX {
 
         void setSampleRate(double sr) {
             mSampleRate = sr;
+        }
+
+        void prepare(double sr) {
+            setSampleRate(sr);
+            std::fill(mBuffer.begin(), mBuffer.end(), 0.0f);
+            mWritePos = 0;
+        }
+
+        void process(juce::AudioBuffer<float>& buffer, float timeS = 0.5f, float feedback = 0.3f, float mix = 0.2f) {
+            if (buffer.getNumChannels() < 2) return;
+            process(buffer.getWritePointer(0), buffer.getWritePointer(1), buffer.getNumSamples(), timeS, feedback, mix);
         }
 
         void process(float* left, float* right, int numSamples, float timeS, float feedback, float mix) {

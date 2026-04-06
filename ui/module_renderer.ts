@@ -62,6 +62,9 @@ export class ModuleRenderer {
                 <div class="module-grid" style="display:grid; grid-template-columns: repeat(${desc.grid?.columns || 2}, 1fr); gap: ${desc.grid?.gap || 12}px;">
                     ${desc.items.map(item => this.renderItem(item)).join('')}
                 </div>
+                <div class="module-ports" style="padding: 4px 10px; display: flex; flex-wrap: wrap; gap: 6px; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05); min-height: 20px;">
+                    <!-- Active connections will be injected here -->
+                </div>
                 ${this.renderFooter()}
             </div>
         `;
@@ -230,6 +233,60 @@ export class ModuleRenderer {
         const norm = (value - param.min) / ((param.max - param.min) || 1);
         const angle = -135 + (norm * 270);
         marker.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+    }
+
+    public onStateUpdate(state: any): void {
+        if (!this.isInitialized) return;
+        
+        // 1. Update Parameter Values
+        const params = state.parameters || {};
+        this.descriptor.items.forEach(item => {
+            if (params[item.paramId] !== undefined) {
+                this.values[item.paramId] = params[item.paramId];
+                this.updateControlUI(item.paramId, params[item.paramId]);
+            }
+        });
+
+        // 2. Update Port Connections (Frontal Pairs)
+        this.updatePortsUI(state);
+    }
+
+    private updatePortsUI(state: any): void {
+        const portsContainer = this.content.querySelector('.module-ports');
+        if (!portsContainer) return;
+
+        const legacyMatrix = state.preset?.modMatrix || state.modMatrix || [];
+        const voiceChain = state.preset?.voiceChain || state.voiceChain || {};
+        const modularConnections = (voiceChain.CONNECTIONS || []).map((c: any) => ({ ...c, active: true }));
+        
+        const unifiedMatrix = [...legacyMatrix, ...modularConnections];
+        const instanceId = this.descriptor.id;
+        
+        // Find connections where this module is a source or target
+        const activeConnections = unifiedMatrix.filter((s: any) => 
+            s.active && (s.source?.startsWith(instanceId) || s.target?.startsWith(instanceId))
+        );
+
+        if (activeConnections.length === 0) {
+            portsContainer.innerHTML = `<span style="font-size: 8px; color: #333; letter-spacing: 1px;">NO PATCHES</span>`;
+            return;
+        }
+
+        portsContainer.innerHTML = activeConnections.map((s: any) => {
+            const isSource = s.source?.startsWith(instanceId);
+            const localPort = isSource ? s.source.split('.').pop() : s.target.split('.').pop();
+            const remote = isSource ? s.target : s.source;
+            const direction = isSource ? '→' : '←';
+            
+            return `
+                <div class="port-pair" style="display: flex; align-items: center; gap: 4px; font-size: 8px; background: rgba(0,0,0,0.4); padding: 3px 6px; border-radius: 12px; border: 1px solid rgba(0,242,255,0.2); color: #00f2ff; box-shadow: 0 0 5px rgba(0,242,255,0.1);">
+                    <div class="port-led" style="width: 4px; height: 4px; border-radius: 50%; background: #00f2ff; box-shadow: 0 0 4px #00f2ff;"></div>
+                    <span style="font-weight: 900; letter-spacing: 0.5px;">${localPort?.toUpperCase()}</span>
+                    <span style="opacity: 0.5; font-size: 7px;">${direction}</span>
+                    <span style="color: #fff; opacity: 0.8;">${remote?.toUpperCase()}</span>
+                </div>
+            `;
+        }).join('');
     }
 }
 

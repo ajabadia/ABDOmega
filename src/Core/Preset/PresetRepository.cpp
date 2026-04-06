@@ -34,10 +34,28 @@ namespace YAML {
 
 namespace Omega::Core::Preset {
 
+PresetRepository::PresetRepository() {
+    auto docs = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+    mRootPath = docs.getChildFile("OMEGA/Presets").getFullPathName().toStdString();
+}
+
 PresetRepository::PresetRepository(const std::filesystem::path& rootPath)
     : mRootPath(rootPath) {}
 
 PresetRepository::~PresetRepository() {}
+
+OmegaPreset PresetRepository::getActivePreset() const {
+    auto presets = listPresets();
+    if (presets.empty()) {
+        return OmegaPreset::createDefault();
+    }
+    
+    OmegaPreset p;
+    if (loadPreset(presets[0], p)) {
+        return p;
+    }
+    return OmegaPreset::createDefault();
+}
  
 std::vector<std::string> PresetRepository::listPresets() const {
     DBG("[REPO] Listing presets from: " << mRootPath.string());

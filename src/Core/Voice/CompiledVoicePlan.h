@@ -19,6 +19,16 @@ namespace Voice {
         static constexpr uint8_t env(int index)    { return static_cast<uint8_t>(16 + index); }   // 16, 17, ...
         static constexpr uint8_t adsr(int index)   { return static_cast<uint8_t>(32 + index); }   // 32, 33, ...
         
+        // MIDI-to-CV published signals
+        static constexpr uint8_t kMidiToCvPitch    = 60;
+        static constexpr uint8_t kMidiToCvGate     = 61;
+        static constexpr uint8_t kMidiToCvVelocity = 62;
+        static constexpr uint8_t kMidiToCvModWheel  = 63;
+        static constexpr uint8_t kMidiToCvAftertouch = 64;
+        static constexpr uint8_t kMidiToCvPitchBend  = 65;
+        static constexpr uint8_t kMidiToCvTimbre     = 66;
+
+        
         // External / Performance Sources (128-255)
         static constexpr uint8_t kPitchBend       = 128;
         static constexpr uint8_t kModWheel        = 129;
@@ -27,7 +37,11 @@ namespace Voice {
         static constexpr uint8_t kNoteNumber      = 132;
         static constexpr uint8_t kExpression      = 133;
         
+        // Internal Routing (240-254)
+        static constexpr uint8_t kMidiLink        = 250; 
+
         // Common Semantic Aliases
+
         static constexpr uint8_t compiledLfo1()    { return lfo(0); }
         static constexpr uint8_t compiledEnv1Amp() { return adsr(0); }
     };
@@ -75,7 +89,7 @@ namespace Voice {
     struct CompiledVoicePlan {
         static constexpr int kMaxUnits = 16;
         static constexpr int kMaxConnections = 24;
-        static constexpr int kMaxModRoutes = 32;
+        static constexpr int kMaxModRoutes = 64;
         static constexpr int kMaxBuses = 16;
 
         std::array<CompiledUnit, kMaxUnits> units;

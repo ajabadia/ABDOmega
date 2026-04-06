@@ -4,12 +4,14 @@
 #include <vector>
 #include <juce_core/juce_core.h>
 
-namespace Omega::Core::Modulation {
+namespace Omega {
+namespace Core {
+namespace Modulation {
 
     /**
      * @brief Port types for semantic discovery.
      */
-    enum class PortType {
+    enum class ModPortType {
         Audio,      // Audio signals (High-res mono/stereo)
         CV,         // Modulation signals (Bipolar/Unipolar)
         Gate,       // Binary/Trigger signals
@@ -23,7 +25,7 @@ namespace Omega::Core::Modulation {
     struct PortDescriptor {
         std::string id;         // Internal ID (e.g., "pitch_in")
         std::string label;      // UI Label (e.g., "PITCH")
-        PortType type;          // CV, Audio, etc.
+        ModPortType type;       // CV, Audio, etc.
         bool isInput = false;   // Direction
         int telemetryIndex = -1; // Mapping to high-speed buffer (-1 if not visualizable)
     };
@@ -53,4 +55,6 @@ namespace Omega::Core::Modulation {
         }
     };
 
-} // namespace Omega::Core::Modulation
+} // namespace Modulation
+} // namespace Core
+} // namespace Omega

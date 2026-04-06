@@ -26,6 +26,12 @@ namespace Omega::DSP::Engines::Roland::JP {
             }
         }
 
+        void resetVoicePhase(int voiceIndex) noexcept {
+            if (voiceIndex >= 0 && voiceIndex < kMaxVoices) {
+                mOscillators[voiceIndex].resetVoicePhase(voiceIndex);
+            }
+        }
+
         /**
          * @brief Procesa el Supersaw estéreo para una voz específica.
          * @param voiceIndex Índice de la voz (0 a kMaxVoices-1)

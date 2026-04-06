@@ -14,6 +14,8 @@ import { ModuleOscilloscope } from './components/ModuleOscilloscope.js';
 import { ModuleMidiTrigger } from './components/ModuleMidiTrigger.js';
 import { ModuleMidiViewer } from './components/ModuleMidiViewer.js';
 import { ModuleModMatrix } from './components/ModuleModMatrix.js';
+import { ModulePatchModal } from './components/ModulePatchModal.js';
+import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
 // Global instances for legacy bridge compatibility
 window.omegaRPC = rpc;
 window.metadataStore = new MetadataStore();
@@ -25,6 +27,7 @@ window.ModuleOscilloscope = ModuleOscilloscope;
 window.ModuleMidiTrigger = ModuleMidiTrigger;
 window.ModuleMidiViewer = ModuleMidiViewer;
 window.ModuleModMatrix = ModuleModMatrix;
+window.ModuleMidiToCv = ModuleMidiToCv;
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("[OMEGA] Booting Synth UI...");

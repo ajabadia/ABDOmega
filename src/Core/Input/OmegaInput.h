@@ -31,6 +31,7 @@ namespace Input {
     struct InputEvent {
         int sampleOffset = 0;
         InputEventType type = InputEventType::NoteOn;
+        int channel = 0; // 0-based channel index
         
         union Data {
             struct {

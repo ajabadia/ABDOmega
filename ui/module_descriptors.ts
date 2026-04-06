@@ -15,13 +15,14 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         items: [
             { paramId: "layer.a.osc.saw.on",     control: "toggle",   label: "SAW",   row: 0, col: 0, variant: "juno-red" },
             { paramId: "layer.a.osc.pulse.on",   control: "toggle",   label: "PULSE", row: 0, col: 1, variant: "juno-red" },
-            { paramId: "layer.a.osc.sub.level",   control: "slider-v", label: "SUB",   row: 1, col: 0 },
-            { paramId: "layer.a.osc.noise.level",    control: "slider-v", label: "NOISE", row: 1, col: 1 },
-            { paramId: "layer.a.dco.lfo.depth",   control: "knob",     label: "LFO",   row: 2, col: 0 },
-            { paramId: "layer.a.osc.pwm.amount",     control: "slider-v", label: "PWM",   row: 2, col: 1 }
+            { paramId: "layer.a.osc.sub.level",  control: "slider-v", label: "SUB",   row: 1, col: 0 },
+            { paramId: "layer.a.osc.noise.level",control: "slider-v", label: "NOISE", row: 1, col: 1 },
+            { paramId: "layer.a.osc.lfo.depth",   control: "knob",     label: "LFO",   row: 2, col: 0 },
+            { paramId: "layer.a.osc.pwm.amount",  control: "slider-v", label: "PWM",   row: 2, col: 1 }
         ],
         footer: { label: "DIGITALLY CONTROLLED OSC" }
     },
+
 
     // Juno VCF (FLT-VA-001)
     "FLT-VA-001": {
@@ -30,16 +31,17 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         panelClass: "juno-panel",
         grid: { columns: 3, gap: 12 },
         items: [
-            { paramId: "layer.a.cutoff",    control: "knob",     label: "FREQ",  row: 0, col: 0 },
-            { paramId: "layer.a.resonance", control: "knob",     label: "RES",   row: 0, col: 1 },
-            { paramId: "layer.a.vcf.keytrack",       control: "knob",     label: "KEY",   row: 0, col: 2 },
-            { paramId: "layer.a.vcf.env.depth",   control: "knob",     label: "ENV",   row: 1, col: 0 },
-            { paramId: "layer.a.vcf.lfo.depth",   control: "knob",     label: "LFO",   row: 1, col: 1 },
-            { paramId: "layer.a.vcf.env.inv",     control: "toggle",   label: "POL",   row: 1, col: 2, variant: "juno-orange" },
+            { paramId: "layer.a.cutoff",       control: "knob",     label: "FREQ",  row: 0, col: 0 },
+            { paramId: "layer.a.resonance",    control: "knob",     label: "RES",   row: 0, col: 1 },
+            { paramId: "layer.a.vcf.keytrack",  control: "knob",     label: "KEY",   row: 0, col: 2 },
+            { paramId: "layer.a.vcf.env.depth", control: "knob",     label: "ENV",   row: 1, col: 0 },
+            { paramId: "layer.a.vcf.lfo.depth", control: "knob",     label: "LFO",   row: 1, col: 1 },
+            { paramId: "layer.a.vcf.env.inv",   control: "toggle",   label: "POL",   row: 1, col: 2, variant: "juno-orange" },
             { paramId: "layer.a.hpf.pos",       control: "select",   label: "HPF",   row: 2, col: 0, colSpan: 3 }
         ],
         footer: { label: "ANALOG LOW PASS FILTER" }
     },
+
 
     // Space Echo (FX-DL-002)
     "FX-DL-002": {
@@ -93,6 +95,7 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         ],
         footer: { label: "ENV GENERATOR" }
     },
+
     "ENV-ADSR-GEN": {
         id: "adsr",
         title: "EG-ADSR",

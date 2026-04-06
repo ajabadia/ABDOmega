@@ -2,9 +2,9 @@
 
 #include "RpcBaseController.h"
 #include <juce_core/juce_core.h>
-#include "../Core/Modulation/ModulationTelemetryHub.h"
-#include "../Core/Modulation/ModulationTelemetryIndex.h"
-#include "../Core/Modulation/MidiMonitor.h"
+#include "../Core/Providers/ModulationTelemetryHub.h"
+#include "../Core/Providers/ModulationTelemetryIndex.h"
+#include "../Core/Input/MidiMonitor.h"
 
 namespace Omega {
 namespace UI {

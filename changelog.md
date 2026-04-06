@@ -2,6 +2,28 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
  
+## [2.2.0] - 2026-04-06 (Build 260)
+### Added
+- **Aseptic Rack Identity (Phase 22)**:
+    - **Aseptic Normalization**: Purged `OmegaPresetNormalizer` of all hardcoded auxiliary injections. The engine is now 100% data-driven.
+    - **Auto-Heal Session State**: Added validation to `PresetService::deserializePreset` to drop corrupted empty states from standalone session restores.
+    - **Manual Reset UI**: Added "New Preset" under FILE menu with confirmation prompt and custom naming support.
+- **Structural Integrity**:
+    - Removed legacy "empty lower rack" alarm from `module_manager.ts`. OMEGA now supports utility-only setups (Matrix + Trigger) without triggering emergency visuals.
+### Improved
+- **UI/Engine Synchronization**: Optimized `forceRepaint` calls to ensure perfect state parity during boot and manual resets.
+
+## [2.1.0] - 2026-04-06
+### Added
+- **OMEGA 2.0 Modular Stabilization (Phase 18)**:
+    - **Deep Interface Recovery**: Reconciled Core, Engine, and DSP layers with the 2.0 contract.
+    - **Automated ACE Catalog Loading**: Implemented `loadFromDirectory` for component catalogs.
+    - **State Management Hardening**: Added robust YAML serialization to `PresetService`.
+    - **UI Bridge Sync**: Added `forceRepaint` to ensure instant UI/Engine state parity.
+### Fixed
+- **MSVC Regression Restoration**: Fixed `juce::MemoryBlock` API usage and namespace qualification errors.
+- **Master FX Integration**: Sincronized `Delay` DSP with `juce::AudioBuffer` for the master signal path.
+
 ## [2.0.0] - 2026-04-02
 ### Added
 - **OMEGA Semantic Era (Phase 17)**:

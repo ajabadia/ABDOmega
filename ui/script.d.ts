@@ -32,7 +32,6 @@ declare class OmegaApp {
     private currentPatchGlobal;
     private sysexMirror;
     private store;
-    private moduleManager;
     private initialized;
     private keyboard;
     constructor();

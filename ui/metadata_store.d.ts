@@ -34,6 +34,7 @@ export declare class MetadataStore {
     getParam(id: string): ParamDescriptor | undefined;
     getAllParams(): ParamDescriptor[];
     getGroup(id: string): GroupDescriptor | undefined;
+    getModulationMetadata(): Promise<any>;
     getVersion(): string;
     getBuild(): string;
     getTimestamp(): string;

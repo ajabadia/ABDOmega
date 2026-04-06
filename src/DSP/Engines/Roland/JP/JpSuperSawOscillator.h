@@ -21,6 +21,12 @@ namespace Omega::DSP::Engines::Roland::JP {
             for (auto& ph : mPhase) ph = 0.0f;
         }
 
+        void resetVoicePhase(int voiceIdx) noexcept {
+            // Re-randomize or reset phase for "attack punch"
+            // For JP-8000 accurate SuperSaw, side voices often have fixed phase offsets or reset.
+            mPhase.fill(0.0f); 
+        }
+
         /**
          * @brief Procesa un bloque de samples estéreo para esta voz.
          * @param leftBuffer Buffer de salida izquierdo
@@ -69,7 +75,7 @@ namespace Omega::DSP::Engines::Roland::JP {
 
             for (int v = 0; v < 7; ++v) {
                 vPhaseInc[v] = basePhaseInc * (1.0f + detuneRatios[v] * d);
-                float g = (v == 6) ? centerGain : lateralGain;
+                float g = (v == 3) ? centerGain : lateralGain; // Corrected: index 3 is 0.0 offset (Center)
                 vGainsL[v] = g * std::sqrt(1.0f - pans[v]);
                 vGainsR[v] = g * std::sqrt(pans[v]);
             }

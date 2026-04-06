@@ -2,43 +2,60 @@
 
 #include <juce_data_structures/juce_data_structures.h>
 #include "OmegaIdentifiers.h"
+#include <functional>
+#include <string>
 
 namespace Omega {
 namespace Core {
 namespace Preset {
 
     /**
-     * @brief High-integrity normalizer for OMEGA Presets.
-     * In the Current Core 2.0 version, all legacy remapping has been purged as 
-     * project maintains zero-legacy compatibility for non-production environments. 
+     * @brief Logger-Synced Normalizer for OMEGA Build #188.
+     * Redirects traces to the OMEGA_BOOT_LOG.txt via functional injection.
      */
     class OmegaPresetNormalizer {
     public:
         using IDs = Omega::Core::Identifiers;
+        using Logger = std::function<void(const std::string&)>;
 
         /**
-         * @brief Normalizes a ValueTree to adhere to current schema standards.
+         * @brief Normalizes a ValueTree recursively with full tracing.
          */
-        static void normalize(juce::ValueTree& tree) {
+        static void normalize(juce::ValueTree tree, Logger log = nullptr) {
             if (!tree.isValid()) return;
 
-            // Recursive normalization for children
-            for (auto child : tree) {
-                normalize(child);
+            juce::Identifier typeId = tree.getType();
+            juce::String type = typeId.toString();
+            
+            if (log) log("[DEBUG] normalize: visiting node type '" + type.toStdString() + "'");
+
+            // 1. Direct Identifier Match (The most robust way in JUCE)
+            if (typeId == IDs::modMatrix || type == "modMatrix") {
+                normalizeModMatrix(tree, log);
             }
 
-            // Future schema-validation or default-value-filling logic goes here.
+            // 2. Propagate to children
+            for (int i = 0; i < tree.getNumChildren(); ++i) {
+                normalize(tree.getChild(i), log);
+            }
         }
 
     private:
         /**
-         * @brief Internal helper to move properties between identifiers.
+         * @brief Normalizes the Modulation Matrix to exactly 64 slots.
          */
-        static void remap(juce::ValueTree& tree, const juce::Identifier& oldId, const juce::Identifier& newId) {
-            if (tree.hasProperty(oldId)) {
-                auto val = tree.getProperty(oldId);
-                tree.setProperty(newId, val, nullptr);
-                tree.removeProperty(oldId, nullptr);
+        static void normalizeModMatrix(juce::ValueTree matrix, Logger log) {
+            int currentCount = matrix.getNumChildren();
+            if (currentCount < 64) {
+                if (log) log("[REPAIR] Expanding ModMatrix from " + std::to_string(currentCount) + " to 64 slots");
+                for (int i = currentCount; i < 64; ++i) {
+                    juce::ValueTree slot(IDs::slot);
+                    slot.setProperty(IDs::active, false, nullptr);
+                    slot.setProperty(IDs::source, "", nullptr);
+                    slot.setProperty(IDs::target, "", nullptr);
+                    slot.setProperty(IDs::amount, 0.0f, nullptr);
+                    matrix.addChild(slot, -1, nullptr);
+                }
             }
         }
     };

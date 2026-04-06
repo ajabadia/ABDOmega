@@ -1,6 +1,6 @@
 #include "RpcModulationController.h"
 #include <set>
-#include "../Core/Service/SemanticBrokerService.h"
+#include "../Core/Providers/SemanticBrokerService.h"
 
 namespace Omega {
 namespace UI {
@@ -21,28 +21,54 @@ namespace UI {
 
         juce::Array<juce::var> sources;
         juce::Array<juce::var> targets;
+        juce::Array<juce::var> inventoryArr;
+
+        auto typeToStr = [](Core::Modulation::ModPortType t) -> juce::String {
+            switch(t) {
+                case Core::Modulation::ModPortType::Audio: return "AUDIO";
+                case Core::Modulation::ModPortType::CV:    return "CV";
+                case Core::Modulation::ModPortType::Gate:  return "GATE";
+                case Core::Modulation::ModPortType::MIDI:  return "MIDI";
+                default: return "CV";
+            }
+        };
 
         for (const auto& manifest : inventory) {
+            juce::DynamicObject::Ptr mObj = new juce::DynamicObject();
+            mObj->setProperty("instanceId", juce::var(juce::String(manifest.instanceId)));
+            mObj->setProperty("category", juce::var(juce::String(manifest.category)));
+            
+            juce::Array<juce::var> portsArr;
             for (const auto& port : manifest.ports) {
-                juce::DynamicObject::Ptr obj = new juce::DynamicObject();
-                // Format: InstanceID.PortID (e.g., "LFO-1.out")
-                obj->setProperty("id", juce::String(manifest.instanceId + "." + port.id));
-                obj->setProperty("name", juce::String(manifest.instanceId + " " + port.label));
-                obj->setProperty("type", (int)port.type);
-                obj->setProperty("instance", juce::String(manifest.instanceId));
-                obj->setProperty("category", juce::String(manifest.category));
-                obj->setProperty("telemetryIndex", port.telemetryIndex);
+                juce::DynamicObject::Ptr portObj = new juce::DynamicObject();
+                // For the global matrix (flattened)
+                portObj->setProperty("id", juce::var(juce::String(manifest.instanceId + "." + port.id)));
+                portObj->setProperty("name", juce::var(juce::String(manifest.instanceId + " " + port.label)));
+                portObj->setProperty("type", typeToStr(port.type));
+                portObj->setProperty("instance", juce::var(juce::String(manifest.instanceId)));
+                portObj->setProperty("category", juce::var(juce::String(manifest.category)));
+                portObj->setProperty("telemetryIndex", port.telemetryIndex);
+                portObj->setProperty("label", juce::var(juce::String(port.label)));
+                portObj->setProperty("isInput", (bool)port.isInput);
 
-                if (port.isInput) {
-                    targets.add(juce::var(obj.get()));
-                } else {
-                    sources.add(juce::var(obj.get()));
-                }
+                // Nested structure for Patch Modal
+                juce::DynamicObject::Ptr nestPort = new juce::DynamicObject();
+                nestPort->setProperty("id", juce::var(juce::String(port.id)));
+                nestPort->setProperty("label", juce::var(juce::String(port.label)));
+                nestPort->setProperty("type", typeToStr(port.type));
+                nestPort->setProperty("isInput", (bool)port.isInput);
+                portsArr.add(juce::var(nestPort.get()));
+
+                if (port.isInput) targets.add(juce::var(portObj.get()));
+                else sources.add(juce::var(portObj.get()));
             }
+            mObj->setProperty("ports", portsArr);
+            inventoryArr.add(juce::var(mObj.get()));
         }
 
         resp->setProperty("sources", sources);
         resp->setProperty("targets", targets);
+        resp->setProperty("inventory", inventoryArr);
 
         return createResponse("MOD_METADATA_ACK", requestId, {}, juce::var(resp.get()));
     }
@@ -52,7 +78,7 @@ namespace UI {
         juce::String key = payload["key"].toString();
         juce::var value = payload["value"];
 
-        if (slotIdx < 0 || slotIdx >= 32) return createError("MOD_UPDATE_ERR", requestId, "Invalid slot index");
+        if (slotIdx < 0 || slotIdx >= 64) return createError("MOD_UPDATE_ERR", requestId, "Invalid slot index");
 
         auto slot = mPreset.getModSlot(slotIdx);
         

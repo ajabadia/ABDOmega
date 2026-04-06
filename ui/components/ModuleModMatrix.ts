@@ -191,7 +191,13 @@ export class ModuleModMatrix {
         }
 
         const matrixData = this.state?.preset?.modMatrix || [];
-        const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
+        const matrix = Array.isArray(matrixData) ? matrixData : 
+                     (typeof matrixData === 'object' ? Object.values(matrixData) : []);
+        
+        if (matrix.length === 0) {
+            grid.innerHTML = '<div class="placeholder-msg">WAITING FOR CORE STATE...</div>';
+            return;
+        }
         
         // 1. Detect Duplicates
         const seenRoutings = new Set<string>();
@@ -207,19 +213,22 @@ export class ModuleModMatrix {
         let gridHtml = '';
 
         if (this.viewMode === 'compose') {
-            const activeSlots = matrix.map((s: any, i: number) => ({...s, i})).filter((s: any) => s.active || s.source !== '');
+            const activeSlots = matrix.map((s: any, i: number) => ({...s, i}))
+                .filter((s: any) => s.active || (s.source !== '' && s.source !== undefined));
+            
             for (const slot of activeSlots) {
                 gridHtml += this.renderCard(slot, slot.i, duplicates.has(slot.i));
             }
             // Add "ADD MODULATION" Card
             gridHtml += `
                 <div class="matrix-card add-card" id="btn-add-modulation">
-                    <div class="add-icon">+</div>
+                    <div class="add-icon">＋</div>
                     <div class="card-label" style="text-align:center">ADD MODULATION</div>
                 </div>
             `;
         } else {
-            for (let i = 0; i < 32; i++) {
+            // Full 64-slot Overview
+            for (let i = 0; i < 64; i++) {
                 const slot = matrix[i] || { active: false, source: '', target: '', amount: 0, via: '', viaAmount: 0 };
                 gridHtml += this.renderCard(slot, i, duplicates.has(i));
             }
@@ -279,9 +288,9 @@ export class ModuleModMatrix {
     }
 
     private addModulation() {
-        const matrix = this.state?.preset?.modMatrix || [];
-        const firstFree = matrix.findIndex((s: any) => !s.active && s.source === '');
-        if (firstFree !== -1) {
+        const matrix = (this.state?.preset?.modMatrix || []);
+        const firstFree = matrix.findIndex((s: any) => !s.active && (s.source === '' || s.source === undefined));
+        if (firstFree !== -1 && firstFree < 64) {
             this.selectedSlot = firstFree;
             this.renderWorkspace();
             // Optional: show some visual indicator in the inspector

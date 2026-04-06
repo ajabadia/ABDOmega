@@ -78,6 +78,13 @@ export class MetadataStore {
         return this.groups.get(id);
     }
 
+    async getModulationMetadata(): Promise<any> {
+        // @ts-ignore
+        if (!(window as any).omegaRPC) return { inventory: [], sources: [], targets: [] };
+        // @ts-ignore
+        return await (window as any).omegaRPC.send("getModulationMetadata", {});
+    }
+
     getVersion(): string { return this.version; }
     getBuild(): string { return this.build; }
     getTimestamp(): string { return this.timestamp; }

@@ -1,6 +1,6 @@
-#include <catch2/catch_test_macros.hpp>
-#include "../Core/Modulation/ModulationGraph.h"
-#include "../Core/Modulation/ModulationRuntime.h"
+﻿#include <catch2/catch_test_macros.hpp>
+#include "../Engine/Modulation/ModulationGraph.h"
+#include "../Engine/Modulation/ModulationRuntime.h"
 
 using namespace Omega::Core::Modulation;
 

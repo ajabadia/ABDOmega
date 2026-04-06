@@ -42,6 +42,8 @@ export declare class ModuleRenderer {
     setParam(id: string, value: number): void;
     updateControlUI(id: string, value: number): void;
     private _updateKnobVisual;
+    onStateUpdate(state: any): void;
+    private updatePortsUI;
 }
 export default ModuleRenderer;
 //# sourceMappingURL=module_renderer.d.ts.map

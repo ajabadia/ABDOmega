@@ -64,10 +64,16 @@ namespace Preset {
                     juce::ValueTree list(id);
                     for (auto item : val) {
                         if (item.IsMap()) {
-                            // Infers child type from parent (singularized)
-                            juce::String type = id.toString();
-                            if (type.endsWith("s")) type = type.dropLastCharacters(1);
-                            list.addChild(yamlToValueTree(item, juce::Identifier(type.toUpperCase())), -1, nullptr);
+                            // Inferred child type (Build #214: Normalized for Aseptic modularity)
+                            juce::String cat = id.toString();
+                            juce::Identifier childType;
+                            
+                            if (cat == "layers")           childType = IDs::LAYER;
+                            else if (cat == "modMatrix")    childType = IDs::slot;
+                            else if (cat == "visual")      childType = IDs::VISUAL;
+                            else                            childType = IDs::COMPONENT; 
+                            
+                            list.addChild(yamlToValueTree(item, childType), -1, nullptr);
                         }
                     }
                     vt.addChild(list, -1, nullptr);

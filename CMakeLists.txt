@@ -32,6 +32,7 @@ include_directories(JUCE/modules)
 
 # Módulos OMEGA
 add_subdirectory(src/Core)
+add_subdirectory(src/Engine)
 add_subdirectory(src/DSP)
 add_subdirectory(src/Plugin)
 

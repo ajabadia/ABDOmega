@@ -17,8 +17,14 @@ namespace Preset {
  */
 class PresetRepository {
 public:
+    PresetRepository();
     PresetRepository(const std::filesystem::path& rootPath);
     ~PresetRepository();
+    
+    /**
+     * @brief Returns the last active or default preset.
+     */
+    OmegaPreset getActivePreset() const;
     
     std::vector<std::string> listPresets() const;
 

@@ -7,6 +7,8 @@ export declare class ModuleManager {
     private oscilloscopes;
     private midiViewer;
     private lastState;
+    private isRendering;
+    private lastModuleCount;
     constructor();
     private normalizeList;
     updateRack(state: any): Promise<void>;

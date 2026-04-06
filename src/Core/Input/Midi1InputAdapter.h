@@ -20,11 +20,13 @@ namespace Input {
             for (const auto metadata : midiBuffer) {
                 const auto msg = metadata.getMessage();
                 const int sampleOffset = metadata.samplePosition;
-                const int noteId = (msg.getChannel() << 8) | msg.getNoteNumber();
+                const int channel = msg.getChannel();
+                const int noteId = (channel << 8) | msg.getNoteNumber();
 
                 if (msg.isNoteOn()) {
                     InputEvent e;
                     e.sampleOffset = sampleOffset;
+                    e.channel = channel;
                     e.type = InputEventType::NoteOn;
                     e.data.noteOn.noteId = noteId;
                     e.data.noteOn.pitch = (float)msg.getNoteNumber();
@@ -34,6 +36,7 @@ namespace Input {
                 else if (msg.isNoteOff()) {
                     InputEvent e;
                     e.sampleOffset = sampleOffset;
+                    e.channel = channel;
                     e.type = InputEventType::NoteOff;
                     e.data.noteOff.noteId = noteId;
                     e.data.noteOff.releaseVelocity = msg.getFloatVelocity();
@@ -42,6 +45,7 @@ namespace Input {
                 else if (msg.isPitchWheel()) {
                     InputEvent e;
                     e.sampleOffset = sampleOffset;
+                    e.channel = channel;
                     e.type = InputEventType::ChannelExpression;
                     e.data.channel.source = ModSource::PitchBend;
                     e.data.channel.value = ((float)msg.getPitchWheelValue() - 8192.0f) / 8192.0f;
@@ -50,6 +54,7 @@ namespace Input {
                 else if (msg.isAftertouch()) {
                     InputEvent e;
                     e.sampleOffset = sampleOffset;
+                    e.channel = channel;
                     e.type = InputEventType::PerNoteExpression;
                     e.data.perNote.noteId = noteId;
                     e.data.perNote.source = ModSource::NotePressure;
@@ -59,6 +64,7 @@ namespace Input {
                 else if (msg.isChannelPressure()) {
                     InputEvent e;
                     e.sampleOffset = sampleOffset;
+                    e.channel = channel;
                     e.type = InputEventType::ChannelExpression;
                     e.data.channel.source = ModSource::ChannelPressure;
                     e.data.channel.value = (float)msg.getChannelPressureValue() / 127.0f;
@@ -69,6 +75,7 @@ namespace Input {
                     if (source != ModSource::Count) {
                         InputEvent e;
                         e.sampleOffset = sampleOffset;
+                        e.channel = channel;
                         e.type = InputEventType::ChannelExpression;
                         e.data.channel.source = source;
                         e.data.channel.value = (float)msg.getControllerValue() / 127.0f;

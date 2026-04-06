@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <filesystem>
+#include <juce_core/juce_core.h>
 
 namespace Omega::Core::Ace {
 
@@ -60,6 +61,11 @@ namespace Omega::Core::Ace {
          * @brief Crea una instancia cargando desde el directorio de recursos.
          */
         static std::unique_ptr<AceCatalog> createFromResources(const std::filesystem::path& resourcesDir);
+
+        /**
+         * @brief Carga todos los archivos JSON de componentes de un directorio.
+         */
+        bool loadFromDirectory(const juce::File& directory);
 
         void registerComponent(const ComponentInfo& info);
         const ComponentInfo* getComponent(const std::string& id) const;

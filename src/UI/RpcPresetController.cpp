@@ -1,4 +1,5 @@
 #include "RpcPresetController.h"
+#include "../Core/OmegaIdentifiers.h"
 
 namespace Omega {
 namespace UI {
@@ -176,7 +177,7 @@ namespace UI {
         static const std::vector<juce::String> collections = {
             "layers", "oscillators", "filters", "lfos", "envelopes", 
             "amplifiers", "modulators", "fxSlots", "auxiliary", "modGraph",
-            "nodes", "modMatrix"
+            "nodes", "modMatrix", "voiceChain", "NODES", "CONNECTIONS", "NODE", "CONNECTION"
         };
 
         if (std::find(collections.begin(), collections.end(), tag) != collections.end()) {
@@ -187,12 +188,22 @@ namespace UI {
 
         juce::DynamicObject::Ptr obj = new juce::DynamicObject();
         for (int i = 0; i < tree.getNumProperties(); ++i) {
-            auto propName = tree.getPropertyName(i).toString();
-            obj->setProperty(propName, tree.getProperty(propName));
+            auto propName = tree.getPropertyName(i);
+            auto val = tree.getProperty(propName);
+            
+            // [VISION 2.1.3/2.1.4]: Standard Alignment (toFixed crash fix)
+            if (propName == Core::Identifiers::amount && val.isVoid()) {
+                obj->setProperty(propName, 0.0);
+            } else if (propName == Core::Identifiers::viaAmount && val.isVoid()) {
+                obj->setProperty(propName, 1.0);
+            } else {
+                obj->setProperty(propName, val);
+            }
         }
+
         for (int i = 0; i < tree.getNumChildren(); ++i) {
             auto child = tree.getChild(i);
-            auto childTag = child.getType().toString();
+            auto childTag = child.getType();
             obj->setProperty(childTag, valueTreeToVar(child));
         }
         return juce::var(obj.get());

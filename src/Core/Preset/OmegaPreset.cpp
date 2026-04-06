@@ -22,11 +22,16 @@ namespace Preset {
     }
 
     OmegaPreset OmegaPreset::createDefault() {
-        return OmegaPreset(OmegaPresetDefaults::createDefaultPreset());
+        // [VISION 2.1.8]: Global Minimal Default to eliminate hardcoded bloat.
+        return createMinimal();
     }
 
     OmegaPreset OmegaPreset::createDefaultVirtualAnalog() {
         return createDefault(); // Currently synonymous
+    }
+
+    OmegaPreset OmegaPreset::createMinimal() {
+        return OmegaPreset(OmegaPresetDefaults::createMinimalPreset());
     }
 
     bool OmegaPreset::fromYaml(const std::string& yamlSource, OmegaPreset& out) {

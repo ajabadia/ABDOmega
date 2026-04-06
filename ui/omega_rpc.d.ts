@@ -13,6 +13,7 @@ export declare class OmegaRPC {
     constructor();
     private _waitForBackend;
     send(type: string, payload?: any): Promise<any>;
+    call(type: string, payload?: any): Promise<any>;
     private _getMock;
     getState(): Promise<any>;
     getMetadata(): Promise<any>;

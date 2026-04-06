@@ -50,6 +50,11 @@ namespace Omega {
          */
         void setUiMessageCallback(MessageCallback callback);
         void setOnLoadCallback(std::function<void(const Core::Preset::OmegaPreset&)> callback);
+        
+        /**
+         * @brief Fuerza un repintado de la UI notificando un cambio de estado completo.
+         */
+        void forceRepaint();
 
     private:
         // --- APVTS Listener ---

@@ -254,6 +254,42 @@
             </div>
         </div>
     </div>
+    
+    <!-- Universal Module Patching Modal (Pocket Patchbay) -->
+    <div id="module-patch-modal" class="modal">
+        <div class="modal-content module-patch-content">
+            <span class="close-btn" onclick="document.getElementById('module-patch-modal').style.display='none'">&times;</span>
+            <h2 class="modal-title" id="patch-modal-title">MODULE PATCH BAY</h2>
+            <p class="patch-modal-subtitle" id="patch-modal-subtitle">Focused routing for [MODULE ID]</p>
+
+            <div class="patch-bay-layout">
+                <!-- Left: INPUTS (Targets) -->
+                <div class="patch-column">
+                    <h3 class="patch-section-title">INPUTS <span class="label-tiny">(TARGETS)</span></h3>
+                    <div id="patch-inputs-list" class="patch-list">
+                        <!-- Port rows injected here -->
+                    </div>
+                </div>
+
+                <!-- Right: OUTPUTS (Sources) -->
+                <div class="patch-column">
+                    <h3 class="patch-section-title">OUTPUTS <span class="label-tiny">(SOURCES)</span></h3>
+                    <div id="patch-outputs-list" class="patch-list">
+                        <!-- Port rows injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="patch-modal-footer">
+                <div class="matrix-usage-container">
+                    <label>MATRIX USAGE</label>
+                    <div class="matrix-usage-bar"><div id="matrix-usage-fill" class="usage-fill" style="width: 0%;"></div></div>
+                    <span id="matrix-usage-text">0/32 Slots</span>
+                </div>
+                <button class="modal-ok-btn" onclick="document.getElementById('module-patch-modal').style.display='none'">DONE</button>
+            </div>
+        </div>
+    </div>
 
     <div id="debug-console" style="display: none;">
         <div class="debug-console-header">

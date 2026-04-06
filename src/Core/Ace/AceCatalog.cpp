@@ -136,4 +136,78 @@ namespace Omega::Core::Ace {
         return family + "|" + engine;
     }
 
+    bool AceCatalog::loadFromDirectory(const juce::File& directory) {
+        if (!directory.isDirectory()) return false;
+        
+        juce::Logger::writeToLog("ACE: Scanning Resource Directory: " + directory.getFullPathName());
+
+        juce::DirectoryIterator it(directory, true, "*.yaml");
+        bool anyFound = false;
+
+        while (it.next()) {
+            auto path = it.getFile().getFullPathName().toStdString();
+            try {
+                YAML::Node doc = YAML::LoadFile(path);
+                std::vector<YAML::Node> componentNodes;
+                if (doc["components"]) {
+                    for (auto c : doc["components"]) componentNodes.push_back(c);
+                } else if (doc["id"]) {
+                    componentNodes.push_back(doc);
+                }
+
+                for (auto const& c : componentNodes) {
+                    ComponentInfo info;
+                    info.id = c["id"].as<std::string>();
+                    info.name = c["name"].as<std::string>();
+                    info.family = c["family"].as<std::string>();
+                    info.engine = c["engine"].as<std::string>();
+                    info.modelId = c["modelId"].as<std::string>();
+                    info.origin = c["origin"] ? c["origin"].as<std::string>() : "Unknown";
+                    info.status = c["status"] ? c["status"].as<std::string>() : "active";
+                    info.version = c["version"] ? c["version"].as<int>() : 1;
+                    
+                    if (c["tags"]) {
+                        for (auto t : c["tags"]) info.tags.push_back(t.as<std::string>());
+                    }
+
+                    if (c["parameters"]) {
+                        for (auto p : c["parameters"]) {
+                            ParameterDef pdef;
+                            pdef.id = p["id"].as<std::string>();
+                            pdef.label = p["label"].as<std::string>();
+                            pdef.unit = p["unit"] ? p["unit"].as<std::string>() : "";
+                            pdef.min = p["min"] ? p["min"].as<float>() : 0.0f;
+                            pdef.max = p["max"] ? p["max"].as<float>() : 1.0f;
+                            
+                            if (p["default"]) pdef.defaultValue = p["default"].as<float>();
+                            else if (p["defaultValue"]) pdef.defaultValue = p["defaultValue"].as<float>();
+                            else pdef.defaultValue = pdef.min;
+
+                            info.parameters.push_back(pdef);
+                            info.defaultParams[pdef.id] = pdef.defaultValue;
+                        }
+                    }
+                    
+                    if (c["modulationTargets"]) {
+                        for (auto mt : c["modulationTargets"]) {
+                            ModTarget target;
+                            target.id = mt["id"].as<std::string>();
+                            target.label = mt["label"] ? mt["label"].as<std::string>() : target.id;
+                            target.unit = mt["unit"] ? mt["unit"].as<std::string>() : "";
+                            info.modulationTargets.push_back(target);
+                        }
+                    }
+
+                    registerComponent(info);
+                    anyFound = true;
+                }
+            } catch (...) {
+                // Skip invalid files
+            }
+        }
+
+        if (anyFound) buildFallbacks();
+        return anyFound;
+    }
+
 } // namespace Omega::Core::Ace

@@ -11,6 +11,9 @@ export class ModuleManager {
     private midiViewer: any = null;
     private lastState: any = null;
 
+    private isRendering: boolean = false;
+    private lastModuleCount: number = 0;
+
     constructor() {
         this.activeModules = new Map();
         this.oscilloscopes = [];
@@ -28,147 +31,158 @@ export class ModuleManager {
     }
 
     async updateRack(state: any): Promise<void> {
-        console.log("[ModuleManager] updateRack called with state:", state ? "READY" : "NULL/EMPTY");
-        const safeState = state || {};
-        this.lastState = safeState;
-        
-        // @ts-ignore
-        await window.metadataStore.ensureLoaded();
-        
-        const upper = document.getElementById('upper-rack');
-        const lower = document.getElementById('lower-rack');
-        if (upper) upper.innerHTML = '';
-        if (lower) lower.innerHTML = '';
-        
-        this.activeModules.clear();
-        this.oscilloscopes = [];
-        this.midiViewer = null;
+        if (this.isRendering) return;
+        this.isRendering = true;
 
-        // --- FORENSIC LOGGING for Build #155 ---
-        if (safeState.preset) {
-            console.log("[ModuleManager] --- FORENSIC PRESET DUMP ---");
-            console.log(JSON.stringify(safeState.preset, null, 2));
-            console.log("[ModuleManager] ---------------------------");
-        }
-        
-        // 2. Core (Lower) - Dynamic from Preset Architecture
-        const layerList = this.normalizeList(state.preset && state.preset.layers);
-        const layerData = layerList.length > 0 ? layerList[0] : null;
-
-        // 1. Auxiliary (Direct from Preset)
-        const auxData = safeState.preset?.auxiliary || safeState.auxiliary || [];
-        const aux = this.normalizeList(auxData);
-        
-        if (aux.length === 0 && (!layerList || layerList.length === 0) && (!safeState.mainChain || safeState.mainChain.length === 0)) {
-            console.log("[ModuleManager] No modules found. Injecting emergency module.");
-            await this.injectEmergencyModule();
-            return;
-        }
-        
-        for (const item of aux) {
-            const rawType = (item.type || item.componentId || item.COMPONENTID || "").toLowerCase();
-            const id = item.id || item.slotName || item.SLOTNAME || "AUX";
-            const label = item.label || item.name || item.slotName || id;
+        try {
+            console.log("[ModuleManager] updateRack checking stability...");
+            const safeState = state || {};
+            this.lastState = safeState;
             
-            // Rack Selection
-            let targetRack = upper;
-            let rackType = "aux";
-            const rackValue = item.rack !== undefined ? item.rack : (item.params && item.params.rack);
+            // @ts-ignore
+            await window.metadataStore.ensureLoaded();
             
-            if (rackValue === "lower" || rackValue === 1 || rackValue === 1.0 || rackValue === "main") {
-                targetRack = lower;
-                rackType = "main";
-            }
+            const upper = document.getElementById('upper-rack');
+            const lower = document.getElementById('lower-rack');
+            
+            // --- Structure Guard for Build #172 ---
+            const layerList = this.normalizeList(state.preset && state.preset.layers);
+            const auxList = this.normalizeList(safeState.preset?.auxiliary || safeState.auxiliary || []);
+            const mainChain = this.normalizeList(safeState.mainChain || []);
+            const totalModules = layerList.length + auxList.length + mainChain.length;
 
-            if (rawType.includes("trig")) {
-                await this.addModule(id, "ModuleMidiTrigger", rackType, targetRack, { label });
-            } else if (rawType.includes("mon")) {
-                await this.addModule(id, "ModuleMidiViewer", rackType, targetRack, { label });
-            } else if (rawType.includes("osc") || rawType.includes("scope") || rawType.includes("osci")) {
-                const theme = (label.toLowerCase().includes("mod") || label.toLowerCase().includes("ctrl")) ? "MOD" : "AUDIO";
-                await this.addModule(id, "ModuleOscilloscope", rackType, targetRack, { 
-                    label, 
-                    theme,
-                    signalIndex: item.signalIndex !== undefined ? item.signalIndex : (item.params?.signalIndex || 32)
+            if (totalModules === this.lastModuleCount && totalModules > 0) {
+                console.log("[ModuleManager] Structure stable. Skipping full re-render, notifying active instances.");
+                this.activeModules.forEach(mod => {
+                    if (mod.onStateUpdate) mod.onStateUpdate(state);
                 });
-            } else if (rawType.includes("matrix") || rawType.includes("modmatrix")) {
-                await this.addModule(id, "ModuleModMatrix", rackType, targetRack, { label });
+                return;
             }
-        }
 
-        if (layerData) {
-            const arch = layerData.voiceArch || layerData.architecture || {};
-            const chain = layerData.voiceChain;
-            const layer = "A";
+            this.lastModuleCount = totalModules;
+            console.log(`[ModuleManager] Structural change detected (${totalModules} modules). Rebuilding racks...`);
             
-            if (chain && chain.nodes && chain.nodes.length > 0) {
-                // --- Voice Architecture 2.0 (Graph Nodes) ---
-                console.log("[ModuleManager] Rendering VoiceChain 2.0 graph...");
-                const nodes = this.normalizeList(chain.nodes);
-                for (const node of nodes) {
-                    const componentId = node.componentId || node.id;
-                    const descriptor = (ModuleDescriptors as any)[componentId];
-                    
-                    // Map Role to CSS type
-                    let type = "core";
-                    const role = (node.role || "").toLowerCase();
-                    if (role === "source" || role === "oscillator") type = "osc";
-                    else if (role === "filter") type = "filter";
-                    else if (role === "amplifier") type = "amp";
-                    else if (role === "envelope" || role === "controller") type = "env";
-                    else if (role === "lfo") type = "lfo";
-                    else if (role === "fx") type = "fx";
-                    else if (role === "auxiliary" || role === "utility") type = "aux";
+            if (upper) upper.innerHTML = '';
+            if (lower) lower.innerHTML = '';
+            
+            this.activeModules.clear();
+            this.oscilloscopes = [];
+            this.midiViewer = null;
 
-                    if (descriptor && lower) {
-                        await this.addModule(node.nodeId || node.id || componentId, "ModuleRenderer", type, lower, { 
-                            descriptor, componentId, layer, group: "MAIN" 
-                        });
-                    } else if (lower) {
-                        await this.addPlaceholder(node.nodeId || node.id || componentId, type, lower, componentId);
-                    }
+            // 1. Core (Lower) - Dynamic from Preset Architecture
+            const layerData = layerList.length > 0 ? layerList[0] : null;
+
+            // 2. Auxiliary (Direct from Preset)
+            const aux = auxList;
+            
+            if (aux.length === 0 && (!layerList || layerList.length === 0) && mainChain.length === 0) {
+                console.log("[ModuleManager] No modules found. Injecting emergency module.");
+                await this.injectEmergencyModule();
+                return;
+            }
+            
+            for (const item of aux) {
+                const rawType = (item.type || item.componentId || item.COMPONENTID || "").toLowerCase();
+                const id = item.id || item.slotName || item.SLOTNAME || "AUX";
+                const label = item.label || item.name || item.slotName || id;
+                
+                let targetRack = upper;
+                let rackType = "aux";
+                const rackValue = item.rack !== undefined ? item.rack : (item.params && item.params.rack);
+                
+                if (rackValue === "lower" || rackValue === 1 || rackValue === 1.0 || rackValue === "main") {
+                    targetRack = lower;
+                    rackType = "main";
                 }
-            } else if (arch) {
-                // --- Legacy Voice Architecture (Category Lists) ---
-                const categories = [
-                    { list: this.normalizeList(arch.oscillators || arch.oscillatorList).concat(this.normalizeList(state.preset?.oscillators)), type: "osc" },
-                    { list: this.normalizeList(arch.filters     || arch.filterList).concat(this.normalizeList(state.preset?.filters)), type: "filter" },
-                    { list: this.normalizeList(arch.envelopes   || arch.envelopeList).concat(this.normalizeList(state.preset?.envelopes)), type: "env" },
-                    { list: this.normalizeList(arch.amplifiers  || arch.amplifierList).concat(this.normalizeList(state.preset?.amplifiers)), type: "amp" },
-                    { list: this.normalizeList(arch.lfos        || arch.lfoList).concat(this.normalizeList(state.preset?.lfos)), type: "lfo" },
-                    { list: this.normalizeList(arch.fxSlots     || arch.fxList).concat(this.normalizeList(state.preset?.fxSlots)), type: "fx" }
-                ];
 
-                for (const cat of categories) {
-                    if (!cat.list || cat.list.length === 0) continue;
+                if (rawType.includes("trig")) {
+                    await this.addModule(id, "ModuleMidiTrigger", rackType, targetRack, { label });
+                } else if (rawType.includes("mon")) {
+                    await this.addModule(id, "ModuleMidiViewer", rackType, targetRack, { label });
+                } else if (rawType.includes("osc") || rawType.includes("scope") || rawType.includes("osci")) {
+                    const theme = (label.toLowerCase().includes("mod") || label.toLowerCase().includes("ctrl")) ? "MOD" : "AUDIO";
+                    await this.addModule(id, "ModuleOscilloscope", rackType, targetRack, { 
+                        label, 
+                        theme,
+                        signalIndex: item.signalIndex !== undefined ? item.signalIndex : (item.params?.signalIndex || 32)
+                    });
+                } else if (rawType.includes("matrix") || rawType.includes("modmatrix")) {
+                    await this.addModule(id, "ModuleModMatrix", rackType, targetRack, { label });
+                } else if (rawType.includes("miditocv") || rawType.includes("mcv") || rawType.includes("midi-cv") || rawType.includes("converter")) {
+                    await this.addModule(id, "ModuleMidiToCv", rackType, targetRack, { label });
+                }
+            }
 
-                    for (const item of cat.list) {
-                        const componentId = item.componentId || item.id || item.type;
-                        const descriptor = this.resolveDescriptor(item);
-                        const layer = "A";
+            if (layerData) {
+                const arch = layerData.voiceArch || layerData.architecture || {};
+                const chain = layerData.voiceChain;
+                const layer = "A";
+                
+                if (chain && chain.nodes && chain.nodes.length > 0) {
+                    const nodes = this.normalizeList(chain.nodes);
+                    for (const node of nodes) {
+                        const componentId = node.componentId || node.id;
+                        const descriptor = (ModuleDescriptors as any)[componentId];
+                        
+                        let type = "core";
+                        const role = (node.role || "").toLowerCase();
+                        if (role === "source" || role === "oscillator") type = "osc";
+                        else if (role === "filter") type = "filter";
+                        else if (role === "amplifier") type = "amp";
+                        else if (role === "envelope" || role === "controller") type = "env";
+                        else if (role === "lfo") type = "lfo";
+                        else if (role === "fx") type = "fx";
+                        else if (role === "auxiliary" || role === "utility") type = "aux";
 
                         if (descriptor && lower) {
-                            await this.addModule(item.slotName || componentId, "ModuleRenderer", cat.type, lower, { 
+                            await this.addModule(node.nodeId || node.id || componentId, "ModuleRenderer", type, lower, { 
                                 descriptor, componentId, layer, group: "MAIN" 
                             });
                         } else if (lower) {
-                            await this.addPlaceholder(item.slotName || componentId, cat.type, lower, componentId);
+                            await this.addPlaceholder(node.nodeId || node.id || componentId, type, lower, componentId);
+                        }
+                    }
+                } else if (arch) {
+                    const categories = [
+                        { list: this.normalizeList(arch.oscillators || arch.oscillatorList), type: "osc" },
+                        { list: this.normalizeList(arch.filters     || arch.filterList), type: "filter" },
+                        { list: this.normalizeList(arch.envelopes   || arch.envelopeList), type: "env" },
+                        { list: this.normalizeList(arch.amplifiers  || arch.amplifierList), type: "amp" },
+                        { list: this.normalizeList(arch.lfos        || arch.lfoList), type: "lfo" },
+                        { list: this.normalizeList(arch.fxSlots     || arch.fxList), type: "fx" }
+                    ];
+
+                    for (const cat of categories) {
+                        if (!cat.list || cat.list.length === 0) continue;
+
+                        for (const item of cat.list) {
+                            const componentId = item.componentId || item.id || item.type;
+                            const descriptor = this.resolveDescriptor(item);
+                            const layer = "A";
+
+                            if (descriptor && lower) {
+                                await this.addModule(item.slotName || componentId, "ModuleRenderer", cat.type, lower, { 
+                                    descriptor, componentId, layer, group: "MAIN" 
+                                });
+                            } else if (lower) {
+                                await this.addPlaceholder(item.slotName || componentId, cat.type, lower, componentId);
+                            }
                         }
                     }
                 }
             }
-        }
-        
-        // Emergency Check: if no modules were rendered, show a trigger anyway
-        if (lower && lower.children.length === 0) {
-            console.warn("[ModuleManager] Rack empty. Injecting Emergency Trigger.");
-            await this.injectEmergencyModule();
-        }
+            
+            // [VISION 2.1.8 - Aseptic Architecture] We no longer assume an empty lower rack is an emergency. 
+            // The Minimal Preset purposely leaves the lower rack empty. The top-level aux/layer checks handle true empty states.
 
-        // Final Sync
-        this.activeModules.forEach(mod => {
-            if (mod.onStateUpdate) mod.onStateUpdate(state);
-        });
+            this.activeModules.forEach(mod => {
+                if (mod.onStateUpdate) mod.onStateUpdate(state);
+            });
+        } catch (e) {
+            console.error("[ModuleManager] Error during rack update:", e);
+        } finally {
+            this.isRendering = false;
+        }
     }
 
     private async addPlaceholder(id: string, type: string, container: HTMLElement | null, componentId: string): Promise<void> {
@@ -186,9 +200,27 @@ export class ModuleManager {
     }
 
     private async injectEmergencyModule(): Promise<void> {
-        console.log("[ModuleManager] Injecting Emergency Trigger Module...");
+        console.log("[ModuleManager] Injecting Emergency Mirror Alert...");
+        const upper = document.getElementById('upper-rack');
         const lower = document.getElementById('lower-rack');
-        await this.addModule("EMERGENCY_TRIG", "ModuleMidiTrigger", "main", lower, { label: "Emergency Trigger" });
+        
+        // --- Structural Purge (Aseptic 2.1.9) ---
+        if (upper) upper.innerHTML = '';
+        if (lower) lower.innerHTML = '';
+
+        const descriptor = (ModuleDescriptors as any)["ERR-EMPTY-001"];
+        
+        // 1. Mirror - Upper Alert
+        await this.addModule("EMERGENCY_SYSTEM_UPPER", "ModuleEmergency", "aux", upper, { 
+            label: "SYSTEM MONITOR",
+            descriptor: descriptor 
+        });
+
+        // 2. Main - Lower Guard
+        await this.addModule("EMERGENCY_SYSTEM_LOWER", "ModuleEmergency", "main", lower, { 
+            label: "ENGINE GUARD",
+            descriptor: descriptor 
+        });
     }
 
     private async addModule(id: string, className: string, type: string, container: HTMLElement | null, options: any = {}): Promise<void> {
@@ -201,6 +233,17 @@ export class ModuleManager {
         const header = document.createElement('div');
         header.className = 'module-header';
         header.innerText = options.label || options.descriptor?.title || id;
+        
+        // Add Patch Settings Icon
+        const patchIcon = document.createElement('div');
+        patchIcon.className = 'module-patch-icon';
+        patchIcon.innerHTML = '⚙️';
+        patchIcon.title = 'Patch Module';
+        patchIcon.onclick = (e) => {
+            e.stopPropagation();
+            document.dispatchEvent(new CustomEvent('patch-request', { detail: { instanceId: id } }));
+        };
+        header.appendChild(patchIcon);
         el.appendChild(header);
         
         const content = document.createElement('div');
