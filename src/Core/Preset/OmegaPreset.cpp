@@ -190,15 +190,15 @@ namespace Preset {
         visual.addChild(OmegaPresetDefaults::createDefaultVisual().getChildWithName(IDs::scope).createCopy(), -1, nullptr);
     }
 
-    // --- Modulation Matrix 2.0 ---
-    int OmegaPreset::getNumModSlots() const {
-        return mState.getChildWithName(IDs::modMatrix).getNumChildren();
+    // --- Patchbay-Matrix (Hyper-ACE) ---
+    int OmegaPreset::getNumPatchbaySlots() const {
+        return mState.getChildWithName(IDs::patchbayMatrix).getNumChildren();
     }
 
-    ModMatrixSlot OmegaPreset::getModSlot(int index) const {
-        auto matrix = mState.getChildWithName(IDs::modMatrix);
+    PatchbayMatrixSlot OmegaPreset::getPatchbaySlot(int index) const {
+        auto matrix = mState.getChildWithName(IDs::patchbayMatrix);
         auto s = matrix.getChild(index);
-        ModMatrixSlot slot;
+        PatchbayMatrixSlot slot;
         if (s.isValid()) {
             slot.source = s[IDs::source].toString().toStdString();
             slot.target = s[IDs::target].toString().toStdString();
@@ -210,8 +210,8 @@ namespace Preset {
         return slot;
     }
 
-    void OmegaPreset::setModSlot(int index, const ModMatrixSlot& slot) {
-        auto matrix = mState.getOrCreateChildWithName(IDs::modMatrix, nullptr);
+    void OmegaPreset::setPatchbaySlot(int index, const PatchbayMatrixSlot& slot) {
+        auto matrix = mState.getOrCreateChildWithName(IDs::patchbayMatrix, nullptr);
         auto s = matrix.getChild(index);
         if (!s.isValid()) {
             s = juce::ValueTree(IDs::slot);
@@ -225,9 +225,9 @@ namespace Preset {
         s.setProperty(IDs::active, slot.active, nullptr);
     }
 
-    void OmegaPreset::clearModMatrix() {
-        mState.removeChild(mState.getChildWithName(IDs::modMatrix), nullptr);
-        mState.getOrCreateChildWithName(IDs::modMatrix, nullptr);
+    void OmegaPreset::clearPatchbayMatrix() {
+        mState.removeChild(mState.getChildWithName(IDs::patchbayMatrix), nullptr);
+        mState.getOrCreateChildWithName(IDs::patchbayMatrix, nullptr);
     }
 
 } // namespace Preset

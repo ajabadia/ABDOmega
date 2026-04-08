@@ -38,8 +38,15 @@ namespace Modulation {
         std::string instanceId;     // Unique in rack (e.g., "LFO-1")
         std::string modelId;        // Model reference (e.g., "LFO-STD-01")
         std::string category;       // Family (LFO, OSC, ENV, TRIG, etc.)
+        std::string status;         // Lifecycle (active, bypass, loading, etc.)
+        std::string author;         // Plugin author (OMEGA, 3rd Party, User)
         
         std::vector<PortDescriptor> ports;
+
+        
+        // Hyper-ACE UI Metadata
+        std::string uiLayout;     // Grid configuration (JSON)
+        std::string style;        // Theme class
 
         // Helpers to filter ports
         std::vector<PortDescriptor> getInputs() const {

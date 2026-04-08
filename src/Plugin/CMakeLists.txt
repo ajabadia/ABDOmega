@@ -40,6 +40,7 @@ target_link_libraries(omega_plugin
         omega_core
         omega_engine
         omega_dsp
+        vmlib
 )
 
 target_compile_definitions(omega_plugin

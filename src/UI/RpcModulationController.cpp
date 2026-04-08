@@ -38,6 +38,14 @@ namespace UI {
             mObj->setProperty("instanceId", juce::var(juce::String(manifest.instanceId)));
             mObj->setProperty("category", juce::var(juce::String(manifest.category)));
             
+            // Hyper-ACE UI Metadata
+            if (!manifest.uiLayout.empty()) {
+                mObj->setProperty("uiLayout", juce::JSON::parse(manifest.uiLayout));
+            }
+            if (!manifest.style.empty()) {
+                mObj->setProperty("style", juce::String(manifest.style));
+            }
+
             juce::Array<juce::var> portsArr;
             for (const auto& port : manifest.ports) {
                 juce::DynamicObject::Ptr portObj = new juce::DynamicObject();
@@ -73,14 +81,14 @@ namespace UI {
         return createResponse("MOD_METADATA_ACK", requestId, {}, juce::var(resp.get()));
     }
 
-    juce::var RpcModulationController::handleUpdateModMatrixSlot(const juce::var& requestId, const juce::var& payload) {
+    juce::var RpcModulationController::handleUpdatePatchbayMatrixSlot(const juce::var& requestId, const juce::var& payload) {
         int slotIdx = (int)payload["slot"];
         juce::String key = payload["key"].toString();
         juce::var value = payload["value"];
 
-        if (slotIdx < 0 || slotIdx >= 64) return createError("MOD_UPDATE_ERR", requestId, "Invalid slot index");
+        if (slotIdx < 0 || slotIdx >= 64) return createError("PATCHBAY_UPDATE_ERR", requestId, "Invalid slot index");
 
-        auto slot = mPreset.getModSlot(slotIdx);
+        auto slot = mPreset.getPatchbaySlot(slotIdx);
         
         if (key == "source") slot.source = value.toString().toStdString();
         else if (key == "target") slot.target = value.toString().toStdString();
@@ -94,9 +102,9 @@ namespace UI {
             slot.active = !slot.source.empty() && !slot.target.empty();
         }
 
-        mPreset.setModSlot(slotIdx, slot);
+        mPreset.setPatchbaySlot(slotIdx, slot);
 
-        return createResponse("MOD_UPDATE_ACK", requestId, {});
+        return createResponse("PATCHBAY_UPDATE_ACK", requestId, {});
     }
 
 } // namespace UI

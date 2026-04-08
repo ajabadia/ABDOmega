@@ -6,3 +6,6 @@ files:
   - ace_env_lfo_fx_basic.yaml
   - ace_fx_dl_roland.yaml
   - utility.yaml
+  - system.yaml
+  - juno_dco.yaml
+  - midi_in.yaml

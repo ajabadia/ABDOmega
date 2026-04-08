@@ -5,6 +5,7 @@
 export class MetadataStore {
     parameters = new Map();
     groups = new Map();
+    inventory = [];
     isLoaded = false;
     version = "1.0.0";
     build = "0";
@@ -60,7 +61,13 @@ export class MetadataStore {
         if (!window.omegaRPC)
             return { inventory: [], sources: [], targets: [] };
         // @ts-ignore
-        return await window.omegaRPC.send("getModulationMetadata", {});
+        const res = await window.omegaRPC.send("getModulationMetadata", {});
+        if (res && res.inventory)
+            this.inventory = res.inventory;
+        return res;
+    }
+    getInventoryItem(id) {
+        return this.inventory.find(m => m.instanceId === id || m.id === id);
     }
     getVersion() { return this.version; }
     getBuild() { return this.build; }

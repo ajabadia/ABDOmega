@@ -47,7 +47,9 @@ namespace Service {
 
         void scanLegacyRack(const juce::ValueTree& state);
         void scanDynamicNodes(const juce::ValueTree& state);
+        void scanWasmPlugins();
         void addStandardMidiSources();
+
 
         std::map<std::string, Modulation::ModuleManifest> mInventory;
         Ace::AceCatalog* mCatalog = nullptr;

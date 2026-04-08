@@ -231,12 +231,22 @@ export const ModuleDescriptors = {
         footer: { label: "AMPLIFIER" }
     },
     "matrix": {
-        id: "mod-matrix",
-        title: "MOD MATRIX",
+        id: "patchbay-matrix",
+        title: "PATCHBAY MATRIX",
         panelClass: "matrix-panel",
         grid: { columns: 1, gap: 0 },
         items: [
-            { paramId: "global.matrix.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
+            { paramId: "global.patchbay.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
+        ],
+        footer: { label: "MODULATION HUB" }
+    },
+    "patchbay": {
+        id: "patchbay-matrix",
+        title: "PATCHBAY MATRIX",
+        panelClass: "matrix-panel",
+        grid: { columns: 1, gap: 0 },
+        items: [
+            { paramId: "global.patchbay.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
         ],
         footer: { label: "MODULATION HUB" }
     },
@@ -249,6 +259,27 @@ export const ModuleDescriptors = {
             { paramId: "global.midi.trig", control: "knob", label: "GATE", row: 0, col: 0 }
         ],
         footer: { label: "MIDI INPUT" }
+    },
+    // Aseptic Technical IDs (Build 286+)
+    "MIDI-IN-001": {
+        id: "midi-in",
+        title: "MIDI INPUT",
+        panelClass: "utility-panel",
+        grid: { columns: 1, gap: 10 },
+        items: [
+            { paramId: "global.midi.activity", control: "telemetry", label: "ACTIVITY", row: 0, col: 0 }
+        ],
+        footer: { label: "WASM MIDI CORE" }
+    },
+    "MIDI-MON-001": {
+        id: "midi-mon",
+        title: "MIDI MONITOR",
+        panelClass: "utility-panel",
+        grid: { columns: 1, gap: 0 },
+        items: [
+            { paramId: "global.midi.mon", control: "telemetry", label: "TRAFFIC", row: 0, col: 0 }
+        ],
+        footer: { label: "RE-TIME ANALYZER" }
     },
     "mon": {
         id: "mon",

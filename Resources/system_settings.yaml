@@ -41,3 +41,12 @@ settings:
       0: "Auto (Detect)"
       1: "MIDI 1.0 Heritage"
       2: "MIDI 2.0 Expressive"
+
+  - id: maxPatchbaySlots
+    label: "Max Patchbay Slots"
+    tooltip: "Total number of modulation slots available in the Patchbay-Matrix. Increasing this may slightly impact CPU during preset compilation."
+    defaultValue: 8
+    minValue: 4
+    maxValue: 64
+    isInteger: true
+    category: "ENGINE"

@@ -15,7 +15,7 @@ namespace UI {
         RpcModulationController(Core::Preset::OmegaPreset& preset) : mPreset(preset) {}
 
         juce::var handleGetModulationMetadata(const juce::var& requestId, const juce::var& payload);
-        juce::var handleUpdateModMatrixSlot(const juce::var& requestId, const juce::var& payload);
+        juce::var handleUpdatePatchbayMatrixSlot(const juce::var& requestId, const juce::var& payload);
 
     private:
         Core::Preset::OmegaPreset& mPreset;

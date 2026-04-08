@@ -8,6 +8,7 @@
 
 #include "../../Core/Voice/CompiledVoicePlan.h"
 #include "VoiceState.h"
+#include "../../Core/Wasm/WasmModuleService.h"
 #include "../../DSP/Core/Modulation/EnvelopeMultiStage.h"
 #include "../../DSP/Engines/Roland/Juno/OscillatorPoolJunoDco.h"
 #include "../../DSP/Engines/Roland/Juno/FilterPoolJunoIr3109.h"
@@ -29,6 +30,7 @@ namespace Voice {
         float rawOsc = 0.0f;
         float rawFilter = 0.0f;
         float envLevel = 0.0f;
+        float midiActivity = 0.0f;
     };
 
     /**
@@ -120,12 +122,20 @@ namespace Voice {
             };
 
             // 2. Execute Graph (Execution Order from Compiler)
-            float inputSum = 0.0f;
-
+            // VA 2.1: NO SERIAL SUMMATION. Every unit reads from a specific bus and writes to another.
             for (int i = 0; i < plan.unitCount; ++i) {
                 const auto& unitIndex = plan.executionOrder[i];
                 const auto& unit = plan.units[unitIndex];
                 float unitOut = 0.0f;
+
+                // Resolve Input Bus (Default to 0 - the global input sum/oscillator output)
+                // In VA 2.1 we'll look for connections that target this unit.
+                float currentInput = 0.0f;
+                for (int cIdx = 0; cIdx < plan.connectionCount; ++cIdx) {
+                    if (plan.connections[cIdx].toUnit == unitIndex) {
+                        currentInput += state.buses[plan.connections[cIdx].fromUnit % 16]; 
+                    }
+                }
 
                 switch (unit.implementationId) {
                     case 101: // Juno DCO
@@ -138,14 +148,13 @@ namespace Voice {
                     {
                         if (state.triggerRequested) { pools.jpOsc.resetVoicePhase(voiceIdx); }
                         
-                        float pitchMod = getModulationOffset(idPitch);
-                        float freq = state.frequencyHz * std::pow(2.0f, pitchMod / 1200.0f);
                         float detune = getModulatedParam(unitIndex, "detune");
                         float spread = getModulatedParam(unitIndex, "spread");
                         float gain = getModulatedParam(unitIndex, "gain");
                         
                         float left[1] = { 0.0f }, right[1] = { 0.0f };
-                        pools.jpOsc.processStereo(voiceIdx, left, right, 1, freq, detune, spread, gain);
+                        // Note: currentInput can be used as FM or Sync source in the future
+                        pools.jpOsc.processStereo(voiceIdx, left, right, 1, state.frequencyHz, detune, spread, gain);
                         unitOut = (left[0] + right[0]) * 0.5f; 
                         snapshot.rawOsc = unitOut;
                         break;
@@ -155,7 +164,7 @@ namespace Voice {
                         float cutoff = getModulatedParam(unitIndex, "cutoff");
                         float resonance = getModulatedParam(unitIndex, "resonance");
                         pools.junoFlt.setVoiceParams(voiceIdx, cutoff, resonance);
-                        unitOut = pools.junoFlt.process(voiceIdx, inputSum);
+                        unitOut = pools.junoFlt.process(voiceIdx, currentInput);
                         snapshot.rawFilter = unitOut;
                         break;
                     }
@@ -164,31 +173,78 @@ namespace Voice {
                         float cutoff = getModulatedParam(unitIndex, "cutoff");
                         float resonance = getModulatedParam(unitIndex, "resonance");
                         pools.korgFlt.setVoiceParams(voiceIdx, cutoff, resonance, 20.0f, 0.0f, 1.0f);
-                        unitOut = pools.korgFlt.process(voiceIdx, inputSum);
+                        unitOut = pools.korgFlt.process(voiceIdx, currentInput);
                         break;
                     }
                     case 203: // JP-8080 Filter (SVF)
                     {
-                        float cutoffMod = getModulationOffset(idCutoff);
                         float res = getModulatedParam(unitIndex, "resonance");
                         int mode = static_cast<int>(getModulatedParam(unitIndex, "mode"));
-                        unitOut = pools.jpFlt.process(voiceIdx, inputSum, state.frequencyHz + cutoffMod, res, mode);
+                        unitOut = pools.jpFlt.process(voiceIdx, currentInput, state.frequencyHz, res, mode);
                         snapshot.rawFilter = unitOut;
                         break; 
                     }
-                    case 301: // VCA (Sidechain-able)
+                    case 301: // VCA
                     {
                         float gain = getModulatedParam(unitIndex, "gain");
-                        unitOut = inputSum * gain * state.ampEnvelope; 
+                        unitOut = currentInput * gain * state.ampEnvelope; 
+                        break;
+                    }
+                    /* DEPRECATED NATIVE MIDI (VA 2.1.W Migration)
+                    case 501: // MIDI IN Bridge (WASM Paradigm)
+                    {
+                        // 1. Forward external MIDI to the modular buffer (POD Mockup)
+                        // In a real WASM host, this would invoke the WASM bridge.
+                        uint8_t status = state.modularMidi[0];
+                        
+                        // 2. Publish activity to telemetry for the UI LED
+                        snapshot.midiActivity = (status > 0) ? 1.0f : 0.0f;
+                        unitOut = 0.0f; 
+                        break;
+                    }
+                    case 601: // MIDI to CV Converter
+                    {
+                        uint8_t status = state.modularMidi[0];
+                        uint8_t data1  = state.modularMidi[1];
+                        uint8_t data2  = state.modularMidi[2];
+                        
+                        if ((status & 0xF0) == 0x90 && data2 > 0) {
+                            state.frequencyHz = 440.0f * pow(2.0f, (data1 - 69) / 12.0f);
+                            state.velocity = data2 / 127.0f;
+                            state.triggerRequested = true;
+                        }
+                        
+                        unitOut = 0.0f;
+                        break;
+                    }
+                    */
+                    default:
+                    {
+                        // Dynamic WASM Unit Support (VA 2.1.W)
+                        // Threshold lowered to 500 to include fundamental MIDI plugins
+                        if (unit.implementationId >= 500) {
+                            auto& wasm = Wasm::WasmModuleService::getInstance();
+                            // Pass currentInput as the first float in the buffer (mock-up)
+                            float ioBuffer[1] = { currentInput };
+                            wasm.process(voiceIdx, unit.implementationId, ioBuffer, 1);
+                            unitOut = ioBuffer[0];
+                        }
                         break;
                     }
                 }
-                inputSum = unitOut; 
+                
+                // Final Write to internal bus for this unit
+                state.buses[unitIndex % 16] = unitOut;
             }
 
-            // 3. Final Output Routing
-            outL = inputSum;
-            outR = inputSum;
+            // 3. Final Output Routing (VA 2.1: Use the last active unit or explicit master out)
+            // By convention, the last unit in execution order that produces audio is the output.
+            if (plan.unitCount > 0) {
+                float lastOut = state.buses[plan.executionOrder[plan.unitCount - 1] % 16];
+                outL = lastOut;
+                outR = lastOut;
+            }
+
 
             // Trigger will be cleared by the engine at the end of the block processing
         }

@@ -1,93 +1,21 @@
-name: "INITIAL PATCH"
+# OMEGA Era 4: Agnostic Initial State
+name: "Clean Slate"
 author: "OMEGA"
-engine: "VirtualAnalog"
-masterGainDb: -3.0
+version: 1.0
+
+# Layer configuration (Vaciado de parámetros y módulos legacy)
 layers:
-  - id: "layer.a"
-    name: "Main Layer"
-    params:
-      cutoff: 2000.0
-      resonance: 0.2
-      attack: 10.0
-      decay: 100.0
-      sustain: 0.8
-      release: 500.0
-      sawOn: true
-      pulseOn: true
-      vcaGateMode: false
-    voiceArch:
-      oscillators:
-        - id: "osc.1"
-          slotName: "OSC 1"
-          componentId: "OSC-VA-001"
-          slotType: "osc"
-      filters:
-        - id: "flt.1"
-          slotName: "VCF 1"
-          componentId: "FLT-VA-001"
-          slotType: "flt"
-      envelopes:
-        - id: "env.1"
-          slotName: "ENV 1"
-          componentId: "EG-STANDARD-001"
-          slotType: "eg"
-      amplifiers:
-        - id: "vca.1"
-          slotName: "VCA 1"
-          componentId: "VCA-STANDARD-001"
-          slotType: "amp"
-auxiliary:
-  - id: "trig.1"
-    slotName: "MIDI TRIGGER"
-    componentId: "MIDI-TRIGGER-001"
-    slotType: "trig"
-  - id: "mon.1"
-    slotName: "MIDI MONITOR"
-    componentId: "MIDI-MON"
-    slotType: "mon"
-  - id: "scope.1"
-    slotName: "GLOBAL WAVE"
-    componentId: "OSCILLOSCOPE"
-    slotType: "osci"
-    params:
-      rack: 0.0
-  - id: "mcv.1"
-    slotName: "MIDI TO CV"
-    componentId: "MIDI-MCV-001"
-    slotType: "mcv"
-  - id: "matrix.1"
-    slotName: "MOD MATRIX"
-    componentId: "MOD-MATRIX-001"
-    slotType: "matrix"
-modMatrix:
-  - active: true
-    source: "trig.1.midi"
-    target: "mcv.1.midi"
-    amount: 1.0
-  - active: true
-    source: "mcv.1.pitch"
-    target: "osc.1.pitch"
-    amount: 1.0
-  - active: true
-    source: "mcv.1.gate"
-    target: "env.1.gate"
-    amount: 1.0
-  - active: true
-    source: "mcv.1.vel"
-    target: "vca.1.gain"
-    amount: 0.8
-  - active: true
-    source: "trig.1.midi"
-    target: "mon.1.midi"
-    amount: 1.0
+  - id: "layer.0"
+    name: "Main"
+    modules: []
+
+# El Patchbay nace sin conexiones persistentes de usuario
+patchbay:
+  connections: []
+
+# Configuración visual por defecto
 visual:
   scope:
-    followsPreset: true
-    mode: "PRESET"
-    currentContext: "audio"
-    freeze: false
+    mode: "AUDIO"
     audio:
-      viewMode: "SOURCE_A"
       sourceA: "MASTER_OUT"
-      timebase: 0.5
-      scale: 1.0

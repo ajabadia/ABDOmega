@@ -14,7 +14,7 @@ import { ModuleRenderer } from './module_renderer.js';
 import { ModuleOscilloscope } from './components/ModuleOscilloscope.js';
 import { ModuleMidiTrigger } from './components/ModuleMidiTrigger.js';
 import { ModuleMidiViewer } from './components/ModuleMidiViewer.js';
-import { ModuleModMatrix } from './components/ModuleModMatrix.js';
+import { ModulePatchbayMatrix } from './components/ModulePatchbayMatrix.js';
 import { ModulePatchModal } from './components/ModulePatchModal.js';
 import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
 
@@ -28,7 +28,7 @@ import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
 (window as any).ModuleOscilloscope = ModuleOscilloscope;
 (window as any).ModuleMidiTrigger = ModuleMidiTrigger;
 (window as any).ModuleMidiViewer = ModuleMidiViewer;
-(window as any).ModuleModMatrix = ModuleModMatrix;
+(window as any).ModulePatchbayMatrix = ModulePatchbayMatrix;
 (window as any).ModuleMidiToCv = ModuleMidiToCv;
 
 // Initialize App
@@ -57,6 +57,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         await Preferences.init();
         await PresetBrowser.init();
+        
+        // Initialize Global Patchbay Hub
+        const matrixHub = new ModulePatchbayMatrix();
+        (window as any).patchbayHub = matrixHub;
+
+        // Bind Matrix Trigger Buttons
+        const matrixBtn = document.getElementById('btn-global-matrix');
+        if (matrixBtn) matrixBtn.onclick = () => matrixHub.toggleWorkspace(true);
+        
+        const matrixMenuLink = document.getElementById('menu-matrix');
+        if (matrixMenuLink) matrixMenuLink.onclick = () => matrixHub.toggleWorkspace(true);
+
     } catch (e) {
         console.error("[OMEGA] Component init failed:", e);
     }
@@ -64,4 +76,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 4. Boot App Logic
     console.log("[OMEGA] Calling app.init()...");
     app.init();
+
+    // Global State Forwarding for the Matrix Hub
+    window.addEventListener('omega:stateUpdate', (e: any) => {
+        if ((window as any).patchbayHub) (window as any).patchbayHub.onStateUpdate(e.detail);
+        if ((window as any).modulePatchModal) (window as any).modulePatchModal.onStateUpdate(e.detail);
+    });
 });

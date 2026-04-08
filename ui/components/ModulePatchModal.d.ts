@@ -12,9 +12,11 @@ export declare class ModulePatchModal {
     private usageText;
     private currentInstanceId;
     private inventory;
-    private modMatrix;
+    private patchbayMatrix;
+    private maxSlots;
     constructor();
     private init;
+    private syncMaxSlots;
     private ensureElements;
     open(instanceId: string): Promise<void>;
     refresh(): Promise<void>;

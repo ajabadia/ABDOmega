@@ -30,8 +30,8 @@ namespace Preset {
             if (log) log("[DEBUG] normalize: visiting node type '" + type.toStdString() + "'");
 
             // 1. Direct Identifier Match (The most robust way in JUCE)
-            if (typeId == IDs::modMatrix || type == "modMatrix") {
-                normalizeModMatrix(tree, log);
+            if (typeId == IDs::patchbayMatrix || type == "patchbayMatrix") {
+                normalizePatchbayMatrix(tree, log);
             }
 
             // 2. Propagate to children
@@ -42,12 +42,12 @@ namespace Preset {
 
     private:
         /**
-         * @brief Normalizes the Modulation Matrix to exactly 64 slots.
+         * @brief Normalizes the Patchbay Matrix to exactly 64 slots.
          */
-        static void normalizeModMatrix(juce::ValueTree matrix, Logger log) {
+        static void normalizePatchbayMatrix(juce::ValueTree matrix, Logger log) {
             int currentCount = matrix.getNumChildren();
             if (currentCount < 64) {
-                if (log) log("[REPAIR] Expanding ModMatrix from " + std::to_string(currentCount) + " to 64 slots");
+                if (log) log("[REPAIR] Expanding PatchbayMatrix from " + std::to_string(currentCount) + " to 64 slots");
                 for (int i = currentCount; i < 64; ++i) {
                     juce::ValueTree slot(IDs::slot);
                     slot.setProperty(IDs::active, false, nullptr);

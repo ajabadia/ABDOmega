@@ -61,6 +61,10 @@ namespace Voice {
         // Modular Buses (Batch 2: 16 float accumulation slots)
         float buses[16] = { 0.0f };
 
+        // Modular MIDI Bus (VA 2.1.W WASM Bridge)
+        // [Byte0: Status, Byte1: Data1, Byte2: Data2, Byte3: Meta/Channel]
+        uint8_t modularMidi[4] = { 0, 0, 0, 0 };
+
         // Modulation Signal Space (Case 401: ADSR, LFO outputs)
         float modSignals[64] = { 0.0f };
         

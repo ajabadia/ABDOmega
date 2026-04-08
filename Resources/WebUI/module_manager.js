@@ -1,32 +1,60 @@
 /**
  * OMEGA Module Manager
- * Handles dynamic instantiation of Eurorack modules.
+ * Handles dynamic instantiation of Eurorack modules based on ACE manifests.
  */
 class ModuleManager {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.activeModules = new Map();
+        
+        // Component ID to JS Class Mapping
+        this.factoryMap = {
+            'PATCHBAY-MATRIX-001': 'ModuleMatrix',
+            'OSC-VA-001': 'ModuleJunoDCO',
+            'VCF-JUNO-001': 'ModuleJunoVCF',
+            'OSC-PM-001': 'ModuleJP',
+            'VCF-KORG-001': 'ModuleKorg',
+            'FX-ECHO-001': 'ModuleSpaceEcho'
+        };
     }
 
-    async updateRack(state) {
-        console.log("[ModuleMgr] Updating Rack with state:", state);
+    async updateRack(data) {
+        const state = data.preset || data;
+        console.log("[ModuleMgr] Updating Rack with dynamic state:", state);
         
-        this.container.innerHTML = ''; // Clear rack
+        this.container.innerHTML = ''; 
         this.activeModules.clear();
         
-        // Populate full rack
-        this.addModule("DCO", "ModuleJunoDCO", "osc");
-        this.addModule("VCF", "ModuleJunoVCF", "filter");
-        this.addModule("JP", "ModuleJP", "filter");
-        this.addModule("KORG", "ModuleKorg", "filter");
-        this.addModule("FX", "ModuleSpaceEcho", "fx");
+        // 1. Render Auxiliary Modules (System / Global)
+        if (state.auxiliary && Array.isArray(state.auxiliary)) {
+            state.auxiliary.forEach(comp => {
+                this.instantiateComponent(comp, "aux");
+            });
+        }
         
-        // Initialize modules with state
+        // 2. Render Voice Nodes (Generation / Audio)
+        if (state.layers && state.layers[0] && state.layers[0].voiceChain && state.layers[0].voiceChain.NODES) {
+            const nodes = state.layers[0].voiceChain.NODES;
+            nodes.forEach(node => {
+                this.instantiateComponent(node, "rack");
+            });
+        }
+        
+        // Initialize modules with full state
         for (const mod of this.activeModules.values()) {
             if (mod.onStateUpdate) {
-                mod.onStateUpdate(state);
+                mod.onStateUpdate(data);
             }
         }
+    }
+
+    instantiateComponent(comp, type) {
+        const componentId = comp.componentId;
+        const instanceId = comp.nodeId || comp.id || componentId;
+        const className = this.factoryMap[componentId] || 'ModuleGeneric';
+        
+        console.log(`[ModuleMgr] Creating ${instanceId} (${componentId}) as ${className}`);
+        this.addModule(instanceId, className, type);
     }
 
     addModule(id, className, type) {
@@ -36,7 +64,7 @@ class ModuleManager {
         
         const header = document.createElement('div');
         header.className = 'module-header';
-        header.innerText = id;
+        header.innerText = id.replace('_', ' ').toUpperCase();
         el.appendChild(header);
         
         const content = document.createElement('div');
@@ -45,10 +73,11 @@ class ModuleManager {
         
         this.container.appendChild(el);
         
-        // Instantiate logic (if exists as a class)
         if (window[className]) {
             const instance = new window[className](el, content);
             this.activeModules.set(id, instance);
+        } else {
+            content.innerHTML = `<div class="p-4 text-xs text-gray-500">MISSING UI: ${className}</div>`;
         }
     }
 }

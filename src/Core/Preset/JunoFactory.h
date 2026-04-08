@@ -318,7 +318,7 @@ namespace Preset {
             p.addModulator(lfo);
 
             // Modulation Matrix 2.0 (Barely active)
-            juce::ValueTree mdata(Omega::Core::Identifiers::modMatrix);
+            juce::ValueTree mdata(Omega::Core::Identifiers::patchbayMatrix);
             for (int i = 0; i < 32; ++i) {
                 juce::ValueTree s(Omega::Core::Identifiers::slot);
                 s.setProperty(Omega::Core::Identifiers::active, false, nullptr);

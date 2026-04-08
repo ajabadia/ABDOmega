@@ -39,12 +39,13 @@ export class ModuleRenderer {
         `;
     }
     renderItem(item) {
+        const id = item.paramId || item.source;
         // @ts-ignore
-        const param = window.metadataStore.getParam(item.paramId);
-        if (!param)
-            return `<!-- Param ${item.paramId} not found -->`;
+        const param = item.paramId ? window.metadataStore.getParam(item.paramId) : null;
         const style = `grid-row: ${item.row + 1}; grid-column: ${item.col + 1}${item.colSpan ? ` / span ${item.colSpan}` : ''};`;
-        const label = item.label || param.name;
+        const label = item.label || (param ? param.name : (item.source || ""));
+        if (!param && !item.source)
+            return `<!-- Item missing paramId or source -->`;
         switch (item.control) {
             case 'knob':
                 return `
@@ -69,13 +70,30 @@ export class ModuleRenderer {
                         <button class="sq ${item.variant || 'juno-red'}" data-param="${param.id}"></button>
                     </div>
                 `;
+            case 'select':
+                return `
+                    <div class="control-group" style="${style}">
+                        <label>${label}</label>
+                        <select class="selector-control" data-param="${param.id}">
+                            ${param.options ? param.options.map((o) => `<option value="${o.value}">${o.label}</option>`).join('') : '<option value="0">DEFAULT</option>'}
+                        </select>
+                    </div>
+                `;
             case 'telemetry':
                 return `
-                    <div class="control-group telemetry-container" style="${style}" data-param="${param.id}">
+                    <div class="control-group telemetry-container" style="${style}" data-source="${item.source || item.paramId}">
                         <label>${label}</label>
                         <div class="telemetry-display" style="height:40px; background:#000; border: 1px solid rgba(255,255,255,0.1); position:relative; overflow:hidden;">
                             <div class="telemetry-bar" style="position:absolute; bottom:0; left:0; width:100%; height:2px; background:var(--juno-cyan); opacity:0.8; transition: height 0.05s ease-out;"></div>
                         </div>
+                    </div>
+                `;
+            case 'led':
+                const ledColor = item.color || "orange";
+                return `
+                    <div class="control-group led-container" style="${style} display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;" data-source="${item.source || item.paramId}">
+                        <div class="led-indicator led-${ledColor}" style="width: 12px; height: 12px; border-radius: 50%; background: #333; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); transition: background 0.1s, box-shadow 0.1s;"></div>
+                        <label style="font-size: 8px; color: #666;">${label}</label>
                     </div>
                 `;
             default:
@@ -206,13 +224,47 @@ export class ModuleRenderer {
         // 1. Update Parameter Values
         const params = state.parameters || {};
         this.descriptor.items.forEach(item => {
-            if (params[item.paramId] !== undefined) {
+            if (item.paramId && params[item.paramId] !== undefined) {
                 this.values[item.paramId] = params[item.paramId];
                 this.updateControlUI(item.paramId, params[item.paramId]);
             }
         });
-        // 2. Update Port Connections (Frontal Pairs)
+        // 2. Update Telemetry / Virtual Signals
+        const telemetry = state.telemetry || {};
+        this.descriptor.items.forEach(item => {
+            const source = item.source || item.paramId;
+            if (!source)
+                return;
+            let val = telemetry[source];
+            // Handle "telemetry.xxx" formatted sources
+            if (val === undefined && source.startsWith("telemetry.")) {
+                const subKey = source.split(".")[1];
+                if (subKey)
+                    val = telemetry[subKey];
+            }
+            if (val !== undefined) {
+                this.updateTelemetryUI(source, val);
+            }
+        });
+        // 3. Update Port Connections (Frontal Pairs)
         this.updatePortsUI(state);
+    }
+    updateTelemetryUI(source, value) {
+        if (this.descriptor.items.some(i => (i.source === source || i.paramId === source) && i.control === 'led')) {
+            const el = this.content.querySelector(`[data-source="${source}"] .led-indicator`);
+            if (el) {
+                const isActive = value > 0;
+                const color = el.classList.contains('led-orange') ? '#ff9100' : '#00f2ff';
+                el.style.background = isActive ? color : '#333';
+                el.style.boxShadow = isActive ? `0 0 10px ${color}` : 'inset 0 1px 3px rgba(0,0,0,0.5)';
+                if (isActive) {
+                    setTimeout(() => {
+                        el.style.background = '#333';
+                        el.style.boxShadow = 'inset 0 1px 3px rgba(0,0,0,0.5)';
+                    }, 50);
+                }
+            }
+        }
     }
     updatePortsUI(state) {
         const portsContainer = this.content.querySelector('.module-ports');

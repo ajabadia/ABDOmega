@@ -14,15 +14,34 @@ export class ModulePatchModal {
     usageText = null;
     currentInstanceId = "";
     inventory = [];
-    modMatrix = [];
+    patchbayMatrix = [];
+    maxSlots = 32; // [Hyper-ACE] Dynamic limit
     constructor() {
         console.log("[ModulePatchModal] Initializing [REV 2]...");
         this.init();
+        this.syncMaxSlots();
     }
     init() {
         document.addEventListener('patch-request', (e) => {
             this.open(e.detail.instanceId);
         });
+    }
+    async syncMaxSlots() {
+        // @ts-ignore
+        if (window.omegaRPC) {
+            try {
+                // @ts-ignore
+                const settings = await window.omegaRPC.getSystemSettings();
+                const maxSlotsSetting = settings.find((s) => s.id === "maxPatchbaySlots");
+                if (maxSlotsSetting) {
+                    this.maxSlots = Math.floor(maxSlotsSetting.currentValue || 32);
+                    console.log(`[ModulePatchModal] Max Slots synced: ${this.maxSlots}`);
+                }
+            }
+            catch (e) {
+                console.warn("[ModulePatchModal] Failed to sync maxPatchbaySlots:", e);
+            }
+        }
     }
     ensureElements() {
         if (this.el)
@@ -45,9 +64,9 @@ export class ModulePatchModal {
         this.currentInstanceId = instanceId;
         this.el.style.display = 'flex';
         if (this.titleEl)
-            this.titleEl.innerText = `[REV 2] ${instanceId.toUpperCase()} PATCH BAY`;
+            this.titleEl.innerText = `HYPER-ACE ROUTING HUB`;
         if (this.subtitleEl)
-            this.subtitleEl.innerText = `Focused routing for ${instanceId}`;
+            this.subtitleEl.innerText = `Focused patching for ${instanceId}`;
         await this.refresh();
     }
     async refresh() {
@@ -60,20 +79,20 @@ export class ModulePatchModal {
             console.error("[ModulePatchModal] Critical services (Metadata/RPC) missing!");
             return;
         }
-        // 1. Get Inventory and ModMatrix
+        // 1. Get Inventory and PatchbayMatrix
         const metadata = await store.getModulationMetadata();
         this.inventory = metadata.inventory || [];
         console.log(`[ModulePatchModal] Inventory loaded: ${this.inventory.length} modules`);
         const state = await rpc.getState();
-        const legacyMatrix = state.preset?.modMatrix || [];
+        const legacyMatrix = state.preset?.patchbayMatrix || [];
         const voiceChain = state.preset?.voiceChain || {};
         const modularConnections = voiceChain.CONNECTIONS || [];
         // Unify both worlds for the UI
-        this.modMatrix = [
+        this.patchbayMatrix = [
             ...legacyMatrix,
             ...modularConnections.map((c) => ({ ...c, active: true }))
         ];
-        console.log(`[ModulePatchModal] Unified Matrix loaded: ${this.modMatrix.length} total slots`);
+        console.log(`[ModulePatchModal] Unified Matrix loaded: ${this.patchbayMatrix.length} total slots`);
         this.render();
         this.updateUsage();
     }
@@ -112,8 +131,8 @@ export class ModulePatchModal {
             const addBtn = header.querySelector('.patch-add-btn');
             addBtn.onclick = () => this.showNewSlotRow(portGroup, port, isTarget);
             portGroup.appendChild(header);
-            // Find ALL current connections in ModMatrix for this port
-            const activeSlots = this.modMatrix.map((s, idx) => ({ ...s, idx }))
+            // Find ALL current connections in PatchbayMatrix for this port
+            const activeSlots = this.patchbayMatrix.map((s, idx) => ({ ...s, idx }))
                 .filter(s => s.active && (isTarget ? (s.target === fullId) : (s.source === fullId)));
             console.log(`[ModulePatchModal] Port ${port.id}: ${activeSlots.length} active routes found`);
             activeSlots.forEach(slot => {
@@ -201,11 +220,10 @@ export class ModulePatchModal {
     updateUsage() {
         if (!this.usageFill || !this.usageText)
             return;
-        const activeCount = this.modMatrix.filter(s => s.active && s.source && s.target).length;
-        const total = 64;
-        const percent = (activeCount / total) * 100;
+        const activeCount = this.patchbayMatrix.filter(s => s.active && s.source && s.target).length;
+        const percent = (activeCount / this.maxSlots) * 100;
         this.usageFill.style.width = `${percent}%`;
-        this.usageText.innerText = `${activeCount}/${total} Slots Used`;
+        this.usageText.innerText = `${activeCount}/${this.maxSlots} Slots Used`;
         this.usageFill.style.background = percent > 90 ? '#ff5555' : 'var(--neon-cyan)';
     }
     /**
@@ -213,16 +231,16 @@ export class ModulePatchModal {
      * Called by the main app loop when the preset state changes.
      */
     onStateUpdate(state) {
-        const legacyMatrix = (state.preset?.modMatrix || state.modMatrix || []);
+        const legacyMatrix = (state.preset?.patchbayMatrix || state.patchbayMatrix || []);
         const voiceChain = (state.preset?.voiceChain || state.voiceChain || {});
         const modularConnections = (voiceChain.CONNECTIONS || []).map((c) => ({ ...c, active: true }));
-        this.modMatrix = [
+        this.patchbayMatrix = [
             ...(Array.isArray(legacyMatrix) ? legacyMatrix : Object.values(legacyMatrix)),
             ...modularConnections
         ];
-        // If modal is open, re-render to reflect changes from Matrix Hub or other sources
+        // If modal is open, re-render to reflect changes from Patchbay Hub or other sources
         if (this.el && this.el.style.display === 'flex') {
-            console.log(`[ModulePatchModal] Reactive Sync: Updating view for ${this.currentInstanceId} (${this.modMatrix.length} connections)`);
+            console.log(`[ModulePatchModal] Reactive Sync: Updating view for ${this.currentInstanceId} (${this.patchbayMatrix.length} connections)`);
             this.render();
             this.updateUsage();
         }
@@ -233,36 +251,36 @@ export class ModulePatchModal {
         const target = isTarget ? localId : remoteId;
         let slotIdx = existingSlotIdx;
         if (slotIdx < 0) {
-            slotIdx = this.modMatrix.findIndex(s => !s.active || (!s.source && !s.target));
+            slotIdx = this.patchbayMatrix.findIndex(s => !s.active || (!s.source && !s.target));
         }
-        if (slotIdx < 0) {
-            alert("Modulation Matrix is FULL (64/64). Please remove a patch first.");
+        if (slotIdx < 0 || slotIdx >= this.maxSlots) {
+            alert(`Patchbay Matrix is FULL (${this.maxSlots}/${this.maxSlots}). Please remove a patch first.`);
             return;
         }
         console.log(`[ModulePatchModal] Applying patch to slot ${slotIdx}...`);
         //@ts-ignore
         const rpc = window.omegaRPC;
         await Promise.all([
-            rpc.send('updateModMatrixSlot', { slot: slotIdx, key: 'source', value: source }),
-            rpc.send('updateModMatrixSlot', { slot: slotIdx, key: 'target', value: target }),
-            rpc.send('updateModMatrixSlot', { slot: slotIdx, key: 'amount', value: 1.0 }),
-            rpc.send('updateModMatrixSlot', { slot: slotIdx, key: 'active', value: true })
+            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'source', value: source }),
+            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'target', value: target }),
+            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'amount', value: 1.0 }),
+            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'active', value: true })
         ]);
         // No manual refresh needed - onStateUpdate will handle it via broadcast!
     }
     async updateSlotParam(slotIdx, key, value) {
         //@ts-ignore
         const rpc = window.omegaRPC;
-        await rpc.send('updateModMatrixSlot', { slot: slotIdx, key, value });
+        await rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key, value });
     }
     async removePatch(slotIdx) {
         console.log(`[ModulePatchModal] Removing patch from slot ${slotIdx}...`);
         //@ts-ignore
         const rpc = window.omegaRPC;
         await Promise.all([
-            rpc.send('updateModMatrixSlot', { slot: slotIdx, key: 'active', value: false }),
-            rpc.send('updateModMatrixSlot', { slot: slotIdx, key: 'source', value: "" }),
-            rpc.send('updateModMatrixSlot', { slot: slotIdx, key: 'target', value: "" })
+            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'active', value: false }),
+            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'source', value: "" }),
+            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'target', value: "" })
         ]);
     }
 }

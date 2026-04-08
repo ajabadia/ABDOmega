@@ -1,0 +1,32 @@
+id: MIDI-IN-001
+name: MIDI IN
+family: Utility
+engine: Modular
+modelId: ACE-UTIL-MIDI-IN
+implementationId: 501
+version: 1
+panelClass: utility-panel
+status: active
+tags: ["midi", "input", "bridge"]
+parameters:
+  - id: midi_channel
+    label: CHANNEL
+    unit: ch
+    min: 0
+    max: 16
+    default: 0
+ports:
+  - id: midi_out
+    label: MIDI OUT
+    type: midi
+    direction: output
+    telemetry: telemetry.activity
+uiLayout:
+  columns: 1
+  rows: 2
+  items:
+    - { id: "chan_sel", control: "select", paramId: "midi_channel", row: 0, col: 0 }
+    - { id: "activity_led", control: "led", label: "ACTIVE", row: 1, col: 0, color: "cyan", source: "telemetry.activity" }
+footer:
+  label: "EXTERNAL MIDI BRIDGE"
+

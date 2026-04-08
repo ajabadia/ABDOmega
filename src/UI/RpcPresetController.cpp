@@ -15,6 +15,15 @@ namespace UI {
             obj->setProperty("id", juce::String(comp->id));
             obj->setProperty("name", juce::String(comp->name));
             obj->setProperty("family", juce::String(comp->family));
+            
+            // Hyper-ACE UI Metadata
+            if (!comp->uiLayout.empty()) {
+                obj->setProperty("uiLayout", juce::JSON::parse(comp->uiLayout));
+            }
+            if (!comp->style.empty()) {
+                obj->setProperty("style", juce::String(comp->style));
+            }
+
             components.add(juce::var(obj.get()));
         }
         return createResponse("ACE_LIST", requestId, {}, components);
@@ -177,7 +186,7 @@ namespace UI {
         static const std::vector<juce::String> collections = {
             "layers", "oscillators", "filters", "lfos", "envelopes", 
             "amplifiers", "modulators", "fxSlots", "auxiliary", "modGraph",
-            "nodes", "modMatrix", "voiceChain", "NODES", "CONNECTIONS", "NODE", "CONNECTION"
+            "nodes", "patchbayMatrix", "voiceChain", "NODES", "CONNECTIONS", "NODE", "CONNECTION"
         };
 
         if (std::find(collections.begin(), collections.end(), tag) != collections.end()) {

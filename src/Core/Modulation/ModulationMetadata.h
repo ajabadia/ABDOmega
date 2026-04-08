@@ -64,112 +64,61 @@ namespace Modulation {
 
     /**
      * @brief Central registry for modulation capabilities.
+     * VA 2.1: This registry is now a bridge. Static discovery is deprecated in favor of 
+     * manifest-driven ports from SemanticBrokerService.
      */
     class ModulationRegistry {
     public:
         static TargetStableId getStableId(const std::string& targetId) {
-            static const std::map<std::string, TargetStableId> mapping = {
-                // Unified Canonical IDs (Build #195)
-                {"layer.a.pitch",      TargetStableId::Pitch},
-                {"layer.a.gate",       TargetStableId::Gate},
-                {"layer.a.gain",       TargetStableId::VcaGain},
-                {"layer.a.cutoff",     TargetStableId::Cutoff},
-                {"layer.a.resonance",  TargetStableId::Resonance},
-                {"layer.a.pwm",        TargetStableId::PwmAmount},
-                {"mcv.1.midi",         TargetStableId::Custom},
-                
-                // Component Specific Aliases (Build #200 Systemic)
-                {"osc.1.pitch",        TargetStableId::Pitch},
-                {"osc.1.cutoff",       TargetStableId::Cutoff},
-                {"osc.1.resonance",    TargetStableId::Resonance},
-                {"osc.1.pwm",          TargetStableId::PwmAmount},
-                {"env.1.attack",       TargetStableId::EnvAttack},
-                {"env.1.decay",        TargetStableId::EnvDecay},
-                {"env.1.sustain",      TargetStableId::EnvSustain},
-                {"env.1.release",      TargetStableId::EnvRelease},
-                {"env.1.gate",         TargetStableId::Gate},
-                {"vca.1.gain",         TargetStableId::VcaGain},
-                {"mcv.1.midi",         TargetStableId::Custom},
-                {"mon.1.midi",         TargetStableId::Custom}
-            };
-
-
-
-            if (mapping.count(targetId)) return mapping.at(targetId);
-            return TargetStableId::None;
+            // Unified Modular Resolution (Build #311)
+            // Local port IDs are resolved by the unit itself.
+            // Global voice parameters map to Stable IDs.
+            if (targetId.find("pitch") != std::string::npos) return TargetStableId::Pitch;
+            if (targetId.find("gate") != std::string::npos) return TargetStableId::Gate;
+            if (targetId.find("gain") != std::string::npos) return TargetStableId::VcaGain;
+            if (targetId.find("cutoff") != std::string::npos) return TargetStableId::Cutoff;
+            if (targetId.find("resonance") != std::string::npos) return TargetStableId::Resonance;
+            if (targetId.find("attack") != std::string::npos) return TargetStableId::EnvAttack;
+            if (targetId.find("decay") != std::string::npos) return TargetStableId::EnvDecay;
+            if (targetId.find("sustain") != std::string::npos) return TargetStableId::EnvSustain;
+            if (targetId.find("release") != std::string::npos) return TargetStableId::EnvRelease;
+            
+            return TargetStableId::Custom; 
         }
 
         static uint8_t getSignalIndex(const std::string& sourceId) {
             using namespace Omega::Core::Voice;
+            
+            // VA 2.1: Semantic Signal Mapping
+            if (sourceId.find("pitch") != std::string::npos) return CompiledSignalSpace::kMidiToCvPitch;
+            if (sourceId.find("gate") != std::string::npos)  return CompiledSignalSpace::kMidiToCvGate;
+            if (sourceId.find("vel") != std::string::npos)   return CompiledSignalSpace::kMidiToCvVelocity;
+            if (sourceId.find("midi") != std::string::npos)  return CompiledSignalSpace::kMidiLink;
+            
+            // Static internal sources (Wait for removal in VA 2.2)
             if (sourceId == "lfo.1") return CompiledSignalSpace::lfo(0);
-            if (sourceId == "lfo.2") return CompiledSignalSpace::lfo(1);
             if (sourceId == "env.1") return CompiledSignalSpace::adsr(0);
-            if (sourceId == "env.2") return CompiledSignalSpace::adsr(1);
-            if (sourceId == "midi.vel") return CompiledSignalSpace::kVelocity;
-            if (sourceId == "midi.mw")  return CompiledSignalSpace::kModWheel;
-            
-            // MIDI-to-CV published signals
-            if (sourceId == "mcv.1.pitch") return CompiledSignalSpace::kMidiToCvPitch;
-            if (sourceId == "mcv.1.gate")  return CompiledSignalSpace::kMidiToCvGate;
-            if (sourceId == "mcv.1.vel")   return CompiledSignalSpace::kMidiToCvVelocity;
-            if (sourceId == "mcv.1.mw")    return CompiledSignalSpace::kMidiToCvModWheel;
-            if (sourceId == "mcv.1.at")    return CompiledSignalSpace::kMidiToCvAftertouch;
-            if (sourceId == "mcv.1.pb")    return CompiledSignalSpace::kMidiToCvPitchBend;
-            if (sourceId == "mcv.1.timbre") return CompiledSignalSpace::kMidiToCvTimbre;
-            
-            // MIDI-Link (Build #197)
-            if (sourceId == "trig.1.midi") return CompiledSignalSpace::kMidiLink;
             
             return CompiledSignalSpace::kInvalid;
         }
 
-        static std::vector<SourceDescriptor> getAvailableSources() {
+        /**
+         * @brief Returns sources that are ALWAYS present regardless of the patch.
+         */
+        static std::vector<SourceDescriptor> getStaticSources() {
             return {
-                {"lfo.1",   "LFO 1",    SourceCategory::LFO, NodeType::LFO, 0},
-                {"lfo.2",   "LFO 2",    SourceCategory::LFO, NodeType::LFO, 1},
-                {"env.1",   "ENV 1",    SourceCategory::Envelope, NodeType::Envelope, 0},
-                {"env.2",   "ENV 2",    SourceCategory::Envelope, NodeType::Envelope, 1},
                 {"midi.vel", "VELOCITY", SourceCategory::MIDI, NodeType::MIDIInput, -1},
-                {"midi.mw",  "MOD WHEEL", SourceCategory::MIDI, NodeType::MIDIInput, -1},
-                
-                // MIDI-to-CV (Build #190 Alignment)
-                {"mcv.1.pitch", "MCV PITCH", SourceCategory::Internal, NodeType::MIDIInput, -1},
-                {"mcv.1.gate",  "MCV GATE",  SourceCategory::Internal, NodeType::MIDIInput, -1},
-                {"mcv.1.vel",   "MCV VEL",   SourceCategory::Internal, NodeType::MIDIInput, -1},
-                {"mcv.1.mw",    "MCV MODW",  SourceCategory::Internal, NodeType::MIDIInput, -1},
-                {"mcv.1.at",    "MCV AFTER", SourceCategory::Internal, NodeType::MIDIInput, -1},
-                {"mcv.1.pb",    "MCV BEND",  SourceCategory::Internal, NodeType::MIDIInput, -1},
-                {"mcv.1.timbre", "MCV TIMBRE", SourceCategory::Internal, NodeType::MIDIInput, -1},
-
-                // MIDI Link (Build #197)
-                {"trig.1.midi", "MIDI TRIG OUT", SourceCategory::MIDI, NodeType::MIDIInput, -1}
+                {"midi.mw",  "MOD WHEEL", SourceCategory::MIDI, NodeType::MIDIInput, -1}
             };
         }
 
-        static std::vector<TargetDescriptor> getAvailableTargets() {
-            return {
-                {"layer.a.pitch",      "VOICE PITCH", NodeType::VoicePitch, "pitch"},
-                {"layer.a.gate",       "VOICE GATE",  NodeType::CustomParameter, "gate"},
-                {"layer.a.gain",       "VOICE GAIN",  NodeType::CustomParameter, "gain"},
-                {"layer.a.cutoff",     "VCF CUTOFF",  NodeType::FilterCutoff, "cutoff"},
-                {"layer.a.resonance",  "VCF RES",     NodeType::FilterCutoff, "resonance"},
-                {"layer.a.pwm",        "OSC PWM",     NodeType::CustomParameter, "pwm"},
-                
-                // MIDI Targets
-                {"mcv.1.midi",         "MCV MIDI IN", NodeType::CustomParameter, "mcv_midi"}
-            };
-        }
+        // DEPRECATED: Discovery should now happen via SemanticBrokerService::getInventory()
+        static std::vector<SourceDescriptor> getAvailableSources() { return getStaticSources(); }
+        static std::vector<TargetDescriptor> getAvailableTargets() { return {}; }
 
 
-        static bool isValidSource(const std::string& id) {
-            for (const auto& s : getAvailableSources()) if (s.id == id) return true;
-            return false;
-        }
-
-        static bool isValidTarget(const std::string& id) {
-            for (const auto& t : getAvailableTargets()) if (t.id == id) return true;
-            return false;
-        }
+        static bool isValidSource(const std::string& id) { return !id.empty(); }
+        static bool isValidTarget(const std::string& id) { return !id.empty(); }
     };
 
 } // namespace Modulation

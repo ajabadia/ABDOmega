@@ -79,11 +79,11 @@ namespace Preset {
         juce::ValueTree getScopeTree();
         void resetScopeToDefault();
 
-        // --- Modulation Matrix 2.0 ---
-        int getNumModSlots() const;
-        ModMatrixSlot getModSlot(int index) const;
-        void setModSlot(int index, const ModMatrixSlot& slot);
-        void clearModMatrix();
+        // --- Patchbay-Matrix (Hyper-ACE) ---
+        int getNumPatchbaySlots() const;
+        PatchbayMatrixSlot getPatchbaySlot(int index) const;
+        void setPatchbaySlot(int index, const PatchbayMatrixSlot& slot);
+        void clearPatchbayMatrix();
 
         bool isValid() const { return mState.isValid(); }
 

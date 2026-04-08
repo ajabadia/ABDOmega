@@ -1,272 +1,299 @@
-/* OMEGA Modulation Hub & Matrix Workspace Styles */
+/* 
+   OMEGA Modulation Matrix 2.0 (Era 4)
+   Premium Glassmorphism & High-Density Routing Workspace
+*/
 
-.modulation-modal-content {
+:root {
+    --glass-bg: rgba(10, 10, 15, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-glow: rgba(0, 242, 255, 0.15);
+    --matrix-inactive: rgba(255, 255, 255, 0.03);
+}
+
+/* Base Modal Overlay Refinement */
+.modulation-modal-content, .module-patch-content {
     width: 90vw !important;
-    height: 90vh !important;
-    max-width: 1200px !important;
-    background: #080808 !important;
-    border: 2px solid #333 !important;
+    height: 85vh !important;
+    max-width: 1300px !important;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(25px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(25px) saturate(150%) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 12px !important;
     padding: 30px !important;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.9), inset 0 0 50px rgba(0, 242, 255, 0.05);
+    box-shadow: 0 50px 100px rgba(0,0,0,0.8), 
+                inset 0 0 80px rgba(0, 242, 255, 0.03),
+                0 0 0 1px rgba(255,255,255,0.05);
     position: relative;
     overflow: hidden;
+    animation: modal-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* CRT Scanline Effect (Identical to Scope) */
-.modulation-modal-content::after {
+@keyframes modal-slide-up {
+    from { transform: translateY(30px) scale(0.98); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Scintillating Border Effect */
+.modulation-modal-content::before {
     content: "";
     position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-    background-size: 100% 4px, 3px 100%;
-    pointer-events: none;
-    z-index: 10;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
     opacity: 0.3;
 }
 
 .modulation-workspace {
     display: flex;
     flex: 1;
-    gap: 25px;
-    margin-top: 20px;
+    gap: 30px;
+    margin-top: 25px;
     min-height: 0;
-    z-index: 20; /* Above scanlines */
+    z-index: 20;
 }
 
+/* Grid Dashboard */
 .matrix-grid-container {
     flex: 3;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    grid-auto-rows: 110px;
+    gap: 15px;
     height: 100%;
-    background: rgba(0,0,0,0.3);
-    padding: 10px;
-    border: 1px solid #222;
-    border-radius: 4px;
-}
-
-.matrix-inspector-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    background: #111;
+    background: rgba(0,0,0,0.2);
     padding: 20px;
-    border: 1px solid #222;
-    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    overflow-y: auto;
+    align-content: start;
 }
 
-/* Matrix Card Styling */
+/* Matrix Card 2.0 */
 .matrix-card {
-    background: rgba(20, 20, 25, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    padding: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    transition: all 0.2s ease;
+    justify-content: space-between;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
     cursor: pointer;
     position: relative;
-    overflow: hidden;
+    user-select: none;
 }
 
 .matrix-card:hover {
-    background: rgba(30, 30, 40, 0.8);
-    border-color: rgba(0, 242, 255, 0.3);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(0, 242, 255, 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.4), 0 0 15px rgba(0, 242, 255, 0.1);
+}
+
+.matrix-card.active {
+    background: rgba(0, 242, 255, 0.03);
+    border-color: rgba(0, 242, 255, 0.2);
 }
 
 .matrix-card.selected {
-    background: rgba(0, 242, 255, 0.1);
+    background: rgba(0, 242, 255, 0.08);
     border-color: var(--neon-cyan);
-    box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+    box-shadow: 0 0 25px rgba(0, 242, 255, 0.2), inset 0 0 10px rgba(0,242,255,0.1);
 }
 
-.matrix-card.add-card {
-    border: 2px dashed rgba(255, 255, 255, 0.1);
-    background: transparent;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    opacity: 0.6;
-}
-
-.matrix-card.add-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--neon-cyan);
-    opacity: 1;
-}
-
-.add-icon {
-    font-size: 24px;
-    color: var(--neon-cyan);
-    font-weight: 300;
-}
-
-/* View Toggles */
-.juno-btn.active.juno-orange {
-    background: var(--juno-orange);
-    color: white;
-    border-color: white;
-    box-shadow: 0 0 10px var(--juno-orange);
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 9px;
-    color: #555;
-    font-weight: 800;
-}
-
-.bipolar-slider-fill.gain-mode {
-    left: 0 !important;
-    border-radius: 0;
-    transition: width 0.1s ease-out, background-color 0.2s ease-in-out;
-}
-
-.bipolar-slider-bg::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 0;
-    width: 1px;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.2);
-    z-index: 1;
-}
-
-.card-index {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 2px 4px;
-    border-radius: 2px;
-}
-
-.card-status {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #333;
-}
-
-.card-status.active { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
-.card-status.muted { background: var(--juno-red); }
-
-.matrix-card.duplicate-error {
-    border-color: #ff3333;
-    box-shadow: inset 0 0 10px rgba(255, 51, 51, 0.2);
-}
-
-.matrix-card.duplicate-error .card-index {
-    color: #ff3333;
-}
-
-.error-badge {
-    color: #ff3333;
-    font-size: 8px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    border: 1px solid #ff3333;
-    padding: 1px 3px;
-    border-radius: 2px;
-}
-
-.card-routing {
+/* Inspector Refinement */
+.matrix-inspector-container {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.01);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 25px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 20px;
 }
 
-.card-label {
-    font-size: 10px;
-    color: #aaa;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.card-arrow {
-    font-size: 8px;
-    color: #444;
-    margin: 2px 0;
-}
-
-/* Bipolar Slider Styles */
-.bipolar-container {
-    margin-top: 4px;
-    position: relative;
-}
-
-.bipolar-slider-bg {
-    height: 4px;
-    background: #111;
-    border-radius: 2px;
-    position: relative;
-    overflow: hidden;
-}
-
-.bipolar-slider-fill {
-    position: absolute;
-    height: 100%;
-    background: var(--neon-cyan);
-    top: 0;
-}
-
-.bipolar-center-mark {
-    position: absolute;
-    left: 50%;
-    top: -2px;
-    width: 1px;
-    height: 8px;
-    background: #444;
-    z-index: 2;
-}
-
-.bipolar-value {
-    font-size: 9px;
-    color: #666;
-    text-align: right;
-    margin-top: 2px;
-    font-family: monospace;
-}
-
-/* Launcher LED (Dual state) */
-.launcher-led {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #222;
-    transition: background 0.1s, box-shadow 0.1s;
-}
-
-.launcher-led.activity-general {
-    background: #0088ff;
-    box-shadow: 0 0 8px rgba(0, 136, 255, 0.8);
-}
-
-.launcher-led.activity-manual {
-    background: #ffaa00;
-    box-shadow: 0 0 8px rgba(255, 170, 0, 0.8);
-}
-
-/* Inspector Layout */
 .inspector-title {
-    font-size: 12px;
-    color: var(--neon-cyan);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
     font-weight: 800;
-    letter-spacing: 2px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 5px;
+    letter-spacing: 3px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px rgba(0,242,255,0.3);
+    margin-bottom: 5px;
 }
 
-/* Utility classes */
-.hidden { display: none !important; }
+/* Custom Controls for Modals */
+.inspector-select {
+    width: 100%;
+    background: #000;
+    color: #fff;
+    border: 1px solid #333;
+    padding: 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+}
+
+.inspector-select:focus {
+    border-color: var(--neon-cyan);
+    outline: none;
+}
+
+.inspector-range {
+    width: 100%;
+    height: 4px;
+    background: #222;
+    border-radius: 2px;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.inspector-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0,242,255,0.5);
+}
+
+/* Pocket Patchbay (Module Focused) specific styles */
+.module-patch-content {
+    width: 80vw !important;
+    max-width: 1000px !important;
+}
+
+.patch-bay-layout {
+    display: flex;
+    gap: 40px;
+    margin-top: 20px;
+    overflow: hidden;
+}
+
+.patch-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-width: 0;
+}
+
+.patch-list {
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+    padding: 10px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.patch-port-group {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 4px;
+    margin-bottom: 15px;
+    padding: 10px;
+}
+
+.patch-port-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 8px;
+}
+
+.patch-type-badge {
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.type-cv { background: rgba(0, 242, 255, 0.2); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
+.type-audio { background: rgba(57, 255, 20, 0.2); color: #39ff14; border: 1px solid #39ff14; }
+.type-midi { background: rgba(202, 0, 255, 0.2); color: #ca00ff; border: 1px solid #ca00ff; }
+
+.patch-add-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #444;
+    color: #888;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.patch-add-btn:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+}
+
+.patch-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 5px 0;
+    background: rgba(255,255,255,0.03);
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.patch-remove-btn {
+    background: transparent;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.patch-remove-btn:hover { color: #ff5555; }
+
+/* --- Era 4 Empty State --- */
+.empty-state-info {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 40px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.empty-state-info .info-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: var(--juno-orange);
+    margin-bottom: 15px;
+}
+
+.empty-state-info p {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    max-width: 400px;
+    margin: 0 auto 30px auto;
+    line-height: 1.6;
+}
+
+.metadata-warning {
+    background: rgba(255, 100, 0, 0.1);
+    border-left: 3px solid var(--juno-orange);
+    padding: 12px;
+    margin-bottom: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--juno-orange);
+    border-radius: 0 4px 4px 0;
+}

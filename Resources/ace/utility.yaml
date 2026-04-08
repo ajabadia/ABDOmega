@@ -7,24 +7,29 @@ components:
     origin: "ABD OMEGA"
     status: "active"
     version: 1
+    panelClass: "utility-panel"
     tags: ["midi", "cv", "utility", "converter"]
     parameters:
       - id: "midiChannel"
-        label: "MIDI Channel"
+        label: "CHANNEL"
         unit: "ch"
         min: 0
         max: 16
         default: 0
-    modulationTargets:
+    ports:
+      - id: "midi_in"
+        label: "MIDI IN"
+        type: "midi"
+        direction: "input"
       - id: "pitch"
-        label: "Pitch (Hz)"
-        unit: "Hz"
+        label: "PITCH (Hz)"
+        type: "cv"
+        direction: "output"
       - id: "trigger"
-        label: "Trigger (Gate)"
-        unit: "bool"
+        label: "GATE"
+        type: "gate"
+        direction: "output"
       - id: "velocity"
-        label: "Velocity"
-        unit: "0..1"
-      - id: "midi"
-        label: "MIDI Stream"
-        unit: "midi"
+        label: "VELOCITY"
+        type: "cv"
+        direction: "output"

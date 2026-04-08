@@ -122,9 +122,9 @@ namespace Preset {
     };
 
     /**
-     * @brief A single modulation routing slot.
+     * @brief A single modulation routing slot (Hyper-ACE Patchbay).
      */
-    struct ModMatrixSlot {
+    struct PatchbayMatrixSlot {
         std::string source;      // e.g. "lfo.1", "midi.vel"
         std::string target;      // e.g. "layer.a.cutoff"
         float amount = 0.0f;     // [-1.0, 1.0]

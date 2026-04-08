@@ -9,6 +9,7 @@ namespace UI {
             juce::DynamicObject::Ptr obj = new juce::DynamicObject();
             obj->setProperty("id", juce::String(id));
             obj->setProperty("label", juce::String(def.label));
+            obj->setProperty("tooltip", juce::String(def.tooltip));
             obj->setProperty("currentValue", mSettings.getSettingValue(id));
             obj->setProperty("defaultValue", def.defaultValue);
             obj->setProperty("minValue", def.minValue);

@@ -121,15 +121,15 @@ namespace UI {
             return mInputController->handleTriggerNote(requestId, juce::var(triggerPayload.get()));
         }
 
-        // 6. Modulation Matrix 2.0
+        // 6. Patchbay-Matrix (Hyper-ACE)
         if (type == "getModulationMetadata") return mModulationController->handleGetModulationMetadata(requestId, payload);
-        if (type == "updateModMatrixSlot") {
-            juce::var result = mModulationController->handleUpdateModMatrixSlot(requestId, payload);
+        if (type == "updatePatchbayMatrixSlot") {
+            juce::var result = mModulationController->handleUpdatePatchbayMatrixSlot(requestId, payload);
             
             // Vision Alignment: Broadcast change to ALL UI components immediately
-            // We use 'onModMatrixUpdate' instead of 'onStateUpdate' to avoid heavy rack rebuilds.
+            // We use 'onPatchbayMatrixUpdate' instead of 'onStateUpdate' to avoid heavy rack rebuilds.
             juce::DynamicObject::Ptr push = new juce::DynamicObject();
-            push->setProperty("type", "onModMatrixUpdate");
+            push->setProperty("type", "onPatchbayMatrixUpdate");
             push->setProperty("payload", mPresetController->presetToVar(mPreset));
             notifyUi(juce::var(push.get()));
             

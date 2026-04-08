@@ -15,7 +15,7 @@
 #include "PresetToVoiceArchMapper.h"
 #include "VoiceArchToEngineConfigMapper.h"
 #include "ParamBindingRegistry.h"
-#include "ModulationMatrixService.h"
+#include "PatchbayMatrixService.h"
 
 namespace Omega {
 namespace Core {
@@ -75,8 +75,8 @@ namespace Service {
                 // 4. Voice Architecture 2.0 (Batch 4) - Compile dynamic topology
                 auto compileResult = Voice::VoiceArchitectureCompiler::compile(layer, mCatalog);
                 if (compileResult.success) {
-                    // Modulation Matrix 2.0 - Inject matrix routes into the plan
-                    ModulationMatrixService::compileMatrix(preset, compileResult.plan);
+                    // Modulation Matrix 2.0 - Inject matrix routes into the plan using dynamic limits
+                    PatchbayMatrixService::compileMatrix(preset, compileResult.plan, mEngine.getMaxPatchbaySlots());
                     
                     mEngine.setVoicePlan(compileResult.plan);
                 }

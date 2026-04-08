@@ -172,9 +172,17 @@
     - [x] **Structural Validation Fix**: Resolved "Emergency Alert" false-positive in `ModuleManager` when the lower rack is intentionally empty.
     - [x] **Manual Reset (New Preset)**: Implemented FILE -> New Preset with naming prompt and engine-level refresh.
 
-- [ ] **Phase 23: Advanced Module Lifecycle & Interactive Patching** [NEXT]
-    - [ ] **Selective Removal**: Implement "Close" (X) on module headers to remove instances from the ValueTree via RPC.
-    - [ ] **Dynamic Injection**: UI-driven module insertion into the ACE chain.
+- [x] **Phase 23: Hyper-ACE Super-Modularity (Build #300)** [DONE]
+    - [x] **Patchbay-Matrix Rename**: Shift nomenclature from "Mod Matrix" to "Patchbay-Matrix". (2026-04-06 22:50)
+    - [x] **Dynamic Discovery**: Implement directory-based module scanning for `.acepack` manifests. (2026-04-06 23:00)
+    - [x] **UI Governance (Theme Engine)**: Generic module renderer driven by YAML layouts. (2026-04-06 23:10)
+    - [x] **Standardized Naming**: Enforce `Dotted.Semantic.Notation` for all parameters and ports. (2026-04-06 23:15)
+
+- [x] **Phase 24: OMEGA SDK & ACE-Spec 1.0** [DONE]
+    - [x] **ACE-Spec 1.0**: Official documentation for third-party module development.
+    - [x] **SDK Template**: Creation of `template_001.yaml` reference module.
+    - [x] **Phase 24.E: Patchbay Slot Synchronization** (2026-04-07 22:30): Resolved UI/Engine desync.
+    - [x] **Phase 24.F: Patchbay Hub Evolution** (2026-04-08 15:45): Decoupled Matrix from physical rack. Implemented premium Glassmorphism Hub and aseptic rack guards. Resolved dynamic slot expansion (0-to-N) logic.
 
 ---
-*Last Updated: 2026-04-06 17:00*
+*Last Updated: 2026-04-08 15:45*

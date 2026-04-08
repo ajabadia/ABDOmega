@@ -210,6 +210,10 @@ namespace Modular {
 
         void onOscillatorModesChanged() noexcept { pushConfigUpdate(); }
         void setConfigProvider(std::atomic<::Omega::Core::Service::EngineConfig*>* provider) noexcept { mConfigProvider = provider; }
+        
+        int getMaxPatchbaySlots() const noexcept { 
+            return (int)mSettings.getSettingValue("maxPatchbaySlots"); 
+        }
 
     private:
         void applyConfigUpdate() noexcept {

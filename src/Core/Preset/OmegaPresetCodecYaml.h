@@ -69,7 +69,7 @@ namespace Preset {
                             juce::Identifier childType;
                             
                             if (cat == "layers")           childType = IDs::LAYER;
-                            else if (cat == "modMatrix")    childType = IDs::slot;
+                            else if (cat == "patchbayMatrix") childType = IDs::slot;
                             else if (cat == "visual")      childType = IDs::VISUAL;
                             else                            childType = IDs::COMPONENT; 
                             

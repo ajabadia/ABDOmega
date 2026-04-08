@@ -18,14 +18,45 @@ FetchContent_Declare(
     GIT_TAG 0.8.0
 )
 
-# Catch2
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     GIT_TAG v3.4.0
 )
 
-FetchContent_MakeAvailable(yaml-cpp Catch2)
+# WAMR (WebAssembly Micro Runtime)
+FetchContent_Declare(
+    wamr
+    GIT_REPOSITORY https://github.com/bytecodealliance/wasm-micro-runtime.git
+    GIT_TAG WAMR-1.3.0
+)
+
+# WAMR Build Config (Standardized Phase 28.H)
+set(WAMR_BUILD_INTERP 1)
+set(WAMR_BUILD_AOT 0)
+set(WAMR_BUILD_JIT 0)
+set(WAMR_BUILD_LIBC_BUILTIN 1)
+set(WAMR_BUILD_FAST_INTERP 1)
+set(WAMR_BUILD_MULTI_MODULE 1)
+set(WAMR_BUILD_TARGET "X86_64")
+set(WAMR_BUILD_PLATFORM "windows")
+
+# Global linkage macros to prevent DLL import/export issues (The "Pattern" Fix)
+add_compile_definitions(WASM_RUNTIME_API_EXTERN=)
+add_compile_definitions(COMPILING_WASM_RUNTIME_API=1)
+
+FetchContent_MakeAvailable(yaml-cpp Catch2 wamr)
+
+
+# WAMR Runtime Library Integration
+set(WAMR_ROOT_DIR ${wamr_SOURCE_DIR})
+include(${wamr_SOURCE_DIR}/build-scripts/runtime_lib.cmake)
+add_library(vmlib ${WAMR_RUNTIME_LIB_SOURCE})
+target_include_directories(vmlib PUBLIC 
+    ${wamr_SOURCE_DIR}/core/iwasm/include
+    ${wamr_SOURCE_DIR}/core/shared/utils
+)
+
 
 add_subdirectory(JUCE _juce)
 include_directories(JUCE/modules)

@@ -11,6 +11,7 @@ file(GLOB_RECURSE OMEGA_CORE_SOURCES
     *.cpp *.h
 )
 
+
 # ------------------------------------------------------------------------------
 # Library Definition
 # ------------------------------------------------------------------------------
@@ -28,6 +29,7 @@ target_include_directories(omega_core
         ${CMAKE_CURRENT_SOURCE_DIR}/Providers
         ${CMAKE_CURRENT_SOURCE_DIR}/Modulation
         ${CMAKE_CURRENT_SOURCE_DIR}/Voice
+        ${CMAKE_CURRENT_SOURCE_DIR}/Wasm
 )
 
 target_compile_definitions(omega_core
@@ -41,7 +43,9 @@ target_compile_definitions(omega_core
 target_link_libraries(omega_core 
     PUBLIC 
         yaml-cpp
+        vmlib
         juce::juce_core
         juce::juce_cryptography
         juce::juce_data_structures
+        juce::juce_audio_basics
 )

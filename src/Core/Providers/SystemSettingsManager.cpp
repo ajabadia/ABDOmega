@@ -79,7 +79,13 @@ namespace Omega::Core::Service {
         auto defIt = mDefs.find(id);
         if (defIt == mDefs.end()) return;
         
+        float oldVal = getSettingValue(id);
         mValues[id] = juce::jlimit(defIt->second.minValue, defIt->second.maxValue, value);
+        
+        if (oldVal != mValues[id]) {
+            juce::Logger::writeToLog("[SystemSettings] Updating " + juce::String(id) + ": " + juce::String(oldVal) + " -> " + juce::String(mValues[id]));
+        }
+        
         save();
     }
 

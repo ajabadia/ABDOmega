@@ -25,6 +25,7 @@ export interface GroupDescriptor {
 export declare class MetadataStore {
     private parameters;
     private groups;
+    private inventory;
     private isLoaded;
     private version;
     private build;
@@ -35,6 +36,7 @@ export declare class MetadataStore {
     getAllParams(): ParamDescriptor[];
     getGroup(id: string): GroupDescriptor | undefined;
     getModulationMetadata(): Promise<any>;
+    getInventoryItem(id: string): any;
     getVersion(): string;
     getBuild(): string;
     getTimestamp(): string;

@@ -1,0 +1,75 @@
+# OMEGA Modular Preset (VA 2.1)
+# Example: Complex FM + Filter Chain
+name: "Industrial FM Lead"
+author: "OMEGA Modular"
+engine: "Modular"
+masterGainDb: -6.0
+
+# 1. Auxiliary Utilities (Global per Voice)
+auxiliary:
+  - id: "midi_in.1"
+    componentId: "MIDI-IN-001"
+  - id: "matrix.1"
+    componentId: "PATCHBAY-MATRIX-001"
+
+# 2. Voice Architecture (Pure Modular Graph)
+layers:
+  - id: "layer.a"
+    name: "FM Operator Voice"
+    
+    voiceChain:
+      NODES:
+        # Modulator (Osc 2)
+        - nodeId: "osc.2"
+          componentId: "OSC-VA-001"
+          role: "Source"
+        
+        # Carrier (Osc 1)
+        - nodeId: "osc.1"
+          componentId: "OSC-VA-001"
+          role: "Source"
+        
+        # Filter
+        - nodeId: "flt.1"
+          componentId: "FILTER-JUNO-001"
+          role: "Processor"
+        
+        # Output VCA
+        - nodeId: "vca.1"
+          componentId: "VCA-STANDARD-001"
+          role: "Amplifier"
+
+      CONNECTIONS:
+        # OSC 2 (Modulator) -> OSC 1 (Carrier FM Input)
+        # Note: In VA 2.1, summing to the same bus handles modulation
+        - from: "osc.2"
+          to: "osc.1"
+          bus: "modulation"
+          amount: 0.75
+
+        # OSC 1 (Carrier) -> FLT 1 (Audio Path)
+        - from: "osc.1"
+          to: "flt.1"
+          bus: "audio"
+          amount: 1.0
+
+        # FLT 1 -> VCA 1 (Final Gain Stage)
+        - from: "flt.1"
+          to: "vca.1"
+          bus: "audio"
+          amount: 1.0
+
+# 3. Patchbay Matrix (Modulation & Global Routing)
+patchbayMatrix:
+  - active: true
+    source: "midi_in.1.pitch_out"
+    target: "osc.1.pitch"
+    amount: 1.0
+  - active: true
+    source: "midi_in.1.pitch_out"
+    target: "osc.2.pitch"
+    amount: 1.0
+  - active: true
+    source: "midi_in.1.gate_out"
+    target: "vca.1.gate"
+    amount: 1.0

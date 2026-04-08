@@ -99,8 +99,8 @@ namespace Core {
         static inline const juce::Identifier scale            {"scale"};
         static inline const juce::Identifier trigger          {"trigger"};
 
-        // --- Modulation Matrix 2.0 ---
-        static inline const juce::Identifier modMatrix        {"modMatrix"};
+        // --- Patchbay-Matrix (Hyper-ACE) ---
+        static inline const juce::Identifier patchbayMatrix    {"patchbayMatrix"};
         static inline const juce::Identifier slot             {"slot"};
         static inline const juce::Identifier source           {"source"};
         static inline const juce::Identifier target           {"target"};
@@ -111,6 +111,7 @@ namespace Core {
         static inline const juce::Identifier gate             {"gate"};
         static inline const juce::Identifier pitch            {"pitch"};
         static inline const juce::Identifier sync             {"sync"};
+        static inline const juce::Identifier midi_in          {"midi_in"};
     };
 
 } // namespace Core

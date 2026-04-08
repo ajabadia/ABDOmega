@@ -89,9 +89,13 @@
             <div class="dropdown">
                 <a data-action="undo">Undo</a>
                 <a data-action="redo">Redo</a>
+                <a id="menu-matrix" data-action="toggle_matrix">Patchbay Matrix...</a>
                 <a id="menu-presets" data-action="toggle_presets_modal">Presets...</a>
                 <a id="menu-preferences" data-action="toggle_preferences_modal">Preferences...</a>
             </div>
+        </div>
+        <div class="menu-item" id="btn-global-matrix" style="color: var(--neon-cyan); font-weight: 900; cursor: pointer;">
+            MATRIX
         </div>
         <div class="menu-item">
             HELP
@@ -219,11 +223,11 @@
         </div>
     </div>
 
-    <!-- Modulation Matrix Modal -->
+    <!-- [Hyper-ACE] Patchbay-Matrix Modal -->
     <div id="modulation-modal" class="modal">
         <div class="modal-content modulation-modal-content">
             <span class="close-btn" onclick="document.getElementById('modulation-modal').style.display='none'">&times;</span>
-            <h2 class="modal-title">MODULATION HUB</h2>
+            <h2 class="modal-title">PATCHBAY HUB</h2>
             <div id="modulation-workspace" class="modulation-workspace">
                 <div id="matrix-grid-container" class="matrix-grid-container">
                     <!-- 8x4 Grid injected here -->
@@ -284,7 +288,7 @@
                 <div class="matrix-usage-container">
                     <label>MATRIX USAGE</label>
                     <div class="matrix-usage-bar"><div id="matrix-usage-fill" class="usage-fill" style="width: 0%;"></div></div>
-                    <span id="matrix-usage-text">0/32 Slots</span>
+                    <span id="matrix-usage-text">SYNCING...</span>
                 </div>
                 <button class="modal-ok-btn" onclick="document.getElementById('module-patch-modal').style.display='none'">DONE</button>
             </div>

@@ -3,13 +3,15 @@
  * Generic engine for declarative UI modules.
  */
 export interface LayoutItem {
-    paramId: string;
-    control: 'knob' | 'slider-v' | 'toggle' | 'select' | 'telemetry';
+    paramId?: string;
+    source?: string;
+    control: 'knob' | 'slider-v' | 'toggle' | 'select' | 'telemetry' | 'led';
     label?: string;
     row: number;
     col: number;
     colSpan?: number;
     variant?: string;
+    color?: string;
 }
 export interface ModuleDescriptor {
     id: string;
@@ -43,6 +45,7 @@ export declare class ModuleRenderer {
     updateControlUI(id: string, value: number): void;
     private _updateKnobVisual;
     onStateUpdate(state: any): void;
+    private updateTelemetryUI;
     private updatePortsUI;
 }
 export default ModuleRenderer;

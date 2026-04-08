@@ -1,6 +1,8 @@
 #include "VoiceArchitectureCompiler.h"
 #include "ParamIdRegistry.h"
+#include "../Modulation/ModulationMetadata.h"
 #include "../OmegaIdentifiers.h"
+
 #include <algorithm>
 #include <set>
 
@@ -36,28 +38,19 @@ CompilerResult VoiceArchitectureCompiler::compile(const juce::ValueTree& layerTr
         
         CompiledUnit unit;
         unit.nodeId = static_cast<uint32_t>(i); // Internal index for connections
-        unit.implementationId = resolveImplementationId(componentId, catalog);
         
-        // Map common parameters (Tanda 6)
         auto& reg = ParamIdRegistry::getInstance();
-        if (unit.implementationId == 101) {
-            unit.stableParamIds[0] = reg.getStableId("pwm");
-            unit.stableParamIds[1] = reg.getStableId("gain");
-            unit.stableParamIds[2] = reg.getStableId("subLevel");
-        } else if (unit.implementationId == 102) {
-            unit.stableParamIds[0] = reg.getStableId("detune");
-            unit.stableParamIds[1] = reg.getStableId("spread");
-            unit.stableParamIds[2] = reg.getStableId("gain");
-            unit.stableParamIds[3] = reg.getStableId("pitch");
-        } else if (unit.implementationId == 201 || unit.implementationId == 202) {
-            unit.stableParamIds[0] = reg.getStableId("cutoff");
-            unit.stableParamIds[1] = reg.getStableId("resonance");
-        } else if (unit.implementationId == 203) {
-            unit.stableParamIds[0] = reg.getStableId("cutoff");
-            unit.stableParamIds[1] = reg.getStableId("resonance");
-            unit.stableParamIds[2] = reg.getStableId("mode");
-        } else if (unit.implementationId == 301) {
-            unit.stableParamIds[0] = reg.getStableId("gain");
+        auto const* info = catalog.getComponent(componentId);
+        if (info) {
+            unit.implementationId = info->implementationId;
+            
+            // Map Parameters from Manifest (ACE 2.1)
+            for (int pIdx = 0; pIdx < (int)info->parameters.size() && pIdx < CompiledUnit::kMaxParams; ++pIdx) {
+                const auto& pDef = info->parameters[pIdx];
+                unit.stableParamIds[pIdx] = reg.getStableId(pDef.id);
+            }
+        } else {
+            unit.implementationId = 0; // Unknown
         }
         
         // Copy base values from node properties if present
@@ -137,12 +130,14 @@ CompilerResult VoiceArchitectureCompiler::compile(const juce::ValueTree& layerTr
         result.plan.executionOrder[i] = static_cast<uint8_t>(sortedIndices[i]);
     }
 
-    // 4. Resolve Modulation Routes (Batch 6)
+    // 4. Resolve Modulation Routes [STRICT MODULARITY VA 2.1]
+    // In VA 2.1, we strictly follow the CONNECTIONS node from the ValueTree.
+    // If the bus is anything but 'audio', it's a modulation route.
     for (int i = 0; i < connectionsNode.getNumChildren(); ++i) {
         auto conn = connectionsNode.getChild(i);
-        std::string bus = conn[IDs::bus].toString().toStdString();
+        std::string bus = conn[IDs::bus].toString().toLowerCase().toStdString();
         
-        if (bus == "mod" || bus == "lfo" || bus == "env") {
+        if (bus != "audio" && bus != "" && bus != "unknown") {
             if (result.plan.modRouteCount >= CompiledVoicePlan::kMaxModRoutes) break;
             
             std::string from = conn[IDs::from].toString().toStdString();
@@ -153,19 +148,19 @@ CompilerResult VoiceArchitectureCompiler::compile(const juce::ValueTree& layerTr
             if (nodeIdToSignal.count(from)) {
                 route.sourceSignal = nodeIdToSignal[from];
             } else {
-                // Legacy / Heuristic fallback (Task 1 Alignment)
-                if (from.find("lfo") != std::string::npos) route.sourceSignal = CompiledSignalSpace::lfo(0);
-                else if (from.find("env") != std::string::npos) route.sourceSignal = CompiledSignalSpace::env(0);
-                else route.sourceSignal = 0;
+                // VA 2.1: Use explicit signal space lookup for fixed engine sources (LFO, Velocity, etc.)
+                route.sourceSignal = Modulation::ModulationRegistry::getSignalIndex(from);
             }
 
-            // Map target: if 'to' is VCF, target 'cutoff'
-            if (to.find("flt") != std::string::npos || to.find("VCF") != std::string::npos) {
-                route.targetParamId = ParamIdRegistry::getInstance().getStableId("cutoff");
-            } else if (to.find("vca") != std::string::npos || to.find("VCA") != std::string::npos) {
-                route.targetParamId = ParamIdRegistry::getInstance().getStableId("gain");
+            // Map target: VA 2.1: Strictly use the Parameter ID defined in the Patchbay/Connection
+            std::string targetPort = conn["targetPort"].toString().toStdString();
+            if (targetPort.empty()) {
+                // Heuristic fallback for legacy presets [DEPRECATION WARNING]
+                if (to.find("flt") != std::string::npos) route.targetParamId = ParamIdRegistry::getInstance().getStableId("cutoff");
+                else if (to.find("vca") != std::string::npos) route.targetParamId = ParamIdRegistry::getInstance().getStableId("gain");
+                else route.targetParamId = 0;
             } else {
-                route.targetParamId = ParamIdRegistry::getInstance().getStableId("levelDb");
+                route.targetParamId = ParamIdRegistry::getInstance().getStableId(targetPort);
             }
 
             route.amount = static_cast<float>(conn["amount"]);
@@ -183,30 +178,9 @@ CompilerResult VoiceArchitectureCompiler::compile(const juce::ValueTree& layerTr
 uint32_t VoiceArchitectureCompiler::resolveImplementationId(const std::string& componentId, 
                                                             const Omega::Core::Ace::AceCatalog& catalog)
 {
+    // [DEPRECATED in VA 2.1] -> Use catalog.getComponent(id)->implementationId directly.
     auto* info = catalog.getComponent(componentId);
-    if (!info) return 0;
-
-    // 1. Precise Model Lookup
-    if (info->id == "OSC-VA-001") return 101; // Juno DCO
-    if (info->id == "OSC-VA-004") return 102; // JP Supersaw
-    if (info->id == "FLT-VA-001") return 201; // Juno VCF
-    if (info->id == "FLT-VA-003") return 202; // Korg MS-20 VCF
-    if (info->id == "FLT-VA-004" || info->id == "VCF-JP-8000") return 203; // JP-8080 VCF
-    if (info->id == "VCA-STANDARD-001" || info->id == "VCA-CANONICAL") return 301;
-    if (info->id == "EG-STANDARD-001" || info->id == "ENV-ADSR-GEN") return 401;
-
-    // 2. Heuristic/Family Fallback
-    if (info->family == "Oscillator") {
-        if (info->engine == "Juno") return 101;
-        if (info->engine == "JP") return 102;
-    }
-    if (info->family == "Filter") {
-        if (info->engine == "Juno") return 201;
-        if (info->engine == "Korg") return 202;
-        if (info->engine == "JP") return 203;
-    }
-
-    return 0;
+    return info ? info->implementationId : 0;
 }
 
 } // namespace Voice

@@ -25,6 +25,7 @@ export interface GroupDescriptor {
 export class MetadataStore {
     private parameters: Map<string, ParamDescriptor> = new Map();
     private groups: Map<string, GroupDescriptor> = new Map();
+    private inventory: any[] = [];
     private isLoaded: boolean = false;
     private version: string = "1.0.0";
     private build: string = "0";
@@ -81,8 +82,15 @@ export class MetadataStore {
     async getModulationMetadata(): Promise<any> {
         // @ts-ignore
         if (!(window as any).omegaRPC) return { inventory: [], sources: [], targets: [] };
+        
         // @ts-ignore
-        return await (window as any).omegaRPC.send("getModulationMetadata", {});
+        const res = await (window as any).omegaRPC.send("getModulationMetadata", {});
+        if (res && res.inventory) this.inventory = res.inventory;
+        return res;
+    }
+
+    getInventoryItem(id: string): any {
+        return this.inventory.find(m => m.instanceId === id || m.id === id);
     }
 
     getVersion(): string { return this.version; }

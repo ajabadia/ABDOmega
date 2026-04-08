@@ -418,18 +418,18 @@ window.handleOmegaMessage = (msg) => {
             if (manager)
                 manager.updateRack(state);
             // 2. Reactive Sync
-            if (window.modMatrixInstance)
-                window.modMatrixInstance.onStateUpdate(state);
+            if (window.patchbayMatrixInstance)
+                window.patchbayMatrixInstance.onStateUpdate(state);
             if (window.modulePatchModal)
                 window.modulePatchModal.onStateUpdate(state);
         }
-        else if (type === "onModMatrixUpdate") {
+        else if (type === "onPatchbayMatrixUpdate") {
             // 2. Value update (e.g. Modulation Drag)
             // Skip updateRack() to avoid heavy DOM rebuilds!
             // Update modulation values in Hub and Modal
-            if (window.modMatrixInstance) {
-                console.log("[OMEGA TS] Syncing Matrix Hub...");
-                window.modMatrixInstance.onStateUpdate(state);
+            if (window.patchbayMatrixInstance) {
+                console.log("[OMEGA TS] Syncing Patchbay Hub...");
+                window.patchbayMatrixInstance.onStateUpdate(state);
             }
             if (window.modulePatchModal) {
                 console.log("[OMEGA TS] Syncing Patch Modal...");

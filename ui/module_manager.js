@@ -36,6 +36,8 @@ export class ModuleManager {
             this.lastState = safeState;
             // @ts-ignore
             await window.metadataStore.ensureLoaded();
+            // @ts-ignore
+            await window.metadataStore.getModulationMetadata();
             const upper = document.getElementById('upper-rack');
             const lower = document.getElementById('lower-rack');
             // --- Structure Guard for Build #172 ---
@@ -70,8 +72,7 @@ export class ModuleManager {
                 return;
             }
             for (const item of aux) {
-                const rawType = (item.type || item.componentId || item.COMPONENTID || "").toLowerCase();
-                const id = item.id || item.slotName || item.SLOTNAME || "AUX";
+                const id = item.id || item.nodeId || item.slotName || "AUX";
                 const label = item.label || item.name || item.slotName || id;
                 let targetRack = upper;
                 let rackType = "aux";
@@ -80,25 +81,34 @@ export class ModuleManager {
                     targetRack = lower;
                     rackType = "main";
                 }
-                if (rawType.includes("trig")) {
-                    await this.addModule(id, "ModuleMidiTrigger", rackType, targetRack, { label });
+                const descriptor = this.resolveDescriptor(item);
+                const componentId = item.componentId || item.id || "";
+                // --- Era 4 Purity Guard ---
+                // We skip system-level infrastructure components (Patchbay Hub) in the rack
+                // these will be accessible via the global UI menus/modals.
+                if (componentId.includes("PATCHBAY-MATRIX")) {
+                    console.log(`[ModuleManager] Skipping system component in rack: ${componentId}`);
+                    continue;
                 }
-                else if (rawType.includes("mon")) {
-                    await this.addModule(id, "ModuleMidiViewer", rackType, targetRack, { label });
-                }
-                else if (rawType.includes("osc") || rawType.includes("scope") || rawType.includes("osci")) {
-                    const theme = (label.toLowerCase().includes("mod") || label.toLowerCase().includes("ctrl")) ? "MOD" : "AUDIO";
-                    await this.addModule(id, "ModuleOscilloscope", rackType, targetRack, {
+                if (descriptor) {
+                    // Decide class based on descriptor or generic renderer
+                    let className = "ModuleRenderer";
+                    if (descriptor.id?.includes("MONITOR"))
+                        className = "ModuleMidiViewer";
+                    else if (descriptor.id?.includes("TRIG"))
+                        className = "ModuleMidiTrigger";
+                    else if (descriptor.id?.includes("SCOPE"))
+                        className = "ModuleOscilloscope";
+                    else if (descriptor.id?.includes("MCV"))
+                        className = "ModuleMidiToCv";
+                    await this.addModule(id, className, rackType, targetRack, {
                         label,
-                        theme,
-                        signalIndex: item.signalIndex !== undefined ? item.signalIndex : (item.params?.signalIndex || 32)
+                        descriptor,
+                        componentId
                     });
                 }
-                else if (rawType.includes("matrix") || rawType.includes("modmatrix")) {
-                    await this.addModule(id, "ModuleModMatrix", rackType, targetRack, { label });
-                }
-                else if (rawType.includes("miditocv") || rawType.includes("mcv") || rawType.includes("midi-cv") || rawType.includes("converter")) {
-                    await this.addModule(id, "ModuleMidiToCv", rackType, targetRack, { label });
+                else {
+                    await this.addPlaceholder(id, rackType, targetRack, componentId);
                 }
             }
             if (layerData) {
@@ -257,13 +267,25 @@ export class ModuleManager {
             return null;
         const id = item.componentId || item.id;
         const type = item.slotType || item.type;
-        // 1. Try specific model ID
+        const instanceId = item.slotName || (item.instance && item.instance.id) || id;
+        // 1. Check for Virtual Descriptor from AceCatalog (Hyper-ACE)
+        // @ts-ignore
+        const invItem = window.metadataStore.getInventoryItem(instanceId);
+        if (invItem && invItem.uiLayout) {
+            console.log(`[ModuleManager] Resolved DYNAMIC DESCRIPTOR for ${instanceId}`);
+            const desc = invItem.uiLayout;
+            desc.id = instanceId;
+            desc.title = invItem.name || instanceId;
+            desc.panelClass = invItem.style || desc.panelClass || 'universal-panel';
+            return desc;
+        }
+        // 2. Fallback: Try specific model ID in local registry
         if (id && ModuleDescriptors[id])
             return ModuleDescriptors[id];
-        // 2. Try semantic slot type
+        // 3. Fallback: Try semantic slot type
         if (type && ModuleDescriptors[type])
             return ModuleDescriptors[type];
-        // 3. Try lowercase variant
+        // 4. Fallback: Try lowercase variant
         if (type && ModuleDescriptors[type.toLowerCase()])
             return ModuleDescriptors[type.toLowerCase()];
         console.warn(`[ModuleManager] Could not resolve descriptor for:`, item);

@@ -1,8 +1,41 @@
 # 📝 OMEGA Changelog
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
- 
-## [2.2.0] - 2026-04-06 (Build 260)
+
+## [2.5.0] - 2026-04-08 (Build 298) - "Patchbay Hub Evolution"
+### Added
+- **Global Patchbay Hub (Phase 24.F)**:
+    - Decoupled the Patchbay Matrix from the physical rack, establishing it as a system-level utility.
+    - Implemented a premium **Glassmorphism** aesthetic using `backdrop-filter` and semi-transparent layering.
+    - Added a dedicated **[MATRIX]** trigger in the Top Navigation bar and **Edit** menu.
+- **Aseptic Rack Guard**:
+    - Implemented a structural filter in `ModuleManager` to prevent infrastructure components (Hub) from appearing in the synthesis rack.
+- **Dynamic Slot Expansion**:
+    - Resolved the "Matrix Full" bug when initializing the first mod slot in an empty matrix.
+    - Enabled seamless 0-to-16 slot growth driven by user interaction.
+
+## [2.4.0] - 2026-04-07 (Build 271) - "Aseptic Sync"
+### Added
+- **Patchbay Dynamic Slot Sync (Phase 24.E)**:
+    - Implemented proactive slot-count synchronization in the WebUI. The Patchbay Hub now re-queries the engine limits every time it is toggled, ensuring instant parity with "Edit > Preferences" changes.
+    - Added high-fidelity diagnostic logging to `SystemSettingsManager.cpp` to verify parameter persistence and boundary clamping.
+- **Engine Traceability**:
+    - Centralized `maxPatchbaySlots` verification in the C++ core to prevent desync between on-disk YAML and runtime ValueTree state.
+### Improved
+- **UI Responsiveness**: Optimized the `toggleWorkspace` flow to prevent stale rendering of the modulation grid.
+- **Nomenclature Audit**: Completed 100% purge of legacy "Modulation Matrix" labels in favor of "Patchbay Hub".
+### Added
+- **Hyper-ACE Super-Modularity (Phase 23)**:
+    - **Dynamic Manifest Discovery**: Expanded `AceCatalog` to support directory-based scanning of `.yaml` manifests. Modules are now fully decoupled from the binary core.
+    - **Metadata-Driven UI**: Implemented a generic `ModuleRenderer` in the WebUI that interprets `uiLayout` (grid/columns/gap) and `style` metadata directly from the C++ backend.
+    - **Juno DCO Manifest**: Migrated the flagship Juno DCO to a standalone manifest (`juno_dco.yaml`), proving the "Super-Modular" vision.
+- **Nomenclature Migration**:
+    - **Patchbay-Matrix**: Systemic renaming of the "Modulation Matrix" to "Patchbay-Matrix" across all layers (C++, RPC, TypeScript, YAML).
+### Improved
+- **RPC Protocol Expansion**: Updated `RpcModulationController` and `RpcPresetController` to serve complex UI metadata during component discovery.
+- **ValueTree Flattening**: Refactored `RpcPresetController` to correctly handle the new `patchbayMatrix` semantic tag.
+
+## [2.2.1] - 2026-04-06 (Build 270)
 ### Added
 - **Aseptic Rack Identity (Phase 22)**:
     - **Aseptic Normalization**: Purged `OmegaPresetNormalizer` of all hardcoded auxiliary injections. The engine is now 100% data-driven.

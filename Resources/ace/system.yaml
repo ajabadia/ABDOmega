@@ -1,0 +1,23 @@
+components:
+  - id: "PATCHBAY-MATRIX-001"
+    name: "Patchbay Matrix"
+    family: "System"
+    engine: "Modular"
+    modelId: "OMEGA-SYS-MATRIX"
+    origin: "ABD OMEGA"
+    status: "active"
+    version: 1
+    panelClass: "system-panel"
+    tags: ["system", "routing", "matrix", "patchbay"]
+    parameters:
+      - id: "master_gain"
+        label: "GAIN"
+        unit: "dB"
+        min: -60.0
+        max: 6.0
+        default: 0.0
+    modulationTargets:
+      - id: "slot_0"
+        label: "Slot 0"
+      - id: "slot_1"
+        label: "Slot 1"
