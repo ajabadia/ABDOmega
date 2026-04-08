@@ -76,3 +76,24 @@ OMEGA utiliza una jerarquía de namespaces estricta para garantizar que las capa
 
 ### 8.1 Regla de Oro del Desacoplamiento
 Ningún archivo dentro de `Core` o `Engine` debe incluir headers de `juce`. Toda interacción con el host o la interfaz debe ser mediada por la capa `UI` a través de interfaces deterministas.
+
+## 9. Convenciones de Nomenclatura (Naming)
+
+Para mantener la legibilidad y coherencia en un entorno políglota (C++, TypeScript, YAML), OMEGA sigue estas reglas:
+
+### 9.1 Código C++ (Backend)
+*   **Clases / Structs / Enums**: `PascalCase` (ej. `OmegaAudioProcessor`, `ComponentInfo`).
+*   **Métodos / Funciones**: `camelCase` (ej. `loadFromPluginDirectory`).
+*   **Miembros de Clase**: Prefijo `m` + `camelCase` (ej. `mCatalog`, `mEngine`).
+*   **Variables Locales**: `camelCase` (ej. `wasmFile`, `anyFound`).
+*   **Constantes / Macros**: `SCREAMING_SNAKE_CASE` (ej. `MAX_VOICES`).
+
+### 9.2 Archivos y Recursos
+*   **Headers/Sources C++**: `PascalCase` coincidiendo con la clase principal (`AceCatalog.h`).
+*   **Módulos WASM y Manifiestos YAML**: `snake_case` (`midi_in.wasm`, `midi_2_cv.yaml`). Esto garantiza compatibilidad de red y sistemas de archivos.
+*   **Identificadores (IDs)**: `snake_case` o `kebab-case` dependiendo del contexto ACE, pero preferiblemente `snake_case` para coincidir con nombres de archivo.
+
+### 9.3 Interfaz (WebUI / RPC)
+*   **Propiedades JSON**: Estrictamente `camelCase` (`modelId`, `panelClass`).
+*   **Componentes React/Lit**: `PascalCase` (`ModuleBrowser`).
+*   **Estilos CSS**: `kebab-case` (`.module-browser-modal`).
