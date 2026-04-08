@@ -262,9 +262,25 @@ namespace Omega::Core::Ace {
                     ::juce::Logger::writeToLog("ACE: Found WASM without YAML: " + stem + " (Skipping)");
                 }
             }
-            
+            // 2. Load Core System Manifests (Always required for UI/Routing)
+            ::juce::File systemYaml = metadataDir.getChildFile("system.yaml");
+            if (systemYaml.exists()) {
+                try {
+                    YAML::Node doc = YAML::LoadFile(systemYaml.getFullPathName().toStdString());
+                    if (doc["components"]) {
+                        for (auto c : doc["components"]) {
+                            ComponentInfo info;
+                            parseComponentNode(c, info);
+                            registerComponent(info);
+                        }
+                    }
+                } catch (...) {
+                    ::juce::Logger::writeToLog("ACE: Error loading system.yaml");
+                }
+            }
+
             if (anyFound) buildFallbacks();
-            return anyFound;
+            return anyFound || systemYaml.exists();
         }
 
     private:

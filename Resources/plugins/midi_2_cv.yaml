@@ -8,7 +8,7 @@ status: "active"
 version: 1
 panelClass: "utility-panel"
 description: "Standard MIDI to CV converter. Extracts Pitch, Gate, and Velocity signals from incoming MIDI data for internal routing."
-icon: midi-util
+illustration: "midi_2_cv/illustration.svg"
 tags: ["midi", "cv", "utility", "converter"]
 parameters:
   - id: "midiChannel"
@@ -34,3 +34,12 @@ ports:
     label: "VELOCITY"
     type: "cv"
     direction: "output"
+uiLayout:
+  columns: 1
+  rows: 3
+  items:
+    - { id: "chan_sel", control: "select", paramId: "midiChannel", row: 0, col: 0 }
+    - { id: "pitch_out", control: "port", portId: "pitch", row: 1, col: 0, label: "PITCH" }
+    - { id: "gate_out", control: "port", portId: "trigger", row: 2, col: 0, label: "GATE" }
+footer:
+  label: "CONVERTER UTILITY"

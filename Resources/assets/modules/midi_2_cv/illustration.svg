@@ -1,0 +1,19 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- MIDI to CV Minimalist Flow -->
+  <!-- Left: MIDI Source -->
+  <circle cx="50" cy="100" r="20" fill="none" stroke="white" stroke-width="2" opacity="0.5"/>
+  <circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/>
+  
+  <!-- Center: Flow path -->
+  <path d="M70 100 L130 100" fill="none" stroke="cyan" stroke-width="2" stroke-dasharray="4 4"/>
+  
+  <!-- Right: CV/Gate Jacks -->
+  <circle cx="150" cy="60" r="10" fill="none" stroke="white" stroke-width="2"/>
+  <circle cx="150" cy="60" r="3" fill="cyan"/>
+  
+  <circle cx="150" cy="100" r="10" fill="none" stroke="white" stroke-width="2"/>
+  <circle cx="150" cy="100" r="3" fill="cyan"/>
+  
+  <circle cx="150" cy="140" r="10" fill="none" stroke="white" stroke-width="2"/>
+  <circle cx="150" cy="140" r="3" fill="cyan"/>
+</svg>

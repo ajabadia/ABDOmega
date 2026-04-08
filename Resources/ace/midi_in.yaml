@@ -1,12 +1,14 @@
-id: MIDI-IN-001
-name: MIDI IN
-family: Utility
-engine: Modular
-modelId: ACE-UTIL-MIDI-IN
+id: midi_in
+name: "MIDI Input"
+family: "Utility"
+engine: "Modular"
+modelId: "ACE-UTIL-MIDI-IN"
 implementationId: 501
 version: 1
-panelClass: utility-panel
-status: active
+panelClass: "utility-panel"
+description: "Primary MIDI input bridge. Routes external MIDI data from the host or physical inputs to the OMEGA modulation engine."
+illustration: "midi_in/illustration.svg"
+status: "active"
 tags: ["midi", "input", "bridge"]
 parameters:
   - id: midi_channel
