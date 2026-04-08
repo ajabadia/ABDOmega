@@ -1,4 +1,5 @@
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_core/juce_core.h>
 #include "OmegaAudioProcessor.h"
 #include "../UI/OmegaMainEditor.h"
 #include "../Core/OmegaIdentifiers.h"
@@ -41,13 +42,17 @@ namespace Plugin {
         }
 
         if (resourceDir.exists()) {
-            juce::Logger::writeToLog("ACE: Resources found at level " + juce::String(levelsSearched) + ": " + resourceDir.getFullPathName());
-            if (mCatalog.loadFromDirectory(resourceDir)) {
-                mCatalog.buildFallbacks();
+            ::juce::Logger::writeToLog("ACE: Resources found at level " + ::juce::String(levelsSearched) + ": " + resourceDir.getFullPathName());
+            
+            ::juce::File pluginsDir = resourceDir.getChildFile("plugins");
+            ::juce::File aceDir = resourceDir.getChildFile("ace");
+
+            if (mCatalog.loadFromPluginDirectory(pluginsDir, aceDir)) {
                 Core::Service::SemanticBrokerService::getInstance().setCatalog(&mCatalog);
+                ::juce::Logger::writeToLog("ACE: Discovered " + ::juce::String((int)mCatalog.getComponents().size()) + " functional WASM modules.");
             }
         } else {
-            juce::Logger::writeToLog("CRITICAL: OMEGA Resources directory NOT FOUND after 10 levels of searching.");
+            ::juce::Logger::writeToLog("CRITICAL: OMEGA Resources directory NOT FOUND after 10 levels of searching.");
         }
 
         loadPreset(Core::Preset::OmegaPreset::createMinimal());

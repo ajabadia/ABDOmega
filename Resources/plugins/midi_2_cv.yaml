@@ -1,0 +1,36 @@
+id: "midi_2_cv"
+name: "MIDI to CV Converter"
+family: "Utility"
+engine: "Modular"
+modelId: "ACE-UTIL-MCV"
+origin: "ABD OMEGA"
+status: "active"
+version: 1
+panelClass: "utility-panel"
+description: "Standard MIDI to CV converter. Extracts Pitch, Gate, and Velocity signals from incoming MIDI data for internal routing."
+icon: midi-util
+tags: ["midi", "cv", "utility", "converter"]
+parameters:
+  - id: "midiChannel"
+    label: "CHANNEL"
+    unit: "ch"
+    min: 0
+    max: 16
+    default: 0
+ports:
+  - id: "midi_in"
+    label: "MIDI IN"
+    type: "midi"
+    direction: "input"
+  - id: "pitch"
+    label: "PITCH (Hz)"
+    type: "cv"
+    direction: "output"
+  - id: "trigger"
+    label: "GATE"
+    type: "gate"
+    direction: "output"
+  - id: "velocity"
+    label: "VELOCITY"
+    type: "cv"
+    direction: "output"

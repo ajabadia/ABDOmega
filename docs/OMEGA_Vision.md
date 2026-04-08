@@ -13,15 +13,21 @@ Es el "sistema nervioso" de OMEGA.
 
 ## 3. Supermodularidad (Plugins WASM)
 Cada módulo es un archivo independiente (`.wasm`) ubicado en `Resources/plugins/`.
-*   **Hot-Pluggable**: Se pueden añadir o registrar módulos sin necesidad de recompilar la aplicación central.
-*   **Autodescubrimiento**: Al cargar un módulo, el Host lee su **Manifiesto** (Nombre, Versión, Tipo, Entradas/Salidas y Skin sugerida).
+*   **Descubrimiento Basado en Binarios**: El sistema valida la existencia física del archivo `.wasm` antes de registrar el módulo. Si no hay binario, el módulo no existe en el catálogo.
+*   **Vinculación Dinámica de Metadatos**: Al detectar un binario, el Host vincula automáticamente su **Manifiesto YAML** (Nombre, Categoría, Parámetros) buscándolo en la carpeta de plugins o en el registro global `Resources/ace/`.
+*   **Hot-Pluggable (Session Ready)**: Los módulos se cargan en memoria al inicio de la sesión para garantizar estabilidad y rendimiento ultra-rápido en la interfaz.
 
-## 4. Interfaz Gráfica Declarativa (GUI Sets)
-La UI es responsabilidad del **Módulo Central (Host)**, no del módulo individual.
-*   **Manifiesto de UI**: El módulo declara qué controles necesita (Knobs, Sliders, Switches, LEDs) y sus etiquetas. No define posiciones exactas.
-*   **Skins (GUI Sets)**: El módulo puede sugerir un set gráfico (Juno, JP8000, Space Echo). 
-*   **Fallback Universal**: Si no hay un skin definido o disponible, el Host utiliza el **"Conjunto por Defecto"**.
-*   **Sets Gráficos Asépticos**: Los activos visuales y el CSS son gestionados por el Host y son independientes de la lógica del módulo.
+## 4. Registro y Exploración Integrada
+OMEGA abandona los selectores de archivos tradicionales en favor de un **Module Registry** profesional:
+*   **Navegación por Categorías**: Organización automática en OSC, FILTER, ENV, FX, UTILITY basándose en los metadatos del manifiesto.
+*   **Panel de Detalles**: Cada módulo ofrece una descripción funcional, versión e iconos/ilustraciones para facilitar la selección.
+*   **Inyección en Tiempo Real**: Los módulos se pueden añadir al rack dinámicamente mediante el menú "Add Module", integrándose instantáneamente en el grafo de procesamiento.
+
+## 5. Interfaz Gráfica Declarativa (GUI Sets)
+La UI es responsabilidad del **Módulo Central (Host)**, eliminando el acoplamiento visual:
+*   **Filosofía Aséptica**: Se han eliminado tecnicismos como "Tabula Rasa" o "WASM" de la interfaz de cara al usuario, centrándose en términos puramente musicales y de flujo de señal.
+*   **Manifiesto de UI**: El módulo declara qué controles necesita (Knobs, Sliders, Switches, LEDs) y sus etiquetas.
+*   **Skins y Fallbacks**: El Host gestiona los sets gráficos (Juno, JP, etc.), garantizando que la interfaz siempre se sienta premium y coherente.
 
 ## 5. El Rack como Editor
 El Módulo Central actúa como Host y como **Editor de Presets**:
@@ -29,5 +35,44 @@ El Módulo Central actúa como Host y como **Editor de Presets**:
 *   **Persistencia Total**: Los presets guardan las rutas de los archivos de los módulos, sus posiciones en el rack y todo el cableado del Patchbay.
 *   **Operaciones de Preset**: Carga, Guardado, Guardar como, y Eliminación.
 
-## 6. Ejecución y Prioridades
-Pendiente de definir un sistema de prioridades de ejecución para evitar colisiones cuando varios módulos compiten por el procesamiento, asegurando que el flujo de audio y control sea determinista.
+## 6. Guía de Desarrollo de Módulos (Era 4)
+
+El desarrollo de módulos en OMEGA se basa en la separación total de la lógica DSP (WASM) y la declaración de capacidades (YAML).
+
+### 6.1 Estructura del Plugin
+Para que un módulo sea "Session-Ready", debe estar presente en `Resources/plugins/`:
+*   `nombre_modulo.wasm`: El binario compilado (C++/Rust/AssemblyScript).
+*   `nombre_modulo.yaml`: El manifiesto que vincula el binario con el Host.
+
+### 6.2 Schema del Manifiesto ACE
+Un manifiesto válido debe contener:
+*   **Identidad**:
+    *   `id`: Identificador único (suele coincidir con el nombre del archivo).
+    *   `implementationId`: ID numérico para el despacho rápido en el motor C++.
+    *   `family`: Categoría para el Module Browser (`OSC`, `FILTER`, `ENV`, `FX`, `LFO`, `UTILITY`).
+*   **Documentación**:
+    *   `description`: Texto explicativo que aparecerá en el navegador.
+    *   `icon`: Identificador de icono aséptico (ej. `osc-va`, `filter-drp`).
+*   **Contrato de Señales (Ports)**:
+    *   `type`: `cv` (control), `midi` (datos), `gate` (disparo), `audio`.
+    *   `direction`: `input` o `output`.
+*   **Parámetros**:
+    *   Definiciones de `min`, `max` y `default`. El Host genera automáticamente los controles UI basándose en estos rangos.
+
+### 6.3 Ciclo de Procesamiento
+1.  **Carga**: El Host descubre el binario y reserva memoria en el runtime WAMR.
+2.  **Mapeo**: El Host vincula los puertos definidos en el YAML con los buffers de entrada/salida del motor WASM.
+3.  **Ejecución**: El motor invoca la función `process()` del módulo a la frecuencia de muestreo del Host, garantizando latencia cero.
+
+## 8. Jerarquía de Namespaces y Estructura de Código
+
+OMEGA utiliza una jerarquía de namespaces estricta para garantizar que las capas de la aplicación permanezcan desacopladas (Arquitectura Aseptizada).
+
+*   `Omega::Core`: El cerebro del sistema. Contiene el catálogo ACE, el motor de WASM, y la gestión de Presets. No tiene conocimiento de JUCE ni de la UI.
+*   `Omega::Engine`: La sala de máquinas DSP. Contiene el `VoiceRuntime`, la compilación de arquitectura de voces y el motor de modulación. 
+*   `Omega::UI`: La capa de mediación. Aquí residen los controladores RPC (`RpcPresetController`, etc.) y el bridge que traduce JSON a comandos internos.
+*   `Omega::Plugin`: La piel del sistema. Es la única capa que interactúa directamente con el framework JUCE y la gestión de parámetros del DAW.
+*   `Omega::DSP`: Primitivas de audio reutilizables (osciladores, filtros básicos) que son consumidas por el `Engine`.
+
+### 8.1 Regla de Oro del Desacoplamiento
+Ningún archivo dentro de `Core` o `Engine` debe incluir headers de `juce`. Toda interacción con el host o la interfaz debe ser mediada por la capa `UI` a través de interfaces deterministas.

@@ -219,6 +219,54 @@ namespace Omega::Core::Ace {
             return anyFound;
         }
 
+        /**
+         * @brief Discover modules strictly based on WASM binary existence. (Era 4 Paradigm)
+         */
+        bool loadFromPluginDirectory(const ::juce::File& pluginDir, const ::juce::File& metadataDir) {
+            if (!pluginDir.isDirectory()) return false;
+            
+            ::juce::DirectoryIterator it(pluginDir, true, "*.wasm");
+            bool anyFound = false;
+            
+            while (it.next()) {
+                ::juce::File wasmFile = it.getFile();
+                ::juce::String stem = wasmFile.getFileNameWithoutExtension();
+                
+                // Search for metadata: 1. Local (.yaml next to .wasm), 2. Global (metadataDir)
+                ::juce::File yamlFile = wasmFile.withFileExtension(".yaml");
+                if (!yamlFile.exists() && metadataDir.isDirectory()) {
+                    yamlFile = metadataDir.getChildFile(stem + ".yaml");
+                }
+
+                if (yamlFile.exists()) {
+                    try {
+                        YAML::Node doc = YAML::LoadFile(yamlFile.getFullPathName().toStdString());
+                        std::vector<YAML::Node> componentNodes;
+                        if (doc["components"]) {
+                            for (auto c : doc["components"]) componentNodes.push_back(c);
+                        } else if (doc["id"]) {
+                            componentNodes.push_back(doc);
+                        }
+
+                        for (auto const& c : componentNodes) {
+                            ComponentInfo info;
+                            parseComponentNode(c, info);
+                            
+                            registerComponent(info);
+                            anyFound = true;
+                        }
+                    } catch (...) {
+                        ::juce::Logger::writeToLog("ACE: Error loading metadata for " + stem);
+                    }
+                } else {
+                    ::juce::Logger::writeToLog("ACE: Found WASM without YAML: " + stem + " (Skipping)");
+                }
+            }
+            
+            if (anyFound) buildFallbacks();
+            return anyFound;
+        }
+
     private:
         std::map<std::string, ComponentInfo> mComponents;
         std::map<std::string, std::string> mFallbacks;
