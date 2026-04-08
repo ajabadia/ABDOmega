@@ -8,6 +8,8 @@ components:
     status: "active"
     version: 1
     panelClass: "utility-panel"
+    description: "Standard MIDI to CV converter. Extracts Pitch, Gate, and Velocity signals from incoming MIDI data for internal routing."
+    icon: midi-util
     tags: ["midi", "cv", "utility", "converter"]
     parameters:
       - id: "midiChannel"

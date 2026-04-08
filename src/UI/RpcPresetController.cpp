@@ -116,6 +116,67 @@ namespace UI {
     juce::var RpcPresetController::handleSetFavorite(const juce::var& requestId, const juce::var&) {
         return createResponse("FAV_ACK", requestId, {}, true);
     }
+    
+    juce::var RpcPresetController::handleAddModule(const juce::var& requestId, const juce::var& payload) {
+        auto componentId = payload["componentId"].toString();
+        auto info = mCatalog.getComponent(componentId.toStdString());
+        if (!info) return createError("ADD_MODULE_ACK", requestId, "Component not found: " + componentId);
+
+        // Access the preset's state
+        auto& state = mPreset.getState();
+        using IDs = Core::Preset::OmegaPreset::IDs;
+
+        // Ensure 'layers' exist
+        auto layers = state.getChildWithName(IDs::layers);
+        if (!layers.isValid()) {
+            layers = juce::ValueTree(IDs::layers);
+            state.addChild(layers, -1, nullptr);
+        }
+
+        if (layers.getNumChildren() == 0) {
+            mPreset.addLayer("Main Voice");
+        }
+        
+        auto firstLayer = layers.getChild(0);
+        auto arch = firstLayer.getChildWithName(IDs::voiceArch);
+        if (!arch.isValid()) {
+            arch = juce::ValueTree(IDs::voiceArch);
+            firstLayer.addChild(arch, -1, nullptr);
+        }
+        
+        // Map family to identifier
+        juce::Identifier catId = IDs::auxiliary;
+        std::string fam = info->family;
+        if (fam == "OSC") catId = IDs::oscillators;
+        else if (fam == "FLT") catId = IDs::filters;
+        else if (fam == "ENV") catId = IDs::envelopes;
+        else if (fam == "LFO") catId = IDs::lfos;
+        else if (fam == "AMP") catId = IDs::amplifiers;
+        else if (fam == "FX") catId = IDs::fxSlots;
+        else if (fam == "MOD") catId = IDs::modulators;
+        else if (fam == "Utility") catId = IDs::auxiliary;
+
+        auto catNode = arch.getChildWithName(catId);
+        if (!catNode.isValid()) {
+            catNode = juce::ValueTree(catId);
+            arch.addChild(catNode, -1, nullptr);
+        }
+        
+        // Create component entry
+        juce::ValueTree cn(IDs::COMPONENT);
+        cn.setProperty(IDs::slotName, juce::String(info->name), nullptr);
+        cn.setProperty(IDs::componentId, juce::String(info->id), nullptr);
+        
+        juce::ValueTree cp(IDs::params);
+        for (const auto& p : info->parameters) {
+            cp.setProperty(juce::Identifier(p.id), p.defaultValue, nullptr);
+        }
+        cn.addChild(cp, -1, nullptr);
+        catNode.addChild(cn, -1, nullptr);
+
+        // Notify UI that state changed (Audio Processor will detect this too)
+        return createResponse("ADD_MODULE_ACK", requestId, {}, true);
+    }
 
     juce::var RpcPresetController::handleGetHistory(const juce::var& requestId, const juce::var& payload) {
         if (!mRepository) return createError("HISTORY", requestId, "Repository not available");

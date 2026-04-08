@@ -46,6 +46,8 @@ namespace Omega::Core::Ace {
         std::string status;   // active, experimental, deprecated
         int version = 1;
         std::vector<std::string> tags;
+        std::string description;
+        std::string icon;
         std::vector<ParameterDef> parameters;
         std::vector<ModTarget> modulationTargets;
         
@@ -79,6 +81,9 @@ namespace Omega::Core::Ace {
             if (c["tags"]) {
                 for (auto t : c["tags"]) info.tags.push_back(t.as<std::string>());
             }
+            
+            if (c["description"]) info.description = c["description"].as<std::string>();
+            if (c["icon"]) info.icon = c["icon"].as<std::string>();
 
             if (c["parameters"]) {
                 for (auto p : c["parameters"]) {

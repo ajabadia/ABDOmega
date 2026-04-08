@@ -178,11 +178,11 @@ export class ModulePatchbayMatrix {
             if (activeSlots.length === 0 && this.sources.length === 0) {
                 gridHtml = `
                     <div class="empty-state-info">
-                        <div class="info-title">ASEPTIC RACK DETECTED</div>
-                        <p>The synthesis engine is currently in 'Tabula Rasa' state. Add WASM modules to the rack to begin routing signals.</p>
-                        <div class="matrix-card add-card" id="btn-add-modulation" style="width:200px; margin: 20px auto;">
+                        <div class="info-title">MODULAR RACK EMPTY</div>
+                        <p>The synthesizer rack is currently empty. Use the <b>Edit > Add Module</b> menu to begin building your signal path.</p>
+                        <div class="matrix-card add-card" id="btn-add-module-shortcut" style="width:200px; margin: 20px auto;">
                             <div class="add-icon">＋</div>
-                            <div class="card-label">INITIALIZE FIRST SLOT</div>
+                            <div class="card-label">ADD MODULE</div>
                         </div>
                     </div>
                 `;

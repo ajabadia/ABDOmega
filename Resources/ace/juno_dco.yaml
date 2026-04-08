@@ -1,6 +1,8 @@
 id: OSC-VA-001
 name: JUNO DCO
 family: Oscillator
+description: "Authentic digitally controlled oscillator from the Roland Juno-60 era. Features Saw, Pulse, and Sub-oscillator sections with PWM."
+icon: osc-va
 engine: VirtualAnalog
 modelId: DCO-60
 version: 1

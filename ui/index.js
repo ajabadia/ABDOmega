@@ -16,6 +16,7 @@ import { ModuleMidiViewer } from './components/ModuleMidiViewer.js';
 import { ModulePatchbayMatrix } from './components/ModulePatchbayMatrix.js';
 import { ModulePatchModal } from './components/ModulePatchModal.js';
 import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
+import { ModuleBrowser } from './components/ModuleBrowser.js';
 // Global instances for legacy bridge compatibility
 window.omegaRPC = rpc;
 window.metadataStore = new MetadataStore();
@@ -28,6 +29,7 @@ window.ModuleMidiTrigger = ModuleMidiTrigger;
 window.ModuleMidiViewer = ModuleMidiViewer;
 window.ModulePatchbayMatrix = ModulePatchbayMatrix;
 window.ModuleMidiToCv = ModuleMidiToCv;
+window.ModuleBrowser = ModuleBrowser;
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("[OMEGA] Booting Synth UI...");
@@ -62,6 +64,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const matrixMenuLink = document.getElementById('menu-matrix');
         if (matrixMenuLink)
             matrixMenuLink.onclick = () => matrixHub.toggleWorkspace(true);
+        // Initialize Module Browser
+        const moduleBrowser = new ModuleBrowser();
+        window.moduleBrowser = moduleBrowser;
+        const addModuleMenuLink = document.getElementById('menu-add-module');
+        if (addModuleMenuLink)
+            addModuleMenuLink.onclick = () => window.moduleBrowser.open();
+        // Bind Matrix Shortcut to Browser
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#btn-add-module-shortcut')) {
+                window.moduleBrowser.open();
+                window.patchbayHub.toggleWorkspace(false);
+            }
+        });
     }
     catch (e) {
         console.error("[OMEGA] Component init failed:", e);

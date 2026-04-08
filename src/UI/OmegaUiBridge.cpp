@@ -64,6 +64,7 @@ namespace UI {
         if (type == "selectLibrary") return mPresetController->handleSelectLibrary(requestId, payload);
         if (type == "loadLibraryPreset") return mPresetController->handleLoadLibraryPreset(requestId, payload, mOnLoadPreset);
         if (type == "setFavorite") return mPresetController->handleSetFavorite(requestId, payload);
+        if (type == "addModule") return mPresetController->handleAddModule(requestId, payload);
         if (type == "saveAsNewPreset") {
              // Redirect to saveSnapshot logic or similar
              return mPresetController->handleSaveSnapshot(requestId, payload, mPreset);
@@ -93,6 +94,7 @@ namespace UI {
         if (type == "getMetadata") return mMetadataController->handleGetMetadata(requestId, payload);
         if (type == "getSampleRate") return mMetadataController->handleGetSampleRate(requestId, payload);
         if (type == "getTempo") return mMetadataController->handleGetTempo(requestId, payload);
+        if (type == "listCatalog") return mMetadataController->handleListCatalog(requestId, payload);
         if (type == "uiReady") {
             // Proactive Push: Ensure UI is in sync with real engine state immediately
             // We use both explicit push and forceRepaint for redundancy during boot.

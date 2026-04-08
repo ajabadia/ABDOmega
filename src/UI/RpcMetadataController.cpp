@@ -49,6 +49,35 @@ namespace UI {
         return createResponse("TEMPO", requestId, {}, 120.0);
     }
 
+    juce::var RpcMetadataController::handleListCatalog(const juce::var& requestId, const juce::var&) {
+        if (!mProcessor) return createError("LIST_CATALOG", requestId, "Missing Processor");
+        
+        auto& catalog = mProcessor->getCatalog();
+        juce::Array<juce::var> components;
+        
+        for (auto const* info : catalog.getComponents()) {
+            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+            obj->setProperty("id", juce::String(info->id));
+            obj->setProperty("name", juce::String(info->name));
+            obj->setProperty("family", juce::String(info->family));
+            obj->setProperty("engine", juce::String(info->engine));
+            obj->setProperty("version", info->version);
+            obj->setProperty("description", juce::String(info->description));
+            obj->setProperty("icon", juce::String(info->icon));
+            
+            juce::Array<juce::var> tags;
+            for (const auto& t : info->tags) tags.add(juce::String(t));
+            obj->setProperty("tags", tags);
+            
+            components.add(juce::var(obj.get()));
+        }
+        
+        juce::DynamicObject::Ptr payload = new juce::DynamicObject();
+        payload->setProperty("components", components);
+        
+        return createResponse("LIST_CATALOG", requestId, {}, payload.get());
+    }
+
     juce::var RpcMetadataController::descriptorToVar(const Core::ParameterDescriptor& d) {
         juce::DynamicObject::Ptr obj = new juce::DynamicObject();
         obj->setProperty("id", juce::String(d.id));

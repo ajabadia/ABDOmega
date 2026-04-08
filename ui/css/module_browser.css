@@ -1,0 +1,188 @@
+/* OMEGA Module Browser - Integrated Registry UI */
+
+.module-browser-content {
+    width: 90%;
+    height: 85%;
+    max-width: 1200px;
+    background: rgba(10, 10, 10, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.browser-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 20px;
+    padding: 20px;
+}
+
+/* Sidebar */
+.browser-sidebar {
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding-right: 15px;
+}
+
+.search-box input {
+    width: 100%;
+    background: #000;
+    border: 1px solid #333;
+    padding: 10px;
+    color: var(--neon-cyan);
+    font-family: 'Outfit', sans-serif;
+    border-radius: 4px;
+}
+
+.category-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.cat-item {
+    padding: 10px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.cat-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.cat-item.active {
+    background: var(--juno-red);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 75, 75, 0.3);
+}
+
+/* Main Grid */
+.browser-main {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+}
+
+.reg-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.reg-card:hover {
+    background: rgba(0, 255, 255, 0.05);
+    border-color: var(--neon-cyan);
+    transform: translateY(-2px);
+}
+
+.reg-card.selected {
+    background: rgba(0, 255, 255, 0.1);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+}
+
+.reg-card .card-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    opacity: 0.8;
+}
+
+.reg-card .card-name {
+    font-size: 11px;
+    font-weight: 900;
+    color: #fff;
+}
+
+.reg-card .card-family {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-top: 4px;
+}
+
+/* Preview Panel */
+.browser-preview {
+    width: 300px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.preview-placeholder {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.2);
+    font-style: italic;
+    font-size: 11px;
+    text-align: center;
+}
+
+.detail-header h3 {
+    margin: 0;
+    color: var(--neon-cyan);
+    font-family: 'Outfit', sans-serif;
+    font-size: 20px;
+}
+
+.detail-meta {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    gap: 10px;
+}
+
+.detail-description {
+    font-size: 12px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+    flex: 1;
+}
+
+.add-action-container {
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-add-to-rack {
+    width: 100%;
+    padding: 15px;
+    background: var(--juno-orange);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add-to-rack:hover {
+    background: #ffae00;
+    box-shadow: 0 0 15px rgba(255, 166, 0, 0.4);
+}

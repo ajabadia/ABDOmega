@@ -73,6 +73,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="css/preferences.css">
     <link rel="stylesheet" href="css/matrix_overlay.css">
+    <link rel="stylesheet" href="css/module_browser.css">
 </head>
 <body class="rack-bg">
     <nav class="top-menu">
@@ -89,6 +90,7 @@
             <div class="dropdown">
                 <a data-action="undo">Undo</a>
                 <a data-action="redo">Redo</a>
+                <a id="menu-add-module" data-action="toggle_module_browser">Add Module...</a>
                 <a id="menu-matrix" data-action="toggle_matrix">Patchbay Matrix...</a>
                 <a id="menu-presets" data-action="toggle_presets_modal">Presets...</a>
                 <a id="menu-preferences" data-action="toggle_preferences_modal">Preferences...</a>
@@ -291,6 +293,40 @@
                     <span id="matrix-usage-text">SYNCING...</span>
                 </div>
                 <button class="modal-ok-btn" onclick="document.getElementById('module-patch-modal').style.display='none'">DONE</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Module Browser Modal -->
+    <div id="module-browser-modal" class="modal">
+        <div class="modal-content module-browser-content">
+            <span class="close-btn" onclick="document.getElementById('module-browser-modal').style.display='none'">&times;</span>
+            <h2 class="modal-title">MODULE REGISTRY</h2>
+            <div class="browser-layout">
+                <!-- Sidebar: Categories & Search -->
+                <div class="browser-sidebar">
+                    <div class="search-box">
+                        <input type="text" id="module-search" placeholder="Filter Registry...">
+                    </div>
+                    <div class="category-list" id="module-category-list">
+                        <!-- Families: OSC, FLT, ENV, etc. -->
+                    </div>
+                </div>
+                
+                <!-- Main: Module Grid -->
+                <div class="browser-main">
+                    <div class="module-grid" id="module-registry-grid">
+                        <!-- Modules injected here -->
+                    </div>
+                </div>
+
+                <!-- Detail Panel -->
+                <div class="browser-preview" id="module-detail-panel">
+                    <div class="preview-placeholder">SELECT A MODULE</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-ok-btn" onclick="document.getElementById('module-browser-modal').style.display='none'">CANCEL</button>
             </div>
         </div>
     </div>
