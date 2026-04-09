@@ -44,12 +44,11 @@ namespace Plugin {
         if (resourceDir.exists()) {
             ::juce::Logger::writeToLog("ACE: Resources found at level " + ::juce::String(levelsSearched) + ": " + resourceDir.getFullPathName());
             
-            ::juce::File pluginsDir = resourceDir.getChildFile("plugins");
-            ::juce::File aceDir = resourceDir.getChildFile("ace");
+            ::juce::File modulesDir = resourceDir.getChildFile("modules");
 
-            if (mCatalog.loadFromPluginDirectory(pluginsDir, aceDir)) {
+            if (mCatalog.loadFromModulesDirectory(modulesDir)) {
                 Core::Service::SemanticBrokerService::getInstance().setCatalog(&mCatalog);
-                ::juce::Logger::writeToLog("ACE: Discovered " + ::juce::String((int)mCatalog.getComponents().size()) + " functional WASM modules.");
+                ::juce::Logger::writeToLog("ACE: Discovered " + ::juce::String((int)mCatalog.getComponents().size()) + " functional Atomic YAML/WASM modules.");
             }
         } else {
             ::juce::Logger::writeToLog("CRITICAL: OMEGA Resources directory NOT FOUND after 10 levels of searching.");

@@ -1,0 +1,68 @@
+id: "midi_2_cv"
+name: "MIDI to CV Converter"
+family: "Utility"
+engine: "Modular"
+modelId: "ACE-UTIL-MCV"
+implementationId: 502
+origin: "ABD OMEGA"
+status: "active"
+version: 1
+visible: true
+rack: "upper"
+panelClass: "utility-panel"
+description: "Standard MIDI to CV converter. Extracts Pitch, Gate, and Velocity signals from incoming MIDI data for internal routing."
+illustration: "midi_2_cv/illustration.svg"
+tags: ["midi", "cv", "utility", "converter"]
+parameters:
+  - id: "midi_channel"
+    label: "CHANNEL"
+    unit: "ch"
+    min: 0
+    max: 16
+    default: 0
+    options:
+      - { label: "OMNI", value: 0 }
+      - { label: "CH 1", value: 1 }
+      - { label: "CH 2", value: 2 }
+      - { label: "CH 3", value: 3 }
+      - { label: "CH 4", value: 4 }
+      - { label: "CH 5", value: 5 }
+      - { label: "CH 6", value: 6 }
+      - { label: "CH 7", value: 7 }
+      - { label: "CH 8", value: 8 }
+      - { label: "CH 9", value: 9 }
+      - { label: "CH 10", value: 10 }
+      - { label: "CH 11", value: 11 }
+      - { label: "CH 12", value: 12 }
+      - { label: "CH 13", value: 13 }
+      - { label: "CH 14", value: 14 }
+      - { label: "CH 15", value: 15 }
+      - { label: "CH 16", value: 16 }
+ports:
+  - id: "midi_in"
+    label: "MIDI IN"
+    type: "midi"
+    direction: "input"
+  - id: "pitch"
+    label: "PITCH (Hz)"
+    type: "voltage"
+    direction: "output"
+  - id: "trigger"
+    label: "GATE"
+    type: "voltage"
+    direction: "output"
+  - id: "velocity"
+    label: "VELOCITY"
+    type: "voltage"
+    direction: "output"
+uiLayout:
+  columns: 1
+  rows: 5
+  items:
+    - { id: "chan_sel", semantic: "list", look: "display", variant: "A", paramId: "midi_channel", row: 0, col: 0 }
+    - { id: "pitch_out", semantic: "port", look: "jack", portId: "pitch", row: 1, col: 0, label: "PITCH" }
+    - { id: "gate_out", semantic: "port", look: "jack", portId: "trigger", row: 2, col: 0, label: "GATE" }
+    - { id: "vel_out", semantic: "port", look: "jack", portId: "velocity", row: 3, col: 0, label: "VELOCITY" }
+    - { id: "activity_led", semantic: "telemetry", look: "led", variant: "A", label: "ACTIVITY", row: 4, col: 0, color: "yellow", source: "telemetry.activity" }
+footer:
+  label: "CONVERTER UTILITY"

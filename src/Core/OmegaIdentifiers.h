@@ -25,6 +25,7 @@ namespace Core {
         static inline const juce::Identifier COMPONENT  {"COMPONENT"};
         static inline const juce::Identifier slotName   {"slotName"};
         static inline const juce::Identifier componentId {"componentId"};
+        static inline const juce::Identifier instanceId {"instanceId"};
         static inline const juce::Identifier slotType   {"slotType"};
         
         // --- Architecture Categories ---

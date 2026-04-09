@@ -27,7 +27,7 @@ namespace UI {
         juce::var handleSelectLibrary(const juce::var& requestId, const juce::var& payload);
         juce::var handleLoadLibraryPreset(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad);
         juce::var handleSetFavorite(const juce::var& requestId, const juce::var& payload);
-        juce::var handleAddModule(const juce::var& requestId, const juce::var& payload);
+        juce::var handleAddModule(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad);
 
         // Version Control (Moved from System)
         juce::var handleGetHistory(const juce::var& requestId, const juce::var& payload);

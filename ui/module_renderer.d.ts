@@ -3,9 +3,15 @@
  * Generic engine for declarative UI modules.
  */
 export interface LayoutItem {
+    id?: string;
     paramId?: string;
+    paramIdY?: string;
+    paramGroup?: string;
     source?: string;
-    control: 'knob' | 'slider-v' | 'toggle' | 'select' | 'telemetry' | 'led';
+    portId?: string;
+    control?: string;
+    semantic?: 'scalar' | 'vector' | 'list' | 'toggle' | 'trigger' | 'port' | 'telemetry' | 'monitor' | 'label' | 'graph' | 'state' | 'keyboard';
+    look?: 'knob' | 'slider-v' | 'slider-h' | 'display' | 'select' | 'led' | 'jack' | 'switch' | 'meter' | 'button' | 'joystick' | 'scope' | 'graph' | 'adsr';
     label?: string;
     row: number;
     col: number;
@@ -13,15 +19,23 @@ export interface LayoutItem {
     variant?: string;
     color?: string;
 }
+export interface PortDescriptor {
+    id: string;
+    label: string;
+    type: 'voltage' | 'midi' | 'list' | 'float' | 'text' | 'bool';
+    direction: 'input' | 'output';
+}
 export interface ModuleDescriptor {
     id: string;
     title?: string;
     panelClass?: string;
     toolbarFocusIndex?: number;
-    grid?: {
+    uiLayout?: {
         columns: number;
-        gap: number;
+        rows?: number;
+        gap?: number;
     };
+    ports?: PortDescriptor[];
     items: LayoutItem[];
     footer?: {
         paramId?: string;
@@ -35,6 +49,7 @@ export declare class ModuleRenderer {
     private values;
     private isInitialized;
     constructor(el: HTMLElement, content: HTMLElement, descriptor: ModuleDescriptor);
+    private normalizeDescriptor;
     init(): Promise<void>;
     render(): void;
     private renderItem;
@@ -43,6 +58,8 @@ export declare class ModuleRenderer {
     private _bindKnob;
     setParam(id: string, value: number): void;
     updateControlUI(id: string, value: number): void;
+    private _getParamValueLabel;
+    private _bindDisplay;
     private _updateKnobVisual;
     onStateUpdate(state: any): void;
     private updateTelemetryUI;

@@ -188,9 +188,15 @@
     - [x] **Jargon Cleanup**: Removal of "Tabula Rasa" and "WASM" nomenclature for a professional UX.
     - [x] **Dynamic Rack Injection**: RPC-level module instantiation from the browser.
 
-### Phase 26: Telemetry & Advanced Analysis [BACKLOG]
+- [x] **Phase 27: Aseptic Rack Stabilization & Metadata Routing** (2026-04-09 17:10) [DONE]
+    - [x] **Metadata-Driven Routing**: Implementation of a manifest-first routing hierarchy (Upper/Lower).
+    - [x] **Aseptic UI Cleanup**: Removal of legacy 'visual jacks' and redundant port icons.
+    - [x] **UI/Engine Synchronization**: Resolved property propagation leaks from ACE Catalog.
+    - [x] **Layout Stabilization**: Enforced vertical rack stacking and horizontal control alignment.
+
+### Phase 28: Telemetry & Advanced Analysis [BACKLOG]
 - [ ] **Real-Time Module Telemetry**: Visualization of CPU usage and signal levels per module.
 - [ ] **Logic Analysis**: State monitoring for complex modulation graphs.
 
 ---
-*Last Updated: 2026-04-08 17:15*
+*Last Updated: 2026-04-09 17:10*

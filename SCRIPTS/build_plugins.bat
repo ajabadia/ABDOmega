@@ -8,7 +8,7 @@ echo [OMEGA] Building Plugins...
 
 set "SDK_DIR=%~dp0.."
 set "PLUGIN_SRC=%SDK_DIR%\src\WasmPlugins"
-set "PLUGIN_OUT=%SDK_DIR%\Resources\plugins"
+set "PLUGIN_OUT=%SDK_DIR%\Resources\modules"
 
 if not exist "%PLUGIN_OUT%" mkdir "%PLUGIN_OUT%"
 

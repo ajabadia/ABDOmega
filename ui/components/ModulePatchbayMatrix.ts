@@ -187,7 +187,7 @@ export class ModulePatchbayMatrix {
                 `;
             }
 
-            if (activeSlots.length === 0 && this.sources.length === 0) {
+            if (activeSlots.length === 0 && this.sources.length === 0 && !this.state?.preset?.auxiliary) {
                 gridHtml = `
                     <div class="empty-state-info">
                         <div class="info-title">MODULAR RACK EMPTY</div>
@@ -298,6 +298,13 @@ export class ModulePatchbayMatrix {
         const slotIndex = isNaN(this.selectedSlot) ? 0 : this.selectedSlot;
         const slot = matrix[slotIndex] || { active: false, source: '', target: '', amount: 0, via: '', viaAmount: 0 };
 
+        let sourceInstance = "";
+        let targetInstance = "";
+        if (slot.source) sourceInstance = slot.source.split('.')[0];
+        if (slot.target) targetInstance = slot.target.split('.')[0];
+
+        // The target options exclude the source's instance. The source options exclude the target's instance.
+        
         container.innerHTML = `
             <div class="inspector-title">SLOT ${(slotIndex + 1).toString().padStart(2, '0')} DETAILS</div>
             
@@ -310,14 +317,14 @@ export class ModulePatchbayMatrix {
             <div class="control-group">
                 <label>SOURCE</label>
                 <select class="inspector-select" data-key="source">
-                    ${this.generateOptions(this.sources, slot.source)}
+                    ${this.generateOptions(this.sources, slot.source, targetInstance)}
                 </select>
             </div>
 
             <div class="control-group">
                 <label>TARGET</label>
                 <select class="inspector-select" data-key="target">
-                    ${this.generateOptions(this.targets, slot.target)}
+                    ${this.generateOptions(this.targets, slot.target, sourceInstance)}
                 </select>
             </div>
 
@@ -330,7 +337,7 @@ export class ModulePatchbayMatrix {
             <div class="control-group">
                 <label>VIA Modulator</label>
                 <select class="inspector-select" data-key="via">
-                    ${this.generateOptions(this.sources, slot.via)}
+                    ${this.generateOptions(this.sources, slot.via, targetInstance)}
                 </select>
             </div>
 
@@ -381,13 +388,14 @@ export class ModulePatchbayMatrix {
         return item ? item.name : '';
     }
 
-    private generateOptions(list: {id: string, name: string, instance?: string}[], current: string) {
+    private generateOptions(list: {id: string, name: string, instance?: string}[], current: string, excludeInstance?: string) {
         let html = '<option value="">- NONE -</option>';
         
         // Group by instance
         const groups: {[key: string]: any[]} = {};
         for (const opt of list) {
             const groupName = opt.instance || 'Global';
+            if (excludeInstance && groupName === excludeInstance) continue; // Filtro de auto-ruteo
             if (!groups[groupName]) groups[groupName] = [];
             groups[groupName].push(opt);
         }

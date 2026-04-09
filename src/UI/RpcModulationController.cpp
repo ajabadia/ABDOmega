@@ -11,11 +11,9 @@ namespace UI {
         auto& broker = Core::Service::SemanticBrokerService::getInstance();
         auto inventory = broker.getInventory();
 
-        // Lazy initialization: Rebuild if empty
-        if (inventory.empty()) {
-            broker.rebuildInventory(mPreset);
-            inventory = broker.getInventory();
-        }
+        // Always rebuild to ensure total synchronization with the rack (Era 4 strict isolation)
+        broker.rebuildInventory(mPreset);
+        inventory = broker.getInventory();
 
         juce::Logger::writeToLog("[RpcModulationController] Serving modulation metadata. Inventory size: " + juce::String((int)inventory.size()));
 
@@ -37,6 +35,7 @@ namespace UI {
             juce::DynamicObject::Ptr mObj = new juce::DynamicObject();
             mObj->setProperty("instanceId", juce::var(juce::String(manifest.instanceId)));
             mObj->setProperty("category", juce::var(juce::String(manifest.category)));
+            mObj->setProperty("status", juce::var(juce::String(manifest.status)));
             
             // Hyper-ACE UI Metadata
             if (!manifest.uiLayout.empty()) {
@@ -65,10 +64,25 @@ namespace UI {
                 nestPort->setProperty("label", juce::var(juce::String(port.label)));
                 nestPort->setProperty("type", typeToStr(port.type));
                 nestPort->setProperty("isInput", (bool)port.isInput);
+                nestPort->setProperty("defaultValue", port.defaultValue);
+                
+                if (!port.options.empty()) {
+                    juce::Array<juce::var> optArr;
+                    for (const auto& opt : port.options) {
+                        juce::DynamicObject::Ptr oObj = new juce::DynamicObject();
+                        oObj->setProperty("value", opt.value);
+                        oObj->setProperty("label", juce::String(opt.label));
+                        optArr.add(juce::var(oObj.get()));
+                    }
+                    nestPort->setProperty("options", optArr);
+                }
                 portsArr.add(juce::var(nestPort.get()));
 
-                if (port.isInput) targets.add(juce::var(portObj.get()));
-                else sources.add(juce::var(portObj.get()));
+                // Solamente añadir al listado general de patchbay (sources/targets) si está instanciado ("active")
+                if (manifest.status == "active") {
+                    if (port.isInput) targets.add(juce::var(portObj.get()));
+                    else sources.add(juce::var(portObj.get()));
+                }
             }
             mObj->setProperty("ports", portsArr);
             inventoryArr.add(juce::var(mObj.get()));

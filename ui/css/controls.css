@@ -57,8 +57,19 @@
     pointer-events: none;
 }
 
+/* HORIZONTAL SLIDER */
+.h-slider {
+    width: var(--slider-height); /* Swapped */
+    height: 32px;
+    background: url('../slider_slot_h.png') no-repeat center center;
+    background-size: contain;
+    position: relative;
+    cursor: ew-resize;
+}
+
 /* KNOBS generic */
 .knob-ring {
+    --knob-size: 32px;
     width: var(--knob-size);
     height: var(--knob-size);
     background: url('../knob.png') no-repeat center;
@@ -67,18 +78,28 @@
     cursor: ns-resize;
 }
 
+/* Knob Variants EXTREME - Era 4.1 Validation */
+.variant-A .knob-ring { --knob-size: 96px; }
+.variant-B .knob-ring { --knob-size: 48px; }
+.variant-C .knob-ring { --knob-size: 16px; }
+.variant-default .knob-ring { --knob-size: 48px; }
+
 .knob {
     position: absolute;
     width: 2px;
-    height: 6px;
+    height: 25%; /* Responsive height */
     background: var(--white);
     left: 50%;
-    top: 17px;
+    top: 15%;
     transform: translateX(-50%);
-    transform-origin: center 13px;
+    transform-origin: center calc(var(--knob-size) * 0.35); /* Adjust rotation center */
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
     border-radius: 1px;
 }
+
+.variant-A .knob { height: 16px; transform-origin: center 24px; top: 12px; }
+.variant-B .knob { height: 8px; transform-origin: center 14px; top: 8px; }
+.variant-C .knob { height: 4px; transform-origin: center 4px; top: 2px; }
 
 /* SWITCHES */
 .sw-unit {
@@ -134,18 +155,72 @@
     background-image: url('../switch_up.png');
 }
 
+/* JOYSTICK / XY PAD */
+.joystick-pad {
+    width: 80px;
+    height: 80px;
+    background: #000;
+    border: 2px solid #333;
+    border-radius: 4px;
+    position: relative;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
+    cursor: crosshair;
+}
+
+.joystick-pad::before {
+    content: "";
+    position: absolute;
+    top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.05);
+}
+
+.joystick-pad::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.05);
+}
+
+.joystick-handle {
+    width: 16px;
+    height: 16px;
+    background: radial-gradient(circle at center, #666, #333);
+    border: 1.5px solid #888;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2);
+}
+
+/* LEDS */
 /* LEDS */
 .led {
     width: 14px;
     height: 14px;
-    background: url('../led_off.png') no-repeat center center;
-    background-size: contain;
+    background: #222;
     border-radius: 50%;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+    position: relative;
+    border: 1px solid #333;
 }
 
+/* LED Shapes */
+.variant-A .led { width: 14px; height: 14px; border-radius: 50%; } /* Round Std */
+.variant-B .led { width: 8px; height: 8px; border-radius: 50%; }   /* Round Mini */
+.variant-C .led { width: 16px; height: 6px; border-radius: 1px; }  /* Rectangular */
+
+/* LED Colors & Glows */
+.led.active.led-red    { background: #ff0000; box-shadow: 0 0 12px #ff0000; }
+.led.active.led-green  { background: #00ff00; box-shadow: 0 0 12px #00ff00; }
+.led.active.led-blue   { background: #0066ff; box-shadow: 0 0 12px #0066ff; }
+.led.active.led-yellow { background: #ffff00; box-shadow: 0 0 12px #ffff00; }
+.led.active.led-white  { background: #ffffff; box-shadow: 0 0 12px #ffffff; }
+.led.active.led-orange { background: #ff9900; box-shadow: 0 0 12px #ff9900; }
+.led.active.led-cyan   { background: #00f2ff; box-shadow: 0 0 12px #00f2ff; }
+
+/* Compatibility with legacy assets if needed */
 .led.active {
-    background: url('../led_on.png') no-repeat center center;
-    background-size: contain;
+    background: #ff4444; /* Default fallback color */
     box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
 }
 
@@ -206,14 +281,15 @@
     background-image: url('../button_grey_on.png');
 }
 
-.sq.red {
-    background: url('../button_red_off.png') no-repeat center center;
-    background-size: contain;
-}
-
 .sq.red[data-active="true"],
 .sq.red.pushed {
     background-image: url('../button_red_on.png');
+}
+
+/* Button Variants */
+.variant-B .sq {
+    width: 20px;
+    height: 20px;
 }
 
 .juno-btn.pushed,
@@ -256,3 +332,243 @@
     justify-content: center;
     gap: 12px;
 }
+
+/* DISPLAY UNIT - Premium adaptive readout selector */
+.display-unit {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    background: rgba(0,0,0,0.3);
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.05);
+    width: 170px !important;
+    margin: 8px auto;
+}
+
+.display-unit > * {
+    flex: 0 0 auto !important;
+}
+
+.stepper-btn {
+    width: 24px !important;
+    height: 24px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel-header {
+    background: linear-gradient(180deg, #222, #111);
+    height: 30px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #333;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    overflow: hidden !important;
+}
+
+.display-screen {
+    flex: 0 0 100px !important;
+    background: #000;
+    border: 1px solid #333;
+    height: 24px;
+    min-width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.9), inset 0 0 10px rgba(0, 242, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.display-screen::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(0,242,255,0.03) 1px, transparent 1px);
+    background-size: 100% 2px;
+    pointer-events: none;
+}
+
+.display-value {
+    font-family: 'SevenSegment', monospace;
+    color: var(--juno-cyan, #00f2ff);
+    font-size: 14px;
+    text-shadow: 0 0 5px rgba(0, 242, 255, 0.5);
+    letter-spacing: 1px;
+}
+
+/* OLED STYLE (Variant A / Default) */
+.variant-A .display-screen,
+.variant-default .display-screen {
+    background: #000;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.9), inset 0 0 10px rgba(0, 242, 255, 0.05);
+}
+.variant-A .display-value,
+.variant-default .display-value {
+    color: var(--data-float);
+    text-shadow: 0 0 8px var(--data-float);
+}
+
+/* LCD STYLE (Variant B) - Retro Greenish */
+.variant-B .display-screen {
+    background: #7a8a6d; /* Classic GameBoy/Old LCD greenish */
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 5px rgba(122, 138, 109, 0.3);
+    border-color: #555;
+}
+.variant-B .display-screen::after {
+    background: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+    background-size: 100% 2px;
+}
+.variant-B .display-value {
+    color: rgba(0,0,0,0.8);
+    text-shadow: 1px 1px 0px rgba(255,255,255,0.1);
+    font-weight: 900;
+}
+
+/* LED STYLE (Variant C) - Retro Red 7-Seg */
+.variant-C .display-screen {
+    background: #1a0000; /* Dark deep red glass */
+    box-shadow: inset 0 2px 10px #000, 0 0 5px rgba(255, 0, 0, 0.1);
+    border-color: #400;
+}
+.variant-C .display-value {
+    color: #ff3300;
+    text-shadow: 0 0 12px #ff3300, 0 0 2px #ff0000;
+}
+
+.stepper-btn {
+    width: 20px;
+    height: 20px;
+    background: #222;
+    border: 1px solid #444;
+    color: #888;
+    cursor: pointer;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.1s;
+}
+
+.stepper-btn:hover { background: #333; color: #fff; border-color: #666; }
+.stepper-btn:active { background: #000; transform: scale(0.95); }
+
+/* PIN COLORS BY DATA TYPE */
+:root {
+    --data-voltage: #007bff; /* Blue: DSP/Audio/LFO */
+    --data-midi: #ffcc00;    /* Yellow: MIDI */
+    --data-list: #28a745;    /* Green: Selection */
+    --data-float: #00f2ff;   /* Cyan: GUI/Parameters */
+    --data-text: #dc3545;    /* Red: Labels/Presets */
+    --data-bool: #000000;    /* Black: Toggle/Logic */
+}
+
+/* PORT JACK - metallic patch point */
+.port-jack {
+    width: 24px;
+    height: 24px;
+    background: radial-gradient(circle at center, #111 30%, #333 40%, #555 60%, #222 70%);
+    border: 1.5px solid #666;
+    border-radius: 50%;
+    position: relative !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.2);
+    overflow: visible;
+}
+
+/* GLOBAL LEDS (Semantic Era 4.1) */
+.led {
+    border-radius: 50%;
+    margin: 4px auto;
+    background: #222;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+    transition: all 0.2s;
+}
+
+.variant-A .led { width: 16px; height: 16px; }
+.variant-B .led { width: 10px; height: 10px; }
+.variant-C .led { width: 6px; height: 6px; }
+.led-container label { margin-top: 4px; }
+
+.led-orange.active { background: #ff7700; box-shadow: 0 0 12px #ff7700, inset 0 1px 2px rgba(255,255,255,0.3); }
+.led-red.active    { background: #ff3300; box-shadow: 0 0 12px #ff3300, inset 0 1px 2px rgba(255,255,255,0.3); }
+.led-green.active  { background: #00ff66; box-shadow: 0 0 12px #00ff66, inset 0 1px 2px rgba(255,255,255,0.3); }
+.led-blue.active   { background: #0088ff; box-shadow: 0 0 12px #0088ff, inset 0 1px 2px rgba(255,255,255,0.3); }
+.led-cyan.active   { background: #00f2ff; box-shadow: 0 0 12px #00f2ff, inset 0 1px 2px rgba(255,255,255,0.3); }
+
+.port-led {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #222;
+    position: absolute;
+    top: 2px;
+    left: 10px;
+    box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+/* Data Type LED Colors */
+.port-container.type-voltage .active .port-led { background: var(--data-voltage); box-shadow: 0 0 6px var(--data-voltage); }
+.port-container.type-midi    .active .port-led { background: var(--data-midi);    box-shadow: 0 0 6px var(--data-midi); }
+.port-container.type-list    .active .port-led { background: var(--data-list);    box-shadow: 0 0 6px var(--data-list); }
+.port-container.type-float   .active .port-led { background: var(--data-float);   box-shadow: 0 0 6px var(--data-float); }
+.port-container.type-text    .active .port-led { background: var(--data-text);    box-shadow: 0 0 6px var(--data-text); }
+.port-container.type-bool    .active .port-led { background: var(--data-bool);    box-shadow: 0 0 6px #fff; } /* White glow for black LED */
+
+/* VARIANTS AND SIZES */
+.variant-small .knob-ring { transform: scale(0.7); }
+.variant-large .knob-ring { transform: scale(1.4); }
+
+.sq.juno-red { background: var(--juno-red); box-shadow: 0 2px 0 #8b131a; }
+.sq.juno-blue { background: var(--juno-blue); box-shadow: 0 2px 0 #1a4180; }
+.sq.juno-cyan { background: var(--juno-cyan, #00f2ff); color: #000; }
+
+/* MONITOR / SCOPE */
+.monitor-scope {
+    width: 100%;
+    height: 60px;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* GRAPH / ADSR */
+.graph-adsr {
+    width: 100%;
+    height: 60px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid #444;
+    border-radius: 2px;
+}
+
+/* LABELS */
+.panel-label {
+    font-size: 10px;
+    font-weight: bold;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 4px 0;
+}
+
+/* KEYBOARD */
+.virtual-keyboard {
+    width: 100%;
+    height: 40px;
+    background: #111;
+    border: 1px solid #333;
+}

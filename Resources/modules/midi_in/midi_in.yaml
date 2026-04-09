@@ -1,0 +1,56 @@
+id: "midi_in"
+name: "MIDI Input"
+family: "Utility"
+engine: "Modular"
+modelId: "ACE-UTIL-MIDI-IN"
+implementationId: 501
+version: 1
+visible: true
+rack: "upper"
+panelClass: "utility-panel"
+description: "Primary MIDI input bridge. Routes external MIDI data from the host or physical inputs to the OMEGA modulation engine."
+illustration: "midi_in/illustration.svg"
+status: "active"
+tags: ["midi", "input", "bridge"]
+parameters:
+  - id: midi_channel
+    label: CHANNEL
+    unit: ch
+    min: 0
+    max: 16
+    default: 0
+    modulable: false
+    options:
+      - { label: "OMNI", value: 0 }
+      - { label: "CH 1", value: 1 }
+      - { label: "CH 2", value: 2 }
+      - { label: "CH 3", value: 3 }
+      - { label: "CH 4", value: 4 }
+      - { label: "CH 5", value: 5 }
+      - { label: "CH 6", value: 6 }
+      - { label: "CH 7", value: 7 }
+      - { label: "CH 8", value: 8 }
+      - { label: "CH 9", value: 9 }
+      - { label: "CH 10", value: 10 }
+      - { label: "CH 11", value: 11 }
+      - { label: "CH 12", value: 12 }
+      - { label: "CH 13", value: 13 }
+      - { label: "CH 14", value: 14 }
+      - { label: "CH 15", value: 15 }
+      - { label: "CH 16", value: 16 }
+ports:
+  - id: midi_out
+    label: MIDI OUT
+    type: midi
+    direction: output
+    telemetry: telemetry.activity
+uiLayout:
+  columns: 1
+  rows: 3
+  items:
+    - { id: "chan_sel", semantic: "list", look: "display", variant: "A", paramId: "midi_channel", row: 0, col: 0 }
+    - { id: "midi_port", semantic: "port", look: "jack", portId: "midi_out", row: 1, col: 0, label: "MIDI OUT" }
+    - { id: "activity_led", semantic: "telemetry", look: "led", variant: "A", label: "ACTIVITY", row: 2, col: 0, color: "yellow", source: "telemetry.activity" }
+footer:
+  label: "EXTERNAL MIDI BRIDGE"
+

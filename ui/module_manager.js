@@ -72,35 +72,42 @@ export class ModuleManager {
                 return;
             }
             for (const item of aux) {
-                const id = item.id || item.nodeId || item.slotName || "AUX";
+                // Primary identity is instanceId (ensures uniqueness for multiple copies)
+                const id = item.instanceId || item.nodeId || item.id || item.slotName || "AUX";
                 const label = item.label || item.name || item.slotName || id;
+                const componentId = item.componentId || item.id || "";
+                const descriptor = this.resolveDescriptor(item);
+                // --- Era 4.1 Aseptic Routing ---
+                const stateRack = item.rack !== undefined ? item.rack : (item.params && item.params.rack);
+                const manifestRack = descriptor?.rack;
+                let rackValue = stateRack !== undefined ? stateRack : manifestRack;
+                const source = stateRack !== undefined ? "State" : (manifestRack !== undefined ? "Manifest" : "Default");
+                // NEW ERA 4.1 DEFAULT: if undefined, go to UPPER
+                if (rackValue === undefined) {
+                    rackValue = "upper";
+                }
+                console.log(`[ModuleManager] Routing ${id} [${componentId}]: value=${rackValue} (Source: ${source}), panelClass=${descriptor?.panelClass}`);
                 let targetRack = upper;
                 let rackType = "aux";
-                const rackValue = item.rack !== undefined ? item.rack : (item.params && item.params.rack);
-                if (rackValue === "lower" || rackValue === 1 || rackValue === 1.0 || rackValue === "main") {
+                const isLower = (typeof rackValue === 'string' && rackValue.toLowerCase() === "lower") ||
+                    (typeof rackValue === 'string' && rackValue.toLowerCase() === "main") ||
+                    rackValue === 1 || rackValue === 1.0;
+                if (isLower) {
                     targetRack = lower;
                     rackType = "main";
                 }
-                const descriptor = this.resolveDescriptor(item);
-                const componentId = item.componentId || item.id || "";
                 // --- Era 4 Purity Guard ---
-                // We skip system-level infrastructure components (Patchbay Hub) in the rack
-                // these will be accessible via the global UI menus/modals.
-                if (componentId.includes("PATCHBAY-MATRIX")) {
+                // System-level infrastructure (Patchbay Matrix) never renders in the user rack.
+                // ID must be the canonical Era 4 snake_case: 'patchbay_matrix'
+                if (componentId === "patchbay_matrix") {
                     console.log(`[ModuleManager] Skipping system component in rack: ${componentId}`);
                     continue;
                 }
                 if (descriptor) {
                     // Decide class based on descriptor or generic renderer
+                    // Era 4.1: Unified Semantic Rendering
+                    // Any specialized ModuleX class is now deprecated in favor of data-driven ModuleRenderer
                     let className = "ModuleRenderer";
-                    if (descriptor.id?.includes("MONITOR"))
-                        className = "ModuleMidiViewer";
-                    else if (descriptor.id?.includes("TRIG"))
-                        className = "ModuleMidiTrigger";
-                    else if (descriptor.id?.includes("SCOPE"))
-                        className = "ModuleOscilloscope";
-                    else if (descriptor.id?.includes("MCV"))
-                        className = "ModuleMidiToCv";
                     await this.addModule(id, className, rackType, targetRack, {
                         label,
                         descriptor,
@@ -183,6 +190,8 @@ export class ModuleManager {
         }
         catch (e) {
             console.error("[ModuleManager] Error during rack update:", e);
+            if (e && e.stack)
+                console.error("[ModuleManager] Stack trace:", e.stack);
         }
         finally {
             this.isRendering = false;
@@ -194,9 +203,9 @@ export class ModuleManager {
         const el = document.createElement('div');
         el.className = `module module-${type} placeholder`;
         el.innerHTML = `
-            <div class="module-header">${id}</div>
+            <div class="module-header">${id} <div class="led amber-pulsing" style="display:inline-block; margin-left:8px;" title="Module Power: ON"></div></div>
             <div class="module-content">
-                <div class="placeholder-msg">MISSING DESCRIPTOR</div>
+                <div class="placeholder-msg">GENERIC PANEL</div>
                 <div class="label-tiny">${componentId}</div>
             </div>
         `;
@@ -239,9 +248,19 @@ export class ModuleManager {
         patchIcon.title = 'Patch Module';
         patchIcon.onclick = (e) => {
             e.stopPropagation();
-            document.dispatchEvent(new CustomEvent('patch-request', { detail: { instanceId: id } }));
+            document.dispatchEvent(new CustomEvent('patch-request', {
+                detail: {
+                    instanceId: id,
+                    componentId: options.componentId
+                }
+            }));
         };
         header.appendChild(patchIcon);
+        // Add Status LED (Absolute Centered)
+        const led = document.createElement('div');
+        led.className = 'led status-indicator';
+        led.title = 'Module Active';
+        header.appendChild(led);
         el.appendChild(header);
         const content = document.createElement('div');
         content.className = 'module-content';
@@ -262,34 +281,84 @@ export class ModuleManager {
                 this.midiViewer = instance;
         }
     }
+    getCanonicalId(id) {
+        if (!id)
+            return "";
+        const parts = id.split('_');
+        // Check if the last part is a number (id_1, id_2...)
+        if (parts.length > 1 && !isNaN(parseInt(parts[parts.length - 1]))) {
+            return parts.slice(0, -1).join('_');
+        }
+        return id;
+    }
     resolveDescriptor(item) {
         if (!item)
             return null;
         const id = item.componentId || item.id;
-        const type = item.slotType || item.type;
-        const instanceId = item.slotName || (item.instance && item.instance.id) || id;
-        // 1. Check for Virtual Descriptor from AceCatalog (Hyper-ACE)
+        if (!id)
+            return null;
+        const canonicalId = this.getCanonicalId(id);
+        // 1. Primary: window.omegaCatalog (preloaded static components)
         // @ts-ignore
-        const invItem = window.metadataStore.getInventoryItem(instanceId);
-        if (invItem && invItem.uiLayout) {
-            console.log(`[ModuleManager] Resolved DYNAMIC DESCRIPTOR for ${instanceId}`);
-            const desc = invItem.uiLayout;
-            desc.id = instanceId;
-            desc.title = invItem.name || instanceId;
-            desc.panelClass = invItem.style || desc.panelClass || 'universal-panel';
-            return desc;
+        const catalog = window.omegaCatalog || {};
+        const catItem = catalog[id] || catalog[canonicalId];
+        if (catItem) {
+            if (catItem.uiLayout) {
+                let layoutObj = catItem.uiLayout;
+                if (typeof layoutObj === 'string') {
+                    try {
+                        layoutObj = JSON.parse(layoutObj);
+                    }
+                    catch (e) {
+                        console.error("Parse err: ", e);
+                    }
+                }
+                const desc = JSON.parse(JSON.stringify(layoutObj)); // Deep copy
+                desc.id = id;
+                desc.title = catItem.name || id;
+                desc.panelClass = catItem.panelClass || desc.panelClass || 'utility-panel';
+                desc.rack = catItem.rack || desc.rack;
+                return desc;
+            }
+            return {
+                id,
+                title: catItem.name || id,
+                panelClass: catItem.panelClass || 'utility-panel',
+                rack: catItem.rack,
+                items: [],
+                grid: { columns: 2, gap: 12 }
+            };
         }
-        // 2. Fallback: Try specific model ID in local registry
-        if (id && ModuleDescriptors[id])
-            return ModuleDescriptors[id];
-        // 3. Fallback: Try semantic slot type
-        if (type && ModuleDescriptors[type])
-            return ModuleDescriptors[type];
-        // 4. Fallback: Try lowercase variant
-        if (type && ModuleDescriptors[type.toLowerCase()])
-            return ModuleDescriptors[type.toLowerCase()];
-        console.warn(`[ModuleManager] Could not resolve descriptor for:`, item);
-        return null;
+        // 2. Fallback: metadataStore inventory (dynamic/auxiliary components)
+        // @ts-ignore
+        const store = window.metadataStore;
+        if (store && store.inventory) {
+            const invItem = store.inventory.find((m) => m.id === id || m.id === canonicalId || m.instanceId === id);
+            if (invItem && invItem.uiLayout) {
+                let layoutObj = invItem.uiLayout;
+                if (typeof layoutObj === 'string') {
+                    try {
+                        layoutObj = JSON.parse(layoutObj);
+                    }
+                    catch (e) {
+                        console.error("Parse err: ", e);
+                    }
+                }
+                const desc = JSON.parse(JSON.stringify(layoutObj));
+                desc.id = id;
+                desc.title = invItem.name || id;
+                desc.panelClass = invItem.style || desc.panelClass || 'universal-panel';
+                return desc;
+            }
+        }
+        // 3. Static Descriptor Hardcoded Fallback
+        return ModuleDescriptors[id] || ModuleDescriptors[canonicalId] || {
+            id,
+            title: id.toUpperCase(),
+            items: [],
+            grid: { columns: 1, gap: 10 },
+            panelClass: "universal-panel"
+        };
     }
 }
 // @ts-ignore

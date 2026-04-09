@@ -1,0 +1,31 @@
+id: "debug_test"
+name: "THEME VALIDATOR"
+family: "utility"
+panelClass: "utility-panel"
+engine: "system"
+rack: "lower"
+uiLayout:
+  columns: 3
+  rows: 4
+  gap: 12
+  items:
+    - { id: "knob_a", semantic: "scalar", look: "knob", variant: "A", label: "KNOB A", row: 0, col: 0 }
+    - { id: "knob_b", semantic: "scalar", look: "knob", variant: "B", label: "KNOB B", row: 0, col: 1 }
+    - { id: "knob_c", semantic: "scalar", look: "knob", variant: "C", label: "KNOB C", row: 0, col: 2 }
+    
+    - { id: "oled_a", semantic: "list", look: "display", variant: "A", label: "DISP A", row: 1, col: 0 }
+    - { id: "oled_b", semantic: "list", look: "display", variant: "B", label: "DISP B", row: 1, col: 1 }
+    - { id: "oled_c", semantic: "list", look: "display", variant: "C", label: "DISP C", row: 1, col: 2 }
+
+    - { id: "led_a", semantic: "telemetry", look: "led", variant: "A", color: "red", label: "LED A", row: 2, col: 0 }
+    - { id: "led_b", semantic: "telemetry", look: "led", variant: "B", color: "green", label: "LED B", row: 2, col: 1 }
+    - { id: "led_c", semantic: "telemetry", look: "led", variant: "C", color: "cyan", label: "LED C", row: 2, col: 2 }
+
+    - { id: "jack_v", semantic: "port", look: "jack", portId: "in_v", label: "VOLT", row: 3, col: 0 }
+    - { id: "jack_m", semantic: "port", look: "jack", portId: "in_m", label: "MIDI", row: 3, col: 1 }
+    - { id: "jack_a", semantic: "port", look: "jack", portId: "in_a", label: "AUDIO", row: 3, col: 2 }
+
+ports:
+  - { id: "in_v", label: "V", type: "voltage", direction: "input" }
+  - { id: "in_m", label: "M", type: "midi", direction: "input" }
+  - { id: "in_a", label: "A", type: "float", direction: "input" }

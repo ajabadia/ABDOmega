@@ -37,6 +37,7 @@
     --sidebar-width: 250px;
     --slider-height: 125px;
     --knob-size: 60px;
+    --rack-height: 280px;
 
     /* Effects */
     --led-glow: 0 0 12px #ff4444, 0 0 4px #fff;

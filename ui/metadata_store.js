@@ -62,8 +62,30 @@ export class MetadataStore {
             return { inventory: [], sources: [], targets: [] };
         // @ts-ignore
         const res = await window.omegaRPC.send("getModulationMetadata", {});
-        if (res && res.inventory)
-            this.inventory = res.inventory;
+        if (res && res.inventory) {
+            this.inventory = res.inventory.map((m) => ({
+                ...m,
+                visible: m.visible !== undefined ? m.visible : true,
+                illustration: m.illustration || ""
+            }));
+            // Register dynamic parameters from ports with options
+            this.inventory.forEach((m) => {
+                if (m.ports) {
+                    m.ports.forEach((p) => {
+                        if (p.options && p.options.length > 0) {
+                            this.parameters.set(p.id, {
+                                id: p.id,
+                                name: p.label || p.id,
+                                min: 0,
+                                max: p.options.length - 1,
+                                default: p.defaultValue || 0,
+                                options: p.options
+                            });
+                        }
+                    });
+                }
+            });
+        }
         return res;
     }
     getInventoryItem(id) {

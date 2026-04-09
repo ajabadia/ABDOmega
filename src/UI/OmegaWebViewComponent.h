@@ -22,7 +22,7 @@ namespace Omega {
                 .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
                 .withWinWebView2Options(juce::WebBrowserComponent::Options::WinWebView2()
                     .withUserDataFolder(juce::File::getSpecialLocation(juce::File::tempDirectory)
-                        .getChildFile("OmegaSynth_WebView2_V70_StandardOptions")))
+                        .getChildFile("OmegaSynth_WebView2_V72_Refinement")))
                 .withNativeIntegrationEnabled(true)
                 .withInitialisationData("omega", createInitData())
                 .withNativeFunction("omegaNativeCall", (juce::WebBrowserComponent::NativeFunction) [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
@@ -63,11 +63,14 @@ namespace Omega {
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
                 .withResourceProvider([this](const juce::String& url) -> std::optional<juce::WebBrowserComponent::Resource> {
                     juce::String path = url;
+                    if (path.contains("?")) path = path.upToFirstOccurrenceOf("?", false, false);
+
                     if (path.startsWith("https://juce.localhost/")) path = path.substring(23);
                     else if (path.startsWith("http://juce.localhost/")) path = path.substring(22);
                     else if (path.startsWith("/")) path = path.substring(1);
                     if (path.isEmpty() || path == "/") path = "index.html";
 
+                    // All WebUI files (HTML, JS, CSS, SVG assets) live in ui/
                     juce::File webUiDir("d:\\desarrollos\\ABDOmega\\ui");
                     juce::File targetFile = webUiDir.getChildFile(path.replace("/", "\\"));
                     
@@ -97,6 +100,12 @@ namespace Omega {
             
             mBridge.setUiMessageCallback([this](const juce::String& json) {
                 mWebView.evaluateJavascript("if(window.handleOmegaMessage) window.handleOmegaMessage(" + json + ")", nullptr);
+            });
+
+            // Wire the preset-load callback: when a module is added, trigger forceRepaint()
+            // which serializes the preset and broadcasts onStateUpdate to the WebUI.
+            mBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset&) {
+                mBridge.forceRepaint();
             });
 
             mWebView.goToURL(juce::WebBrowserComponent::getResourceProviderRoot());

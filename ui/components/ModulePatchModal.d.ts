@@ -18,8 +18,9 @@ export declare class ModulePatchModal {
     private init;
     private syncMaxSlots;
     private ensureElements;
-    open(instanceId: string): Promise<void>;
-    refresh(): Promise<void>;
+    open(instanceId: string, componentId?: string): Promise<void>;
+    refresh(componentId?: string): Promise<void>;
+    private getCanonicalId;
     private render;
     private renderSection;
     private renderSlotRow;

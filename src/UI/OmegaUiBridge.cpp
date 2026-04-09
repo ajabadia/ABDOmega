@@ -64,7 +64,7 @@ namespace UI {
         if (type == "selectLibrary") return mPresetController->handleSelectLibrary(requestId, payload);
         if (type == "loadLibraryPreset") return mPresetController->handleLoadLibraryPreset(requestId, payload, mOnLoadPreset);
         if (type == "setFavorite") return mPresetController->handleSetFavorite(requestId, payload);
-        if (type == "addModule") return mPresetController->handleAddModule(requestId, payload);
+        if (type == "addModule") return mPresetController->handleAddModule(requestId, payload, mOnLoadPreset);
         if (type == "saveAsNewPreset") {
              // Redirect to saveSnapshot logic or similar
              return mPresetController->handleSaveSnapshot(requestId, payload, mPreset);
@@ -134,6 +134,11 @@ namespace UI {
             push->setProperty("type", "onPatchbayMatrixUpdate");
             push->setProperty("payload", mPresetController->presetToVar(mPreset));
             notifyUi(juce::var(push.get()));
+
+            // Ensure Patchbay changes propagate to the Audio Engine correctly
+            juce::MessageManager::callAsync([this]() {
+                mProcessor->loadPreset(mPreset);
+            });
             
             return result;
         }

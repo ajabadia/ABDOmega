@@ -19,6 +19,11 @@ namespace Modulation {
         Digital     // Custom digital data
     };
 
+    struct PortOption {
+        float value;
+        std::string label;
+    };
+
     /**
      * @brief Descriptor for a module input or output port.
      */
@@ -28,6 +33,9 @@ namespace Modulation {
         ModPortType type;       // CV, Audio, etc.
         bool isInput = false;   // Direction
         int telemetryIndex = -1; // Mapping to high-speed buffer (-1 if not visualizable)
+        
+        float defaultValue = 0.0f;
+        std::vector<PortOption> options; // Discrete values for UI (Optional)
     };
 
     /**

@@ -40,6 +40,9 @@ export class ModuleBrowser {
                 const resp = await window.omegaRPC.send("listCatalog", {});
                 if (resp && resp.components) {
                     this.catalog = resp.components;
+                    // Cache globally so ModuleManager can resolve descriptors
+                    // without re-fetching or depending on metadataStore.inventory.
+                    window.omegaCatalog = Object.fromEntries(resp.components.map((c) => [c.id, c]));
                 }
             }
             catch (e) {
@@ -72,10 +75,11 @@ export class ModuleBrowser {
         if (!this.grid)
             return;
         const filtered = this.catalog.filter(c => {
+            const isVisible = c.visible !== false;
             const matchesFam = this.currentFilter === 'ALL' || c.family === this.currentFilter;
             const matchesSearch = c.name.toLowerCase().includes(this.currentSearch.toLowerCase()) ||
                 (c.description || '').toLowerCase().includes(this.currentSearch.toLowerCase());
-            return matchesFam && matchesSearch;
+            return isVisible && matchesFam && matchesSearch;
         });
         this.grid.innerHTML = filtered.map(c => `
             <div class="reg-card ${this.selectedModule?.id === c.id ? 'selected' : ''}" data-id="${c.id}">
@@ -118,14 +122,20 @@ export class ModuleBrowser {
         document.getElementById('btn-add-module-exec')?.addEventListener('click', () => this.addModule(m.id));
     }
     getIconForModule(m) {
-        // Map icon ID to emoji or SVG
+        // [VISION 2.2.0] - Path Autonomy: We try to load illustration based on ID by default
+        const id = m.id || m.componentId;
+        const autoPath = `assets/modules/${id}/illustration.svg`;
+        // Fallback to emoji if needed
         const icons = {
             'osc-analog': '🔊',
             'midi-util': '🎹',
             'filter-standard': '🌊',
             'env-standard': '📐'
         };
-        return icons[m.icon] || '📦';
+        const emoji = icons[m.icon] || '📦';
+        // We use a helper wrapper to handle the onerror efficiently
+        return `<img src="${autoPath}" class="card-illustration" alt="${m.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="card-icon-fallback" style="display:none; font-size: 2rem;">${emoji}</div>`;
     }
     setupListeners() {
         // Using a slight delay to ensure elements exist if constructor called early

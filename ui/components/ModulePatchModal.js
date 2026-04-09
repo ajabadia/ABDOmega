@@ -23,7 +23,7 @@ export class ModulePatchModal {
     }
     init() {
         document.addEventListener('patch-request', (e) => {
-            this.open(e.detail.instanceId);
+            this.open(e.detail.instanceId, e.detail.componentId);
         });
     }
     async syncMaxSlots() {
@@ -57,19 +57,21 @@ export class ModulePatchModal {
             console.error("[ModulePatchModal] Root element #module-patch-modal not found!");
         return !!this.el;
     }
-    async open(instanceId) {
-        console.log(`[ModulePatchModal] Opening for instance: ${instanceId}`);
+    async open(instanceId, componentId = "") {
+        console.log(`[ModulePatchModal] Opening for instance: ${instanceId} (${componentId})`);
         if (!this.ensureElements())
             return;
         this.currentInstanceId = instanceId;
         this.el.style.display = 'flex';
-        if (this.titleEl)
-            this.titleEl.innerText = `HYPER-ACE ROUTING HUB`;
-        if (this.subtitleEl)
-            this.subtitleEl.innerText = `Focused patching for ${instanceId}`;
-        await this.refresh();
+        if (this.titleEl) {
+            this.titleEl.innerText = instanceId.toUpperCase();
+        }
+        if (this.subtitleEl) {
+            this.subtitleEl.innerText = `HYPER-ACE ROUTING HUB`;
+        }
+        await this.refresh(componentId);
     }
-    async refresh() {
+    async refresh(componentId = "") {
         console.log("[ModulePatchModal] Refreshing manifest and matrix...");
         //@ts-ignore
         const store = window.metadataStore;
@@ -93,12 +95,27 @@ export class ModulePatchModal {
             ...modularConnections.map((c) => ({ ...c, active: true }))
         ];
         console.log(`[ModulePatchModal] Unified Matrix loaded: ${this.patchbayMatrix.length} total slots`);
-        this.render();
+        this.render(componentId);
         this.updateUsage();
     }
-    render() {
+    getCanonicalId(id) {
+        if (!id)
+            return "";
+        const parts = id.split('_');
+        if (parts.length > 1 && !isNaN(parseInt(parts[parts.length - 1]))) {
+            return parts.slice(0, -1).join('_');
+        }
+        return id;
+    }
+    render(componentId = "") {
         console.log(`[ModulePatchModal] Rendering [REV 2] UI stage...`);
-        const manifest = this.inventory.find(m => m.instanceId === this.currentInstanceId || m.id === this.currentInstanceId);
+        const canonicalId = this.getCanonicalId(this.currentInstanceId);
+        // Smarter lookup: Check instanceId first, then technical componentId, then generic id
+        const manifest = this.inventory.find(m => (m.instanceId && m.instanceId === this.currentInstanceId) ||
+            (m.instanceId && m.instanceId === canonicalId) ||
+            (m.id && m.id === this.currentInstanceId) ||
+            (m.id && m.id === canonicalId) ||
+            (m.id && m.id === componentId));
         if (!manifest) {
             console.error(`[ModulePatchModal] Manifest NOT FOUND for instance: ${this.currentInstanceId}`);
             if (this.inputsList)
@@ -205,11 +222,20 @@ export class ModulePatchModal {
     getCompatibleOptions(port, isTarget, selectedId = "") {
         let options = '';
         this.inventory.forEach(m => {
+            console.log(`[ModulePatchModal] Checking module ${m.instanceId}, status: ${m.status}, ports: ${m.ports?.length}`);
+            if (m.status !== "active") {
+                console.log(`[ModulePatchModal] SKIPPING ${m.instanceId} because status !== active`);
+                return; // Ignorar módulos base del catálogo
+            }
+            if (m.instanceId === this.currentInstanceId) {
+                return; // Evitar el auto-ruteo (conectar salidas a entradas del mismo módulo)
+            }
             m.ports.forEach((p) => {
                 const compatibleType = p.type === port.type;
                 const compatibleDirection = isTarget ? !p.isInput : p.isInput;
                 if (compatibleType && compatibleDirection) {
                     const fullId = `${m.instanceId}.${p.id}`;
+                    console.log(`[ModulePatchModal] MATCHED option: ${fullId}`);
                     const isSelected = fullId === selectedId;
                     options += `<option value="${fullId}" ${isSelected ? 'selected' : ''}>${m.instanceId} > ${p.label}</option>`;
                 }

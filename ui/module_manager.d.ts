@@ -15,6 +15,7 @@ export declare class ModuleManager {
     private addPlaceholder;
     private injectEmergencyModule;
     private addModule;
+    private getCanonicalId;
     private resolveDescriptor;
 }
 export default ModuleManager;

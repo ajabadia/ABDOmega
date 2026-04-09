@@ -57,11 +57,32 @@ class OmegaApp {
         }
         // Clear "DISCONNECTED" if we have store data
         if (this.store && this.store.isLoaded) {
-            console.log(`[OMEGA] Build: ${this.store.getBuild()} | Timestamp: ${this.store.getTimestamp()}`);
-            this.updateVersion(this.store.getVersion(), this.store.getBuild());
+            const build = this.store.getBuild();
+            const ts = this.store.getTimestamp();
+            const version = this.store.getVersion();
+            // Inject version banner as first line in the DOM console panel
+            const logPanel = document.getElementById('debug-console-content');
+            if (logPanel) {
+                const banner = document.createElement('div');
+                banner.style.cssText = 'color:#00e5ff;font-weight:bold;font-size:1.05em;padding:2px 0 4px;border-bottom:1px solid #1a3a3a;margin-bottom:4px;';
+                banner.textContent = `OMEGA v${version} · Build ${build} · ${ts}`;
+                logPanel.prepend(banner);
+            }
+            console.log(`[OMEGA] v${version} · Build ${build} · ${ts}`);
+            this.updateVersion(version, build);
         }
         else {
             console.warn("[OMEGA TS] Store NOT loaded yet at end of init");
+        }
+        // Preload ACE catalog so ModuleManager can resolve descriptors from boot,
+        // even if the user never opens the ModuleBrowser.
+        if (window.omegaRPC) {
+            window.omegaRPC.send("listCatalog", {}).then((resp) => {
+                if (resp && resp.components) {
+                    window.omegaCatalog = Object.fromEntries(resp.components.map((c) => [c.id, c]));
+                    console.log(`[OMEGA] ACE Catalog preloaded: ${resp.components.length} components`);
+                }
+            }).catch(() => { });
         }
         this.initialized = true;
         console.log("[OMEGA TS] App Initialized.");
@@ -164,6 +185,12 @@ class OmegaApp {
     handleMenuAction(action) {
         console.log("[OMEGA] Handling Menu Action:", action);
         switch (action) {
+            case 'clear_rack':
+                if (window.confirm("WARNING: This will clear the entire modular rack. Are you sure?")) {
+                    if (window.juce)
+                        window.juce.menuAction('new_preset', 'Empty Slate Preset');
+                }
+                break;
             case 'new_preset':
                 const presetName = window.prompt("¿Deseas vaciar el rack y crear un nuevo preset? Introduce el nombre:", "Init Preset");
                 if (presetName !== null) {
@@ -418,8 +445,8 @@ window.handleOmegaMessage = (msg) => {
             if (manager)
                 manager.updateRack(state);
             // 2. Reactive Sync
-            if (window.patchbayMatrixInstance)
-                window.patchbayMatrixInstance.onStateUpdate(state);
+            if (window.patchbayHub)
+                window.patchbayHub.onStateUpdate(state);
             if (window.modulePatchModal)
                 window.modulePatchModal.onStateUpdate(state);
         }
@@ -427,9 +454,9 @@ window.handleOmegaMessage = (msg) => {
             // 2. Value update (e.g. Modulation Drag)
             // Skip updateRack() to avoid heavy DOM rebuilds!
             // Update modulation values in Hub and Modal
-            if (window.patchbayMatrixInstance) {
+            if (window.patchbayHub) {
                 console.log("[OMEGA TS] Syncing Patchbay Hub...");
-                window.patchbayMatrixInstance.onStateUpdate(state);
+                window.patchbayHub.onStateUpdate(state);
             }
             if (window.modulePatchModal) {
                 console.log("[OMEGA TS] Syncing Patch Modal...");

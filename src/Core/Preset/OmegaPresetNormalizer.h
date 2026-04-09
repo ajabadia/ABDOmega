@@ -10,8 +10,11 @@ namespace Core {
 namespace Preset {
 
     /**
-     * @brief Logger-Synced Normalizer for OMEGA Build #188.
-     * Redirects traces to the OMEGA_BOOT_LOG.txt via functional injection.
+     * @brief Structural Normalizer for OMEGA Presets.
+     * Ensures structural integrity (e.g. correct slot count) without any ID translation.
+     * 
+     * [Era 4 Principle]: All IDs must be correct at the source (YAML/C++ defaults).
+     * No compatibility shims or legacy ID translation are permitted here.
      */
     class OmegaPresetNormalizer {
     public:
@@ -29,12 +32,12 @@ namespace Preset {
             
             if (log) log("[DEBUG] normalize: visiting node type '" + type.toStdString() + "'");
 
-            // 1. Direct Identifier Match (The most robust way in JUCE)
+            // Ensure patchbay matrix always has the correct number of slots
             if (typeId == IDs::patchbayMatrix || type == "patchbayMatrix") {
                 normalizePatchbayMatrix(tree, log);
             }
 
-            // 2. Propagate to children
+            // Propagate to children
             for (int i = 0; i < tree.getNumChildren(); ++i) {
                 normalize(tree.getChild(i), log);
             }
@@ -42,7 +45,7 @@ namespace Preset {
 
     private:
         /**
-         * @brief Normalizes the Patchbay Matrix to exactly 64 slots.
+         * @brief Ensures the Patchbay Matrix has exactly 64 slots.
          */
         static void normalizePatchbayMatrix(juce::ValueTree matrix, Logger log) {
             int currentCount = matrix.getNumChildren();

@@ -297,3 +297,9 @@
     color: var(--juno-orange);
     border-radius: 0 4px 4px 0;
 }
+
+/* Fix Modal Footer Z-Index Overlaps */
+.modal-footer, .patch-modal-footer, .pref-footer {
+    position: relative;
+    z-index: 9999;
+}

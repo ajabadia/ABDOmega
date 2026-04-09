@@ -47,7 +47,8 @@ namespace Service {
 
         void scanLegacyRack(const juce::ValueTree& state);
         void scanDynamicNodes(const juce::ValueTree& state);
-        void scanWasmPlugins();
+        void scanAuxiliaryModules(const juce::ValueTree& state);
+        void scanWasmModules();
         void addStandardMidiSources();
 
 

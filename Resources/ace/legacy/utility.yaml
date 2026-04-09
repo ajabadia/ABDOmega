@@ -1,0 +1,63 @@
+components:
+  - id: "midi_2_cv"
+    name: "MIDI to CV Converter"
+    family: "Utility"
+    engine: "Modular"
+    modelId: "ACE-UTIL-MCV"
+    origin: "ABD OMEGA"
+    status: "active"
+    version: 1
+    panelClass: "utility-panel"
+    description: "Standard MIDI to CV converter. Extracts Pitch, Gate, and Velocity signals from incoming MIDI data for internal routing."
+    icon: midi-util
+    tags: ["midi", "cv", "utility", "converter"]
+    parameters:
+      - id: "midi_channel"
+        label: "CHANNEL"
+        unit: "ch"
+        min: 0
+        max: 16
+        default: 0
+        options:
+          - { label: "OMNI", value: 0 }
+          - { label: "CH 1", value: 1 }
+          - { label: "CH 2", value: 2 }
+          - { label: "CH 3", value: 3 }
+          - { label: "CH 4", value: 4 }
+          - { label: "CH 5", value: 5 }
+          - { label: "CH 6", value: 6 }
+          - { label: "CH 7", value: 7 }
+          - { label: "CH 8", value: 8 }
+          - { label: "CH 9", value: 9 }
+          - { label: "CH 10", value: 10 }
+          - { label: "CH 11", value: 11 }
+          - { label: "CH 12", value: 12 }
+          - { label: "CH 13", value: 13 }
+          - { label: "CH 14", value: 14 }
+          - { label: "CH 15", value: 15 }
+          - { label: "CH 16", value: 16 }
+    ports:
+      - id: "midi_in"
+        label: "MIDI IN"
+        type: "midi"
+        direction: "input"
+      - id: "pitch"
+        label: "PITCH (Hz)"
+        type: "cv"
+        direction: "output"
+      - id: "trigger"
+        label: "GATE"
+        type: "gate"
+        direction: "output"
+      - id: "velocity"
+        label: "VELOCITY"
+        type: "cv"
+        direction: "output"
+    uiLayout:
+      columns: 1
+      rows: 2
+      items:
+        - { id: "chan_sel", control: "stepper", paramId: "midi_channel", row: 0, col: 0 }
+        - { id: "activity_led", control: "led", label: "LOCK", row: 1, col: 0, color: "orange", source: "telemetry.status" }
+    footer:
+      label: "POLY-PHASE ENGINE"

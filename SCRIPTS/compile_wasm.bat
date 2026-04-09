@@ -35,7 +35,7 @@ wamrc --target=x86_64 --format=aot -o "%OUTPUT_FILE%" "%INPUT_FILE%"
 
 if %ERRORLEVEL% eq 0 (
     echo [SUCCESS] Module compiled successfully: %OUTPUT_FILE%
-    echo [INFO] Place this file in Resources/plugins/ to use it in OMEGA.
+    echo [INFO] Place this file in Resources/modules/ to use it in OMEGA.
 ) else (
     echo [FAILED] Compilation failed. Check the WASM file for compatibility.
 )

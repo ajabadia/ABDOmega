@@ -70,10 +70,11 @@
         console.error = (...args) => { originalError.apply(console, args); appendToConsole('error', ...args); };
 
     </script>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="css/preferences.css">
-    <link rel="stylesheet" href="css/matrix_overlay.css">
-    <link rel="stylesheet" href="css/module_browser.css">
+    <link rel="stylesheet" href="style.css?v=360">
+    <link rel="stylesheet" href="css/controls.css?v=360">
+    <link rel="stylesheet" href="css/preferences.css?v=360">
+    <link rel="stylesheet" href="css/matrix_overlay.css?v=360">
+    <link rel="stylesheet" href="css/module_browser.css?v=360">
 </head>
 <body class="rack-bg">
     <nav class="top-menu">
@@ -90,7 +91,9 @@
             <div class="dropdown">
                 <a data-action="undo">Undo</a>
                 <a data-action="redo">Redo</a>
+                <hr style="border-top:1px solid #333; margin:5px 0;">
                 <a id="menu-add-module" data-action="toggle_module_browser">Add Module...</a>
+                <a id="menu-clear-rack" data-action="clear_rack">Clear Rack / Init</a>
                 <a id="menu-matrix" data-action="toggle_matrix">Patchbay Matrix...</a>
                 <a id="menu-presets" data-action="toggle_presets_modal">Presets...</a>
                 <a id="menu-preferences" data-action="toggle_preferences_modal">Preferences...</a>
@@ -118,7 +121,7 @@
         </div>
     </div>
 
-    <div id="omega-rack" class="rack-container" style="display: flex; opacity: 0; pointer-events: none;">
+    <div id="omega-rack" class="rack-container" style="display: flex; flex-direction: column !important; opacity: 0; pointer-events: none;">
         <div id="upper-rack" class="rack-row upper">
             <!-- Monitoring modules injected here -->
         </div>
@@ -343,6 +346,6 @@
         <div id="debug-console-content"></div>
     </div>
     <!-- OMEGA Unified Entry Point (TS Built) -->
-    <script type="module" src="index.js"></script>
+    <script type="module" src="index.js?v=360"></script>
 </body>
 </html>

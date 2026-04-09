@@ -1,5 +1,5 @@
 components:
-  - id: "PATCHBAY-MATRIX-001"
+  - id: "patchbay_matrix"
     name: "Patchbay Matrix"
     family: "System"
     engine: "Modular"
@@ -7,7 +7,9 @@ components:
     origin: "ABD OMEGA"
     status: "active"
     version: 1
+    visible: false
     panelClass: "system-panel"
+    illustration: "patchbay_matrix/illustration.svg"
     tags: ["system", "routing", "matrix", "patchbay"]
     parameters:
       - id: "master_gain"

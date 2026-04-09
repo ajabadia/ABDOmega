@@ -2,6 +2,20 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
 
+## [2.6.0] - 2026-04-09 (Build 363) - "Aseptic Rack Stabilization"
+### Added
+- **Metadata-Driven Rack Routing (Phase 27)**:
+    - Implemented aseptic routing logic in `ModuleManager` that prioritizes manifest metadata over stale preset state.
+    - Added global fallback to **Upper Rack** for all unclassified modules.
+    - Established hierarchy: **State > Manifest > Semantic Fallback > Global Default (Upper)**.
+- **Ultra-Clean UI Aesthetics**:
+    - Purged all visual 'jack' (port) icons from the modular renderer for a minimalist professional look.
+    - Synchronized `display-unit` selectors for robust horizontal alignment.
+### Improved
+- **Metadata Propagation**: Resolved a property leak in `resolveDescriptor` that was stripping `rack` and `panelClass` from ACE components.
+- **Diagnostics**: Enhanced console logging for real-time routing source identification (`State` vs `Manifest`).
+- **Vision Document**: Finalized Section 1.1 in `docs/OMEGA_Vision.md` detailing the rack routing algorithm.
+
 ## [2.5.0] - 2026-04-08 (Build 298) - "Patchbay Hub Evolution"
 ### Added
 - **Global Patchbay Hub (Phase 24.F)**:

@@ -64,10 +64,16 @@ namespace UI {
             obj->setProperty("version", info->version);
             obj->setProperty("description", juce::String(info->description));
             obj->setProperty("icon", juce::String(info->icon));
+            obj->setProperty("illustration", juce::String(info->illustration));
+            obj->setProperty("visible", info->visible);
+            obj->setProperty("rack", juce::String(info->rack));
             
             juce::Array<juce::var> tags;
             for (const auto& t : info->tags) tags.add(juce::String(t));
             obj->setProperty("tags", tags);
+            
+            // Era 4.1: Export UI Layout and Ports visibility
+            obj->setProperty("uiLayout", juce::String(info->uiLayout));
             
             components.add(juce::var(obj.get()));
         }

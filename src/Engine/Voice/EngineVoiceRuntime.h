@@ -221,7 +221,7 @@ namespace Voice {
                     default:
                     {
                         // Dynamic WASM Unit Support (VA 2.1.W)
-                        // Threshold lowered to 500 to include fundamental MIDI plugins
+                        // Threshold lowered to 500 to include fundamental MIDI modules
                         if (unit.implementationId >= 500) {
                             auto& wasm = Wasm::WasmModuleService::getInstance();
                             // Pass currentInput as the first float in the buffer (mock-up)

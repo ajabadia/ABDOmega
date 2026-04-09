@@ -8,7 +8,7 @@ export const ModuleDescriptors = {
         id: "juno-dco",
         title: "JUNO DCO",
         panelClass: "juno-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.osc.saw.on", control: "toggle", label: "SAW", row: 0, col: 0, variant: "juno-red" },
             { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1, variant: "juno-red" },
@@ -24,7 +24,7 @@ export const ModuleDescriptors = {
         id: "juno-vcf",
         title: "IR3109 VCF",
         panelClass: "juno-panel",
-        grid: { columns: 3, gap: 12 },
+        uiLayout: { columns: 3, gap: 12 },
         items: [
             { paramId: "layer.a.cutoff", control: "knob", label: "FREQ", row: 0, col: 0 },
             { paramId: "layer.a.resonance", control: "knob", label: "RES", row: 0, col: 1 },
@@ -41,7 +41,7 @@ export const ModuleDescriptors = {
         id: "space-echo",
         title: "SPACE ECHO",
         panelClass: "space-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.fx.space.speed", control: "knob", label: "RATE", row: 0, col: 0 },
             { paramId: "layer.a.fx.space.intensity", control: "knob", label: "INTEN", row: 0, col: 1 },
@@ -61,7 +61,7 @@ export const ModuleDescriptors = {
         id: "master-delay",
         title: "MASTER DELAY",
         panelClass: "universal-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "global.delay.time", control: "knob", label: "TIME", row: 0, col: 0 },
             { paramId: "global.delay.feedback", control: "knob", label: "FDBK", row: 0, col: 1 },
@@ -77,7 +77,7 @@ export const ModuleDescriptors = {
         id: "adsr",
         title: "EG-ADSR",
         panelClass: "universal-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.env.attack", control: "knob", label: "A", row: 0, col: 0 },
             { paramId: "layer.a.env.decay", control: "knob", label: "D", row: 0, col: 1 },
@@ -90,7 +90,7 @@ export const ModuleDescriptors = {
         id: "adsr",
         title: "EG-ADSR",
         panelClass: "universal-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.env.attack", control: "knob", label: "A", row: 0, col: 0 },
             { paramId: "layer.a.env.decay", control: "knob", label: "D", row: 0, col: 1 },
@@ -104,7 +104,7 @@ export const ModuleDescriptors = {
         id: "vca",
         title: "AMP-VCA",
         panelClass: "universal-panel",
-        grid: { columns: 1, gap: 12 },
+        uiLayout: { columns: 1, gap: 12 },
         items: [
             { paramId: "layer.a.vca.gain", control: "slider-v", label: "GAIN", row: 0, col: 0 },
             { paramId: "layer.a.vca.mode", control: "toggle", label: "GATE", row: 1, col: 0 }
@@ -116,7 +116,7 @@ export const ModuleDescriptors = {
         id: "lfo",
         title: "LFO-MOD",
         panelClass: "universal-panel",
-        grid: { columns: 1, gap: 12 },
+        uiLayout: { columns: 1, gap: 12 },
         items: [
             { paramId: "layer.a.lfo.rate", control: "knob", label: "RATE", row: 0, col: 0 },
             { paramId: "layer.a.lfo.wave", control: "select", label: "WAVE", row: 1, col: 0 }
@@ -128,7 +128,7 @@ export const ModuleDescriptors = {
         id: "korg-osc",
         title: "KORG DCO",
         panelClass: "korg-prophecy-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.osc.saw.on", control: "toggle", label: "SAW", row: 0, col: 0 },
             { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1 }
@@ -140,7 +140,7 @@ export const ModuleDescriptors = {
         id: "korg-vcf",
         title: "KORG-35 VCF",
         panelClass: "korg-ms20-panel",
-        grid: { columns: 3, gap: 12 },
+        uiLayout: { columns: 3, gap: 12 },
         items: [
             { paramId: "layer.a.cutoff", control: "knob", label: "LPF", row: 0, col: 0 },
             { paramId: "layer.a.korg.hpf.cutoff", control: "knob", label: "HPF", row: 0, col: 1 },
@@ -153,7 +153,7 @@ export const ModuleDescriptors = {
         id: "jp-supersaw",
         title: "JP SUPERSAW",
         panelClass: "jp-panel",
-        grid: { columns: 3, gap: 12 },
+        uiLayout: { columns: 3, gap: 12 },
         items: [
             { paramId: "layer.a.jp.detune", control: "knob", label: "DETUNE", row: 0, col: 0 },
             { paramId: "layer.a.jp.spread", control: "knob", label: "SPREAD", row: 0, col: 1 },
@@ -166,7 +166,7 @@ export const ModuleDescriptors = {
         id: "juno-chorus",
         title: "JUNO CHORUS",
         panelClass: "juno-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "global.chorus.mode", control: "select", label: "MODE", row: 0, col: 0 },
             { paramId: "global.chorus.mix", control: "knob", label: "MIX", row: 0, col: 1 }
@@ -178,7 +178,7 @@ export const ModuleDescriptors = {
         id: "lfo",
         title: "LFO-MOD",
         panelClass: "universal-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.lfo.rate", control: "knob", label: "RATE", row: 0, col: 0 },
             { paramId: "layer.a.lfo.wave", control: "select", label: "WAVE", row: 0, col: 1 }
@@ -189,7 +189,7 @@ export const ModuleDescriptors = {
         id: "adsr",
         title: "EG-ADSR",
         panelClass: "universal-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.env.attack", control: "knob", label: "A", row: 0, col: 0 },
             { paramId: "layer.a.env.decay", control: "knob", label: "D", row: 0, col: 1 },
@@ -202,7 +202,7 @@ export const ModuleDescriptors = {
         id: "vcf",
         title: "VCF-CORE",
         panelClass: "universal-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.cutoff", control: "knob", label: "FREQ", row: 0, col: 0 },
             { paramId: "layer.a.resonance", control: "knob", label: "RES", row: 0, col: 1 }
@@ -213,7 +213,7 @@ export const ModuleDescriptors = {
         id: "osc",
         title: "OSC-CORE",
         panelClass: "universal-panel",
-        grid: { columns: 2, gap: 12 },
+        uiLayout: { columns: 2, gap: 12 },
         items: [
             { paramId: "layer.a.osc.saw.on", control: "toggle", label: "SAW", row: 0, col: 0 },
             { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1 }
@@ -224,7 +224,7 @@ export const ModuleDescriptors = {
         id: "vca",
         title: "AMP-VCA",
         panelClass: "universal-panel",
-        grid: { columns: 1, gap: 12 },
+        uiLayout: { columns: 1, gap: 12 },
         items: [
             { paramId: "layer.a.vca.gain", control: "slider-v", label: "GAIN", row: 0, col: 0 }
         ],
@@ -234,7 +234,7 @@ export const ModuleDescriptors = {
         id: "patchbay-matrix",
         title: "PATCHBAY MATRIX",
         panelClass: "matrix-panel",
-        grid: { columns: 1, gap: 0 },
+        uiLayout: { columns: 1, gap: 0 },
         items: [
             { paramId: "global.patchbay.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
         ],
@@ -244,7 +244,7 @@ export const ModuleDescriptors = {
         id: "patchbay-matrix",
         title: "PATCHBAY MATRIX",
         panelClass: "matrix-panel",
-        grid: { columns: 1, gap: 0 },
+        uiLayout: { columns: 1, gap: 0 },
         items: [
             { paramId: "global.patchbay.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
         ],
@@ -254,7 +254,7 @@ export const ModuleDescriptors = {
         id: "trig",
         title: "MIDI TRIGGER",
         panelClass: "utility-panel",
-        grid: { columns: 1, gap: 0 },
+        uiLayout: { columns: 1, gap: 0 },
         items: [
             { paramId: "global.midi.trig", control: "knob", label: "GATE", row: 0, col: 0 }
         ],
@@ -265,7 +265,7 @@ export const ModuleDescriptors = {
         id: "midi-in",
         title: "MIDI INPUT",
         panelClass: "utility-panel",
-        grid: { columns: 1, gap: 10 },
+        uiLayout: { columns: 1, gap: 10 },
         items: [
             { paramId: "global.midi.activity", control: "telemetry", label: "ACTIVITY", row: 0, col: 0 }
         ],
@@ -275,7 +275,7 @@ export const ModuleDescriptors = {
         id: "midi-mon",
         title: "MIDI MONITOR",
         panelClass: "utility-panel",
-        grid: { columns: 1, gap: 0 },
+        uiLayout: { columns: 1, gap: 0 },
         items: [
             { paramId: "global.midi.mon", control: "telemetry", label: "TRAFFIC", row: 0, col: 0 }
         ],
@@ -285,7 +285,7 @@ export const ModuleDescriptors = {
         id: "mon",
         title: "MIDI MONITOR",
         panelClass: "utility-panel",
-        grid: { columns: 1, gap: 0 },
+        uiLayout: { columns: 1, gap: 0 },
         items: [
             { paramId: "global.midi.mon", control: "telemetry", label: "TRAFFIC", row: 0, col: 0 }
         ],
@@ -295,7 +295,7 @@ export const ModuleDescriptors = {
         id: "osci",
         title: "OSCILLOSCOPE",
         panelClass: "utility-panel",
-        grid: { columns: 1, gap: 0 },
+        uiLayout: { columns: 1, gap: 0 },
         items: [
             { paramId: "global.scope", control: "telemetry", label: "WAVE", row: 0, col: 0 }
         ],

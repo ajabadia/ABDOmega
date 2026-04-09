@@ -8,9 +8,9 @@ masterGainDb: -6.0
 # 1. Auxiliary Utilities (Global per Voice)
 auxiliary:
   - id: "midi_in.1"
-    componentId: "MIDI-IN-001"
+    componentId: "midi_in"
   - id: "matrix.1"
-    componentId: "PATCHBAY-MATRIX-001"
+    componentId: "patchbay_matrix"
 
 # 2. Voice Architecture (Pure Modular Graph)
 layers:

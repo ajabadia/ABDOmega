@@ -15,13 +15,17 @@ namespace Service {
         std::lock_guard<std::mutex> lock(mMutex);
         mInventory.clear();
         
-        // --- VA 2.1: STRICT MODULAR DISCOVERY ---
-        // We only scan explicitly defined nodes and standard MIDI sources.
-        
-        // 2. Scan for WASM/AOT Plugins (VA 2.1.W)
-        scanWasmPlugins();
+        // --- VA 2.2: EXTENDED MODULAR DISCOVERY ---
+        // 1. Scan Legacy Voice Chain Nodes
+        scanDynamicNodes(preset.getState());
 
-        // 3. Add standard MIDI sources (Internal to engine)
+        // 2. Scan Era 4 Auxiliary Modules (Racks)
+        scanAuxiliaryModules(preset.getState());
+
+        // 3. Scan for WASM/AOT Modules (VA 2.1.W)
+        scanWasmModules();
+
+        // 4. Add standard MIDI sources (Internal to engine)
         addStandardMidiSources();
     }
 
@@ -57,6 +61,7 @@ namespace Service {
             ModuleManifest m;
             m.instanceId = id;
             m.modelId = modelId;
+            m.status = "active";
 
             if (mCatalog) {
                 auto const* info = mCatalog->getComponent(modelId);
@@ -65,11 +70,63 @@ namespace Service {
                     m.uiLayout = info->uiLayout;
                     m.style = info->style;
                     
+                    // Parameters as modulation targets (inputs)
                     for (auto const& p : info->parameters) {
-                        m.ports.push_back({p.id, p.label, ModPortType::CV, true});
+                        if (!p.modulable) continue;
+                        Modulation::PortDescriptor pd = { p.id, p.label, Modulation::ModPortType::CV, true };
+                        pd.options = p.options;
+                        pd.defaultValue = p.defaultValue;
+                        m.ports.push_back(pd);
                     }
-                    for (auto const& t : info->modulationTargets) {
-                        m.ports.push_back({t.id, t.label, ModPortType::CV, false});
+
+                    // Unified Era 4 Ports (Sources and Targets)
+                    for (auto const& port : info->ports) {
+                        m.ports.push_back(port);
+                    }
+                }
+            }
+            mInventory[id] = m;
+        }
+    }
+
+    void SemanticBrokerService::scanAuxiliaryModules(const juce::ValueTree& state) {
+        using namespace Modulation;
+        using IDs = Core::Identifiers;
+
+        juce::ValueTree aux = state.getChildWithName(IDs::auxiliary);
+        if (!aux.isValid()) return;
+
+        for (int i = 0; i < aux.getNumChildren(); ++i) {
+            auto node = aux.getChild(i);
+            std::string id = node.getProperty(IDs::instanceId).toString().toStdString();
+            std::string modelId = node.getProperty(IDs::componentId).toString().toStdString();
+
+            if (id.empty() || modelId.empty()) continue;
+
+            ModuleManifest m;
+            m.instanceId = id;
+            m.modelId = modelId;
+            m.status = "active";
+
+            if (mCatalog) {
+                auto const* info = mCatalog->getComponent(modelId);
+                if (info) {
+                    m.category = info->family;
+                    m.uiLayout = info->uiLayout;
+                    m.style = info->style;
+                    
+                    // Parameters as modulation targets (inputs)
+                    for (auto const& p : info->parameters) {
+                        if (!p.modulable) continue;
+                        Modulation::PortDescriptor pd = {p.id, p.label, Modulation::ModPortType::CV, true};
+                        pd.options = p.options;
+                        pd.defaultValue = p.defaultValue;
+                        m.ports.push_back(pd);
+                    }
+
+                    // Unified ports (Targets, Sources, and Generic Ports)
+                    for (auto const& port : info->ports) {
+                        m.ports.push_back(port);
                     }
                 }
             }
@@ -81,33 +138,41 @@ namespace Service {
         // ... (existing code omitted for brevity but preserved)
     }
 
-    void SemanticBrokerService::scanWasmPlugins() {
-        using namespace Modulation;
+    void SemanticBrokerService::scanWasmModules() {
+        if (!mCatalog) return;
+
+        // The AceCatalog has already scanned Resources/modules via loadFromModulesDirectory().
+        // We just need to make sure any component in the catalog that isn't already in mInventory
+        // (as an instance) is available for the browser or discovery.
         
-        juce::File pluginDir = juce::File::getSpecialLocation(juce::File::currentApplicationFile)
-                                .getParentDirectory()
-                                .getChildFile("Resources/plugins");
+        for (auto const* info : mCatalog->getComponents()) {
+            // If this is a WASM module (implementationId >= 500), ensure it's represented
+            if (info->implementationId >= 500) {
+                Modulation::ModuleManifest m;
+                m.instanceId = info->id; // For the browser, instanceId == modelId
+                m.modelId = info->id;
+                m.category = info->family;
+                m.status = "template";
+                m.uiLayout = info->uiLayout;
+                m.style = info->style;
 
-        if (!pluginDir.exists() || !pluginDir.isDirectory()) return;
+                for (auto const& p : info->parameters) {
+                    if (!p.modulable) continue;
+                    Modulation::PortDescriptor pd = { p.id, p.label, Modulation::ModPortType::CV, true };
+                    pd.options = p.options;
+                    pd.defaultValue = p.defaultValue;
+                    m.ports.push_back(pd);
+                }
 
-        juce::Array<juce::File> files;
-        pluginDir.findChildFiles(files, juce::File::findFiles, false, "*.wasm;*.aot");
+                for (auto const& port : info->ports) {
+                    m.ports.push_back(port);
+                }
 
-        int dynamicId = 1000;
-        for (const auto& file : files) {
-            ModuleManifest m;
-            m.instanceId = "wasm." + std::to_string(dynamicId);
-            m.modelId = file.getFileNameWithoutExtension().toStdString();
-            m.category = "3rd Party";
-            m.status = "active";
-            
-            // Standard WASM Ports (VA 2.1.W Contract)
-            m.ports.push_back({"in", "AUDIO IN", ModPortType::Audio, true});
-            m.ports.push_back({"out", "AUDIO OUT", ModPortType::Audio, false});
-            m.ports.push_back({"cv", "MOD IN", ModPortType::CV, true});
-
-            mInventory[m.instanceId] = m;
-            dynamicId++;
+                // Only add if not already present (racks take precedence)
+                if (mInventory.find(m.instanceId) == mInventory.end()) {
+                    mInventory[m.instanceId] = m;
+                }
+            }
         }
     }
 

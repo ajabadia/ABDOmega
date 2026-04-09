@@ -28,10 +28,10 @@ namespace Preset {
             
             juce::ValueTree aux(IDs::auxiliary);
             
-            // 1. PATCHBAY-MATRIX (Routing Hub)
+            // 1. patchbay_matrix (Routing Hub)
             juce::ValueTree matrixMod(IDs::COMPONENT);
-            matrixMod.setProperty(IDs::slotName, "PATCHBAY-MATRIX", nullptr);
-            matrixMod.setProperty(IDs::componentId, "PATCHBAY-MATRIX-001", nullptr);
+            matrixMod.setProperty(IDs::slotName, "patchbay_matrix", nullptr);
+            matrixMod.setProperty(IDs::componentId, "patchbay_matrix", nullptr);
             aux.addChild(matrixMod, -1, nullptr);
 
             p.addChild(aux, -1, nullptr);
@@ -80,8 +80,8 @@ namespace Preset {
             layers.addChild(l, -1, nullptr);
             juce::ValueTree aux(IDs::auxiliary);
             juce::ValueTree matrixMod(IDs::COMPONENT);
-            matrixMod.setProperty(IDs::slotName, "PATCHBAY-MATRIX", nullptr);
-            matrixMod.setProperty(IDs::componentId, "PATCHBAY-MATRIX-001", nullptr);
+            matrixMod.setProperty(IDs::slotName, "patchbay_matrix", nullptr);
+            matrixMod.setProperty(IDs::componentId, "patchbay_matrix", nullptr);
             aux.addChild(matrixMod, -1, nullptr);
 
             p.addChild(aux, -1, nullptr);
