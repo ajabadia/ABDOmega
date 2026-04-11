@@ -1,39 +1,31 @@
 /**
- * OMEGA Module Patch Modal (TypeScript)
- * The 'Pocket Patchbay' for focused module routing.
+ * OMEGA Unified Module Patch Modal
+ * Standardized for Era 5.2 Aseptic Meta-Engine.
  */
 export declare class ModulePatchModal {
     private el;
-    private titleEl;
-    private subtitleEl;
-    private inputsList;
-    private outputsList;
-    private usageFill;
-    private usageText;
+    private tabsContainer;
+    private viewport;
     private currentInstanceId;
-    private inventory;
+    private activeTab;
+    private currentTabs;
+    private currentManifest;
     private patchbayMatrix;
     private maxSlots;
     constructor();
     private init;
-    private syncMaxSlots;
-    private ensureElements;
-    open(instanceId: string, componentId?: string): Promise<void>;
-    refresh(componentId?: string): Promise<void>;
-    private getCanonicalId;
-    private render;
-    private renderSection;
-    private renderSlotRow;
-    private showNewSlotRow;
-    private getCompatibleOptions;
-    private updateUsage;
+    open(instanceId: string, manifest: any): Promise<void>;
+    close(): void;
+    private renderTabs;
+    private switchTab;
+    private renderGroups;
+    private isPair;
+    private renderParameterRow;
     /**
-     * Reactive State Synchronization
-     * Called by the main app loop when the preset state changes.
+     * ERA 5.2 STANDARD: Control Cell Generator
      */
+    private buildControlCell;
+    private renderPatchingSanctuary;
     onStateUpdate(state: any): void;
-    private applyPatch;
-    private updateSlotParam;
-    private removePatch;
 }
 //# sourceMappingURL=ModulePatchModal.d.ts.map

@@ -27,9 +27,9 @@ export class MetadataStore {
     private groups: Map<string, GroupDescriptor> = new Map();
     private inventory: any[] = [];
     private isLoaded: boolean = false;
-    private version: string = "1.0.0";
-    private build: string = "0";
-    private timestamp: string = "";
+    private version: string = "5.2.0-ALPHA";
+    private build: string = "397";
+    private timestamp: string = new Date().toISOString();
 
     constructor() {}
 
@@ -37,91 +37,67 @@ export class MetadataStore {
         if (this.isLoaded) return true;
 
         try {
-            console.log("[MetadataStore] Attempting to load metadata via omegaRPC...");
-            // @ts-ignore - window.omegaRPC defined globally
-            if (!(window as any).omegaRPC) {
-                console.warn("[MetadataStore] window.omegaRPC is missing!");
-                return false;
-            }
-            const response = await (window as any).omegaRPC.getMetadata();
-            console.log("[MetadataStore] RPC Response received:", response ? "SUCCESS" : "EMPTY");
+            const rpc = window.omegaRPC;
+            if (!rpc) return false;
+            
+            const response = await rpc.getMetadata();
             if (response && response.parameters) {
+                this.parameters.clear();
                 response.parameters.forEach((p: ParamDescriptor) => {
                     this.parameters.set(p.id, p);
                 });
                 if (response.groups) {
+                    this.groups.clear();
                     response.groups.forEach((g: GroupDescriptor) => {
                         this.groups.set(g.id, g);
                     });
                 }
                 if (response.version) this.version = response.version;
-                if (response.build !== undefined) this.build = response.build.toString();
+                if (response.build) this.build = response.build;
                 if (response.timestamp) this.timestamp = response.timestamp;
 
                 this.isLoaded = true;
                 return true;
             }
         } catch (e) {
-            console.error("[MetadataStore] Failed to load metadata:", e);
+            console.error("[MetadataStore] Load error:", e);
         }
         return false;
     }
 
-    getParam(id: string): ParamDescriptor | undefined {
-        return this.parameters.get(id);
-    }
-
-    getAllParams(): ParamDescriptor[] {
-        return Array.from(this.parameters.values());
-    }
-
-    getGroup(id: string): GroupDescriptor | undefined {
-        return this.groups.get(id);
-    }
-
     async getModulationMetadata(): Promise<any> {
-        // @ts-ignore
-        if (!(window as any).omegaRPC) return { inventory: [], sources: [], targets: [] };
+        const rpc = window.omegaRPC;
         
-        // @ts-ignore
-        const res = await (window as any).omegaRPC.send("getModulationMetadata", {});
-        if (res && res.inventory) {
-            this.inventory = res.inventory.map((m: any) => ({
-                ...m,
-                visible: m.visible !== undefined ? m.visible : true,
-                illustration: m.illustration || ""
-            }));
-
-            // Register dynamic parameters from ports with options
-            this.inventory.forEach((m: any) => {
-                if (m.ports) {
-                    m.ports.forEach((p: any) => {
-                        if (p.options && p.options.length > 0) {
-                            this.parameters.set(p.id, {
-                                id: p.id,
-                                name: p.label || p.id,
-                                min: 0,
-                                max: p.options.length - 1,
-                                default: p.defaultValue || 0,
-                                options: p.options
-                            });
-                        }
-                    });
-                }
-            });
+        try {
+            const res = rpc ? await rpc.send("getModulationMetadata", {}) : null;
+            if (res && res.inventory && res.inventory.length > 0) {
+                this.inventory = res.inventory;
+            }
+            return { inventory: this.inventory, sources: res?.sources || [], targets: res?.targets || [] };
+        } catch (e) {
+            return { inventory: this.inventory, sources: [], targets: [] };
         }
-        return res;
     }
 
     getInventoryItem(id: string): any {
         return this.inventory.find(m => m.instanceId === id || m.id === id);
     }
 
+    getParam(id: string): ParamDescriptor | undefined {
+        const p = this.parameters.get(id);
+        if (!p) {
+            // High verbosity for Era 5.2 diagnostic
+            // console.warn(`[MetadataStore] Param NOT found: ${id}`);
+        }
+        return p;
+    }
+
+    getInventory(): any[] { return this.inventory; }
+    isInitialized(): boolean { return this.isLoaded; }
     getVersion(): string { return this.version; }
     getBuild(): string { return this.build; }
     getTimestamp(): string { return this.timestamp; }
 }
 
-// Global instance for runtime
-// @ts-ignore
+// Global instance
 window.metadataStore = new MetadataStore();

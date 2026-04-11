@@ -5,6 +5,7 @@
 import { MetadataStore } from './metadata_store.js';
 import { setupJuceShim } from './omega_rpc.js';
 import { ModuleManager } from './module_manager.js';
+import { OmegaLog } from './omega_log.js';
 class OmegaApp {
     lastPresetName = "INITIAL PATCH";
     lcdTimer = null;
@@ -24,12 +25,12 @@ class OmegaApp {
         this.sysexMirror[22] = 0xF7;
     }
     init() {
-        console.log("[OMEGA TS] Initializing App...");
+        OmegaLog.info("OMEGA TS", "Initializing App...");
         // Final Bridge Fix: Shim window.juce using RPC
         setupJuceShim();
         // FIX: Assign store from global
         this.store = window.metadataStore;
-        console.log("[OMEGA TS] Store assigned:", this.store ? "YES" : "NO");
+        OmegaLog.info("OMEGA TS", "Store assigned: " + (this.store ? "YES" : "NO"));
         this.setupEventListeners();
         console.log("[OMEGA TS] Event Listeners Ready");
         this.setupInteractions();
@@ -41,11 +42,11 @@ class OmegaApp {
         this.setupKeyboard();
         console.log("[OMEGA TS] Keyboard Ready");
         this.hideSplash();
-        console.log("[OMEGA TS] hideSplash called");
+        OmegaLog.info("OMEGA TS", "hideSplash called");
         // Emergency: show console if bridge is missing
         setTimeout(() => {
             if (!this.initialized) {
-                console.error("[OMEGA] Init timed out. Showing console.");
+                OmegaLog.error("OMEGA", "Init timed out. Showing console.");
                 const consoleEl = document.getElementById('debug-console');
                 if (consoleEl)
                     consoleEl.style.display = 'block';
@@ -68,11 +69,11 @@ class OmegaApp {
                 banner.textContent = `OMEGA v${version} · Build ${build} · ${ts}`;
                 logPanel.prepend(banner);
             }
-            console.log(`[OMEGA] v${version} · Build ${build} · ${ts}`);
+            OmegaLog.info("OMEGA", `v${version} · Build ${build} · ${ts}`);
             this.updateVersion(version, build);
         }
         else {
-            console.warn("[OMEGA TS] Store NOT loaded yet at end of init");
+            OmegaLog.warn("OMEGA TS", "Store NOT loaded yet at end of init");
         }
         // Preload ACE catalog so ModuleManager can resolve descriptors from boot,
         // even if the user never opens the ModuleBrowser.
@@ -80,18 +81,18 @@ class OmegaApp {
             window.omegaRPC.send("listCatalog", {}).then((resp) => {
                 if (resp && resp.components) {
                     window.omegaCatalog = Object.fromEntries(resp.components.map((c) => [c.id, c]));
-                    console.log(`[OMEGA] ACE Catalog preloaded: ${resp.components.length} components`);
+                    OmegaLog.info("OMEGA", `ACE Catalog preloaded: ${resp.components.length} components`);
                 }
             }).catch(() => { });
         }
         this.initialized = true;
-        console.log("[OMEGA TS] App Initialized.");
+        OmegaLog.info("OMEGA TS", "App Initialized.");
     }
     setupEventListeners() {
-        console.log("[OMEGA TS] Setting up Event Listeners...");
+        OmegaLog.info("OMEGA TS", "Setting up Event Listeners...");
         // Bridge Logic for JUCE events
         if (window.__JUCE__ && window.__JUCE__.backend) {
-            console.log("[OMEGA TS] JUCE Backend found. Registering...");
+            OmegaLog.info("OMEGA TS", "JUCE Backend found. Registering...");
             const backend = window.__JUCE__.backend;
             backend.addEventListener("onParameterChanged", (data) => this.syncUI(data.id, data.value));
             backend.addEventListener("onLCDUpdate", (text) => this.updateLCD(text, false));
@@ -104,9 +105,9 @@ class OmegaApp {
         }
     }
     hideSplash() {
-        console.log("[OMEGA TS] hideSplash execution starting. Setting 3.5s timeout...");
+        OmegaLog.info("OMEGA TS", "hideSplash execution starting. Setting 3.5s timeout...");
         const doHide = () => {
-            console.log("[OMEGA TS] doHide timeout EXECUTING NOW");
+            OmegaLog.info("OMEGA TS", "doHide timeout EXECUTING NOW");
             const splash = document.getElementById('splash-screen');
             const rack = document.getElementById('omega-rack');
             if (splash) {
@@ -183,7 +184,7 @@ class OmegaApp {
             p.innerText = this.currentPatchGlobal.toString();
     }
     handleMenuAction(action) {
-        console.log("[OMEGA] Handling Menu Action:", action);
+        OmegaLog.info("OMEGA", "Handling Menu Action: " + action);
         switch (action) {
             case 'clear_rack':
                 if (window.confirm("WARNING: This will clear the entire modular rack. Are you sure?")) {
@@ -216,7 +217,7 @@ class OmegaApp {
                 if (window.juce)
                     window.juce.menuAction(action);
                 else
-                    console.warn("[OMEGA] Bridge disconnected - Remote action ignored:", action);
+                    OmegaLog.warn("OMEGA", "Bridge disconnected - Remote action ignored: " + action);
                 break;
         }
     }
@@ -244,12 +245,12 @@ class OmegaApp {
         });
     }
     setupInteractions() {
-        console.log("[OMEGA TS] Setting up button interaction listeners...");
+        OmegaLog.info("OMEGA TS", "Setting up button interaction listeners...");
         // Close Console
         const closeBtn = document.getElementById('close-console');
         if (closeBtn)
             closeBtn.onclick = () => {
-                console.log("[OMEGA] Console Close requested");
+                OmegaLog.info("OMEGA", "Console Close requested");
                 const consoleEl = document.getElementById('debug-console');
                 if (consoleEl)
                     consoleEl.style.display = 'none';
@@ -258,7 +259,7 @@ class OmegaApp {
         const clearBtn = document.getElementById('clear-console');
         if (clearBtn)
             clearBtn.onclick = () => {
-                console.log("[OMEGA] Console Clear requested");
+                OmegaLog.info("OMEGA", "Console Clear requested");
                 const logPanel = document.getElementById('debug-console-content');
                 if (logPanel)
                     logPanel.innerHTML = '';
@@ -267,7 +268,7 @@ class OmegaApp {
         const copyBtn = document.getElementById('copy-console');
         if (copyBtn)
             copyBtn.onclick = async () => {
-                console.log("[OMEGA] Console Copy requested");
+                OmegaLog.info("OMEGA", "Console Copy requested");
                 const logPanel = document.getElementById('debug-console-content');
                 if (logPanel) {
                     try {
@@ -277,7 +278,7 @@ class OmegaApp {
                         setTimeout(() => copyBtn.innerHTML = originalText, 1000);
                     }
                     catch (e) {
-                        console.error("[OMEGA] Clipboard failure:", e);
+                        OmegaLog.error("OMEGA", "Clipboard failure", e);
                     }
                 }
             };
@@ -438,7 +439,7 @@ window.handleOmegaMessage = (msg) => {
         const payload = typeof msg === 'string' ? JSON.parse(msg) : msg;
         const type = payload.type || "";
         const state = payload.payload || payload;
-        console.log("[OMEGA TS] Message Received:", type);
+        OmegaLog.debug("OMEGA TS", "Message Received: " + type);
         if (type === "onStateUpdate") {
             // 1. Structural update (e.g. Preset Load)
             const manager = window.moduleManager;
@@ -455,11 +456,11 @@ window.handleOmegaMessage = (msg) => {
             // Skip updateRack() to avoid heavy DOM rebuilds!
             // Update modulation values in Hub and Modal
             if (window.patchbayHub) {
-                console.log("[OMEGA TS] Syncing Patchbay Hub...");
+                OmegaLog.debug("OMEGA TS", "Syncing Patchbay Hub...");
                 window.patchbayHub.onStateUpdate(state);
             }
             if (window.modulePatchModal) {
-                console.log("[OMEGA TS] Syncing Patch Modal...");
+                OmegaLog.debug("OMEGA TS", "Syncing Patch Modal...");
                 window.modulePatchModal.onStateUpdate(state);
             }
             // Notify active modules to update their internal gauges/cables
@@ -476,7 +477,7 @@ window.handleOmegaMessage = (msg) => {
         }
     }
     catch (e) {
-        console.error("[OMEGA TS] Error handling message:", e);
+        OmegaLog.error("OMEGA TS", "Error handling message", e);
     }
 };
 export { app };

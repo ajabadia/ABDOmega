@@ -5,19 +5,25 @@ namespace UI {
 
     juce::var RpcTelemetryController::handleGetTelemetry(const juce::var& requestId, const juce::var& payload) {
         using namespace Core::Providers;
-        using namespace Core::Input;
-        auto indices = payload["indices"];
+        auto pinsToRequest = payload["pins"]; // Array of semantic IDs (string)
         auto& hub = ModulationTelemetryHub::getInstance();
+        auto& registry = ModulationTelemetryRegistry::getInstance();
         juce::DynamicObject::Ptr results = new juce::DynamicObject();
 
-        if (indices.isArray()) {
-            auto* arr = indices.getArray();
-            for (int i = 0; i < arr->size(); ++i) {
-                int idx = (int)arr->getReference(i);
-                juce::Identifier idKey(std::to_string(idx));
+        int resolution = (int)mSettings.getSettingValue("scopeResolution");
+        if (resolution <= 0) resolution = 1024;
 
-                if (idx == (int)TelemetryIndex::Midi_Traffic) {
-                    auto events = MidiMonitor::getInstance().getRecentEvents(32);
+        if (pinsToRequest.isArray()) {
+            auto* arr = pinsToRequest.getArray();
+            for (int i = 0; i < arr->size(); ++i) {
+                std::string pinId = arr->getReference(i).toString().toStdString();
+                int idx = registry.getPinIndex(pinId);
+
+                if (idx == -1) continue;
+
+                // Special Case: System MIDI Monitor (Raw Events)
+                if (pinId == "system:midi_monitor") {
+                    auto events = Core::Input::MidiMonitor::getInstance().getRecentEvents(32);
                     juce::Array<juce::var> midiArr;
                     for (const auto& e : events) {
                         juce::DynamicObject::Ptr obj = new juce::DynamicObject();
@@ -28,18 +34,27 @@ namespace UI {
                         obj->setProperty("ts", e.timestamp);
                         midiArr.add(juce::var(obj.get()));
                     }
-                    results->setProperty(idKey, midiArr);
-                } else {
-                    std::vector<float> data(ModulationTelemetryHub::kHistoryLength);
-                    hub.getHistory(idx, data.data());
-                    juce::Array<juce::var> traceData;
-                    for (float v : data) traceData.add(v);
-
-                    juce::DynamicObject::Ptr signalObj = new juce::DynamicObject();
-                    signalObj->setProperty("history", traceData);
-                    signalObj->setProperty("latest", (double)hub.getLatest(idx));
-                    results->setProperty(idKey, juce::var(signalObj.get()));
+                    results->setProperty(juce::String(pinId), midiArr);
+                    continue;
                 }
+
+                // Two-Speed Logic
+                juce::DynamicObject::Ptr pinData = new juce::DynamicObject();
+                
+                // 1. DISCRETE (Peak-Hold) - For LEDs/Meters
+                pinData->setProperty("peak", (double)hub.getPeakAndReset(idx));
+                pinData->setProperty("latest", (double)hub.getLatest(idx));
+
+                // 2. STREAMING (Waveform) - For Scope (Only if requested by flag or if relevant)
+                if ((bool)payload["streaming"]) {
+                    std::vector<float> history(resolution);
+                    hub.getHistory(idx, history.data(), resolution);
+                    juce::Array<juce::var> trace;
+                    for (float v : history) trace.add(v);
+                    pinData->setProperty("history", trace);
+                }
+
+                results->setProperty(juce::String(pinId), juce::var(pinData.get()));
             }
         }
         return createResponse("TELEMETRY_DATA", requestId, {}, results.get());
@@ -47,41 +62,19 @@ namespace UI {
 
     juce::var RpcTelemetryController::handleGetTelemetrySources(const juce::var& requestId, const juce::var&) {
         using namespace Core::Providers;
-        juce::Array<juce::var> audioSources;
-        juce::Array<juce::var> modSources;
+        auto activePins = ModulationTelemetryRegistry::getInstance().getActivePins();
         
-        struct SourceDef { int index; const char* name; const char* category; };
-        SourceDef defs[] = {
-            { (int)TelemetryIndex::Audio_DCO_Main,   "DCO Main",  "Audio" },
-            { (int)TelemetryIndex::Audio_DCO_Sub,    "DCO Sub",   "Audio" },
-            { (int)TelemetryIndex::Audio_Noise,      "Noise",     "Audio" },
-            { (int)TelemetryIndex::Audio_VCF_Out,    "VCF Out",   "Audio" },
-            { (int)TelemetryIndex::Audio_HPF_Out,    "HPF Out",   "Audio" },
-            { (int)TelemetryIndex::Audio_Bus_PreFX,  "Bus PreFX", "Audio" },
-            { (int)TelemetryIndex::Audio_FX_Out,     "FX Out",    "Audio" },
-            { (int)TelemetryIndex::Audio_Master_Out, "Final Out", "Audio" },
-            
-            { (int)TelemetryIndex::Mod_LFO1,         "LFO 1",     "Modulation" },
-            { (int)TelemetryIndex::Mod_LFO2,         "LFO 2",     "Modulation" },
-            { (int)TelemetryIndex::Mod_ENV1_Amp,     "Env 1 (A)", "Modulation" },
-            { (int)TelemetryIndex::Mod_ENV2_Filter,  "Env 2 (F)", "Modulation" },
-            { (int)TelemetryIndex::Mod_EnvFollower,  "Env Fold",  "Modulation" },
-            { (int)TelemetryIndex::Mod_ModWheel,     "ModWheel",  "Modulation" },
-            { (int)TelemetryIndex::Mod_Pitch,        "Pitch",     "Modulation" }
-        };
-
-        for (int i=0; i < (int)(sizeof(defs)/sizeof(defs[0])); ++i) {
-            auto const& d = defs[i];
+        juce::Array<juce::var> sources;
+        for (const auto& pin : activePins) {
             juce::DynamicObject::Ptr obj = new juce::DynamicObject();
-            obj->setProperty(juce::Identifier("index"), juce::var(d.index));
-            obj->setProperty(juce::Identifier("name"), juce::var(d.name));
-            if (juce::String(d.category) == "Audio") audioSources.add(juce::var(obj.get()));
-            else modSources.add(juce::var(obj.get()));
+            obj->setProperty("id", juce::String(pin.id));
+            obj->setProperty("label", juce::String(pin.label));
+            obj->setProperty("type", (int)pin.type);
+            sources.add(juce::var(obj.get()));
         }
 
         juce::DynamicObject::Ptr results = new juce::DynamicObject();
-        results->setProperty("audio", audioSources);
-        results->setProperty("modulation", modSources);
+        results->setProperty("sources", sources);
         return createResponse("TELEMETRY_SOURCES", requestId, {}, results.get());
     }
 

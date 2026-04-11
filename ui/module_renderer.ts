@@ -33,6 +33,8 @@ export interface PortDescriptor {
 
 export interface ModuleDescriptor {
     id: string;
+    version?: string;    // Added for Era 5 detection
+    hp?: number;         // Added for Eurorack width standard
     title?: string;
     panelClass?: string;
     toolbarFocusIndex?: number;
@@ -63,13 +65,19 @@ export class ModuleRenderer {
     }
 
     private normalizeDescriptor(desc: any): ModuleDescriptor {
+        // Defensive check: if desc is actually the options wrapper
+        if (desc.descriptor && !desc.items) {
+            return this.normalizeDescriptor(desc.descriptor);
+        }
+
         // If the descriptor comes from the C++ backend, uiLayout might be a JSON string.
         if (typeof desc.uiLayout === 'string') {
             try {
                 const parsed = JSON.parse(desc.uiLayout);
-                // The C++ backend now sends {"uiLayout": {...}, "items": [...]}
                 return {
                     ...desc,
+                    version: desc.version || parsed.version || "4.1.0",
+                    hp: desc.hp || parsed.hp || 0,
                     uiLayout: parsed.uiLayout || { columns: parsed.columns || 2, rows: parsed.rows || 1, gap: parsed.gap || 12 },
                     items: parsed.items || desc.items || []
                 };
@@ -93,10 +101,19 @@ export class ModuleRenderer {
 
     render(): void {
         const desc = this.descriptor;
+        
+        // CSS Class Management: All Alpha modules are Aseptic by default
+        const classes = ["panel", desc.panelClass || "", "aseptic-panel"];
+
+        // HP Scaling Standard: 1 HP = 5.08mm. 
+        // Factor de escala basado en altura 3U (380px/128.5mm = 2.95 px/mm)
+        const hpWidth = desc.hp ? (desc.hp * 5.08 * 2.95) : 100; // Default width if HP is missing
+        const widthStyle = `min-width: ${hpWidth}px; width: fit-content;`;
+
         this.content.innerHTML = `
-            <div class="panel ${desc.panelClass || ''}">
+            <div class="${classes.join(' ')}" style="${widthStyle}">
                 <div class="module-grid" style="display:grid; grid-template-columns: repeat(${desc.uiLayout?.columns || 2}, 1fr); gap: ${desc.uiLayout?.gap || 12}px; padding: 30px 10px 10px 10px;">
-                    ${desc.items.map(item => this.renderItem(item)).join('')}
+                    ${desc.items ? desc.items.map(item => this.renderItem(item)).join('') : ''}
                 </div>
             </div>
         `;
@@ -206,8 +223,9 @@ export class ModuleRenderer {
                 `;
 
             case 'port':
-                // Era 4.1 UI Cleanup: Jacks/Ports are no longer rendered visually as per user request.
-                return `<!-- ${label} port hidden -->`;
+                // ALPHA RULE: In Era 5.2+, Ports are NO LONGER rendered on the front panel.
+                // All routing happens in the Sanctuary.
+                return `<!-- Port ${label} hidden (Aseptic Standard) -->`;
 
             case 'telemetry':
                 if (look === 'led') {
@@ -272,6 +290,7 @@ export class ModuleRenderer {
     }
 
     private bind(): void {
+        if (!this.descriptor.items) return;
         this.descriptor.items.forEach(item => {
             // Support Legacy mapping for binding
             let semantic = item.semantic;
@@ -453,30 +472,34 @@ export class ModuleRenderer {
         
         // 1. Update Parameter Values
         const params = state.parameters || {};
-        this.descriptor.items.forEach(item => {
-            if (item.paramId && params[item.paramId] !== undefined) {
-                this.values[item.paramId] = params[item.paramId];
-                this.updateControlUI(item.paramId, params[item.paramId]);
-            }
-        });
+        if (this.descriptor.items) {
+            this.descriptor.items.forEach(item => {
+                if (item.paramId && params[item.paramId] !== undefined) {
+                    this.values[item.paramId] = params[item.paramId];
+                    this.updateControlUI(item.paramId, params[item.paramId]);
+                }
+            });
+        }
 
         // 2. Update Telemetry / Virtual Signals
         const telemetry = state.telemetry || {};
-        this.descriptor.items.forEach(item => {
-            const source = item.source || item.paramId;
-            if (!source) return;
+        if (this.descriptor.items) {
+            this.descriptor.items.forEach(item => {
+                const source = item.source || item.paramId;
+                if (!source) return;
 
-            let val: number | undefined = telemetry[source];
-            
-            if (val === undefined && source.startsWith("telemetry.")) {
-                const subKey = source.split(".")[1];
-                if (subKey) val = telemetry[subKey];
-            }
+                let val: number | undefined = telemetry[source];
+                
+                if (val === undefined && source.startsWith("telemetry.")) {
+                    const subKey = source.split(".")[1];
+                    if (subKey) val = telemetry[subKey];
+                }
 
-            if (val !== undefined) {
-                this.updateTelemetryUI(source, val);
-            }
-        });
+                if (val !== undefined) {
+                    this.updateTelemetryUI(source, val);
+                }
+            });
+        }
 
         // 3. Update Port Connections (Frontal Pairs)
         this.updatePortsUI(state);
@@ -501,50 +524,8 @@ export class ModuleRenderer {
     }
 
     private updatePortsUI(state: any): void {
-        const portsContainer = this.content.querySelector('.module-ports');
-        
-        const legacyMatrix = state.preset?.modMatrix || state.modMatrix || [];
-        const voiceChain = state.preset?.voiceChain || state.voiceChain || {};
-        const modularConnections = (voiceChain.CONNECTIONS || []).map((c: any) => ({ ...c, active: true }));
-        
-        const unifiedMatrix = [...legacyMatrix, ...modularConnections];
-        const instanceId = this.descriptor.id;
-        
-        const activeConnections = unifiedMatrix.filter((s: any) => 
-            s.active && (s.source?.startsWith(instanceId) || s.target?.startsWith(instanceId))
-        );
-
-        // Update front panel jacks
-        const jacks = this.content.querySelectorAll('.port-container');
-        jacks.forEach(jackEl => {
-            const portId = (jackEl as HTMLElement).dataset.port;
-            const fullPortId = `${instanceId}.${portId}`;
-            const isConnected = activeConnections.some(c => c.source === fullPortId || c.target === fullPortId);
-            jackEl.classList.toggle('active', isConnected);
-        });
-
-        if (!portsContainer) return;
-
-        if (activeConnections.length === 0) {
-            portsContainer.innerHTML = `<span style="font-size: 8px; color: #333; letter-spacing: 1px;">NO PATCHES</span>`;
-            return;
-        }
-
-        portsContainer.innerHTML = activeConnections.map((s: any) => {
-            const isSource = s.source?.startsWith(instanceId);
-            const localPort = isSource ? s.source.split('.').pop() : s.target.split('.').pop();
-            const remote = isSource ? s.target : s.source;
-            const direction = isSource ? '→' : '←';
-            
-            return `
-                <div class="port-pair" style="display: flex; align-items: center; gap: 4px; font-size: 8px; background: rgba(0,0,0,0.4); padding: 3px 6px; border-radius: 12px; border: 1px solid rgba(0,242,255,0.2); color: #00f2ff; box-shadow: 0 0 5px rgba(0,242,255,0.1);">
-                    <div class="port-led" style="width: 4px; height: 4px; border-radius: 50%; background: #00f2ff; box-shadow: 0 0 4px #00f2ff;"></div>
-                    <span style="font-weight: 900; letter-spacing: 0.5px;">${localPort?.toUpperCase()}</span>
-                    <span style="opacity: 0.5; font-size: 7px;">${direction}</span>
-                    <span style="color: #fff; opacity: 0.8;">${remote?.toUpperCase()}</span>
-                </div>
-            `;
-        }).join('');
+        // ALPHA NOTE: Front panel jack updates are disabled in Era 5.2.
+        // Connections are managed in the Patching Sanctuary.
     }
 }
 

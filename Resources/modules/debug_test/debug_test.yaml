@@ -1,8 +1,11 @@
 id: "debug_test"
 name: "THEME VALIDATOR"
-family: "utility"
+modelId: "ACE-DEBUG-VALIDATOR"
+implementationId: 999
+family: "Utility"
 panelClass: "utility-panel"
-engine: "system"
+engine: "Modular"
+visible: true
 rack: "lower"
 uiLayout:
   columns: 3
@@ -29,3 +32,37 @@ ports:
   - { id: "in_v", label: "V", type: "voltage", direction: "input" }
   - { id: "in_m", label: "M", type: "midi", direction: "input" }
   - { id: "in_a", label: "A", type: "float", direction: "input" }
+
+parameters:
+  - id: "test_label"
+    label: "MODULE TAG"
+    semantic: "text"
+    default: "DEBUG_UNIT_01"
+  - id: "limit_min"
+    label: "LIMIT MIN"
+    min: 0
+    max: 100
+    default: 10
+  - id: "limit_max"
+    label: "LIMIT MAX"
+    min: 0
+    max: 100
+    default: 90
+  - id: "cutoff_low"
+    label: "CUTOFF LOW"
+    min: 20
+    max: 20000
+    default: 100
+    unit: "Hz"
+  - id: "cutoff_high"
+    label: "CUTOFF HIGH"
+    min: 20
+    max: 20000
+    default: 12000
+    unit: "Hz"
+  - id: "calibration_offset"
+    label: "CALIBRATION"
+    min: -10
+    max: 10
+    default: 0
+    unit: "dB"

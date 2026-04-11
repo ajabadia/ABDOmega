@@ -2,11 +2,12 @@
  * OMEGA JSON-RPC v2 Bridge (TypeScript Implementation)
  * Phase 15.1 - Structural Maturity
  */
+import { OmegaLog } from './omega_log.js';
 export class OmegaRPC {
     requestId = 1000;
     pendingRequests = new Map();
     constructor() {
-        console.log("[OMEGA TS] RPC Controller Initialized");
+        OmegaLog.info("OMEGA TS", "RPC Controller Initialized");
         // Listener for messages from C++
         window.handleOmegaMessage = (json) => {
             try {
@@ -25,7 +26,7 @@ export class OmegaRPC {
                 }
             }
             catch (e) {
-                console.error("[RPC TS] Error handling message:", e, json);
+                OmegaLog.error("RPC TS", "Error handling message", e, json);
             }
         };
     }
@@ -47,7 +48,7 @@ export class OmegaRPC {
         const message = { type, requestId: id, payload };
         const backend = await this._waitForBackend();
         if (!backend) {
-            console.warn(`[RPC TS] No backend for ${type}, mocking.`);
+            OmegaLog.warn("RPC TS", `No backend for ${type}, mocking.`);
             return this._getMock(type);
         }
         try {
@@ -62,7 +63,7 @@ export class OmegaRPC {
             return msg?.payload !== undefined ? msg.payload : msg;
         }
         catch (e) {
-            console.error(`[RPC TS] Call ${type} failed:`, e);
+            OmegaLog.error("RPC TS", `Call ${type} failed`, e);
             return this._getMock(type);
         }
     }
@@ -111,7 +112,7 @@ export function setupJuceShim() {
             savePresetDetailed: (lIdx, pIdx) => rpc.savePresetDetailed(lIdx, pIdx),
             saveAsNewPresetDetailed: (n, c, a, t, ns) => rpc.saveAsNewPresetDetailed(n, c, a, t, ns),
             menuAction: (action, ...args) => {
-                console.log("[BRIDGE SHIM] juce.menuAction -> RPC send:", action);
+                OmegaLog.info("BRIDGE SHIM", "juce.menuAction -> RPC send", action);
                 rpc.send("menuAction", { action, args });
             },
             setParameter: (id, value) => {
@@ -124,7 +125,7 @@ export function setupJuceShim() {
                 rpc.sendMidi(status, data1, data2);
             }
         };
-        console.log("[BRIDGE SHIM] window.juce initialized via RPC");
+        OmegaLog.info("BRIDGE SHIM", "window.juce initialized via RPC");
     }
 }
 window.omegaRPC = rpc;

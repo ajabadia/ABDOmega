@@ -1,6 +1,8 @@
 #include "RpcMetadataController.h"
 #include "../Plugin/OmegaAudioProcessor.h"
 #include "../Core/BuildVersion.h"
+#include "../Core/Modulation/ModuleManifest.h"
+#include <juce_core/juce_core.h>
 
 namespace Omega {
 namespace UI {
@@ -31,7 +33,7 @@ namespace UI {
         for (const auto& g : groups) {
             juce::DynamicObject::Ptr go = new juce::DynamicObject();
             go->setProperty("id", juce::String(g));
-            go->setProperty("label", juce::String(g)); // Simple for now
+            go->setProperty("label", juce::String(g)); 
             groupArray.add(juce::var(go.get()));
         }
         root->setProperty("groups", groupArray);
@@ -45,7 +47,6 @@ namespace UI {
     }
 
     juce::var RpcMetadataController::handleGetTempo(const juce::var& requestId, const juce::var&) {
-        // Mocking for now, could be derived from PlayHead
         return createResponse("TEMPO", requestId, {}, 120.0);
     }
 
@@ -72,8 +73,61 @@ namespace UI {
             for (const auto& t : info->tags) tags.add(juce::String(t));
             obj->setProperty("tags", tags);
             
-            // Era 4.1: Export UI Layout and Ports visibility
-            obj->setProperty("uiLayout", juce::String(info->uiLayout));
+            // ERA 5.2: Unified Registry Serialization
+            juce::Array<juce::var> registryArray;
+            
+            // 1. Parameters as Registry Entries
+            for (auto const& p : info->parameters) {
+                juce::DynamicObject::Ptr pobj = new juce::DynamicObject();
+                pobj->setProperty("id", juce::String(p.id));
+                pobj->setProperty("label", juce::String(p.label));
+                pobj->setProperty("roles", juce::Array<juce::var>({juce::var("control")}));
+                pobj->setProperty("direction", "internal");
+                
+                juce::DynamicObject::Ptr range = new juce::DynamicObject();
+                range->setProperty("min", p.min);
+                range->setProperty("max", p.max);
+                range->setProperty("default", p.defaultValue);
+                range->setProperty("unit", juce::String(p.unit));
+                pobj->setProperty("range", juce::var(range.get()));
+                
+                if (!p.options.empty()) {
+                    juce::Array<juce::var> opts;
+                    for (auto const& o : p.options) {
+                        juce::DynamicObject::Ptr oo = new juce::DynamicObject();
+                        oo->setProperty("value", o.value);
+                        oo->setProperty("label", juce::String(o.label));
+                        opts.add(juce::var(oo.get()));
+                    }
+                    pobj->setProperty("options", opts);
+                }
+                
+                registryArray.add(juce::var(pobj.get()));
+            }
+
+            // 2. Ports as Registry Entries
+            for (auto const& p : info->ports) {
+                juce::DynamicObject::Ptr pobj = new juce::DynamicObject();
+                pobj->setProperty("id", juce::String(p.id));
+                pobj->setProperty("label", juce::String(p.label));
+                pobj->setProperty("roles", juce::Array<juce::var>({juce::var(p.isInput ? "input" : "output")}));
+                pobj->setProperty("direction", juce::String(p.isInput ? "input" : "output"));
+                
+                juce::String typeStr = "cv";
+                if (p.type == Core::Modulation::ModPortType::Audio) typeStr = "audio";
+                else if (p.type == Core::Modulation::ModPortType::MIDI) typeStr = "midi";
+                else if (p.type == Core::Modulation::ModPortType::Gate) typeStr = "gate";
+                pobj->setProperty("type", typeStr);
+                
+                registryArray.add(juce::var(pobj.get()));
+            }
+            obj->setProperty("registry", registryArray);
+
+            // UI Layout and Style
+            if (!info->uiLayout.empty()) {
+                obj->setProperty("uiLayout", juce::JSON::parse(info->uiLayout));
+            }
+            obj->setProperty("style", juce::String(info->style));
             
             components.add(juce::var(obj.get()));
         }

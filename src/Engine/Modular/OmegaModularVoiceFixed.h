@@ -28,7 +28,6 @@
 
 #include "../../Core/Providers/EngineConfig.h"
 #include "../../Core/Providers/ModulationTelemetryHub.h"
-#include "../../Core/Providers/ModulationTelemetryIndex.h"
 
 namespace Omega {
 namespace Engine {

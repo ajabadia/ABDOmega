@@ -107,11 +107,16 @@ export class ModuleManager {
                     // Decide class based on descriptor or generic renderer
                     // Era 4.1: Unified Semantic Rendering
                     // Any specialized ModuleX class is now deprecated in favor of data-driven ModuleRenderer
-                    let className = "ModuleRenderer";
+                    // Era 5.2 Aseptic Selection
+                    let className = (componentId === "ACE-MIDI-ADAPTER-ULTIMATE" || componentId === "midi_2_cv") ? "ModuleMidiToCv" : "ModuleRenderer";
+                    // Fetch full manifest from Store for Zero-Hardcoding
+                    // @ts-ignore
+                    const manifest = window.metadataStore?.getInventoryItem(id) || window.metadataStore?.getInventoryItem(componentId);
                     await this.addModule(id, className, rackType, targetRack, {
                         label,
                         descriptor,
-                        componentId
+                        componentId,
+                        manifest // Essential for Aseptic Dynamic Rendering
                     });
                 }
                 else {
@@ -269,7 +274,7 @@ export class ModuleManager {
         // @ts-ignore
         if (window[className]) {
             // @ts-ignore
-            const instance = new window[className](el, content, options.descriptor || options);
+            const instance = new window[className](el, content, options.manifest ? options : (options.descriptor || options));
             this.activeModules.set(id, instance);
             if (instance.init)
                 await instance.init();

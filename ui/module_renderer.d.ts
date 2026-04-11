@@ -27,6 +27,8 @@ export interface PortDescriptor {
 }
 export interface ModuleDescriptor {
     id: string;
+    version?: string;
+    hp?: number;
     title?: string;
     panelClass?: string;
     toolbarFocusIndex?: number;

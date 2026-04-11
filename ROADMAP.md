@@ -104,18 +104,18 @@
 - [x] **Phase 11: Zero-Core-Errors Achievement**: Project-wide clean build (Exit Code 0) after complex symbolic reconciliation (2026-03-24 13:50).
 
 ### Phase 8: Advanced Synthesis & Logic [BACKLOG]
-- [ ] **Scripting Layer**: Integration of LuaJIT for algorithmic patches and procedural modulation.
-- [ ] **Modulation Graph UI**: Interactive visual editor (Max/MSP style) with latency analysis and feedback detection.
+- [ ] ~~**Scripting Layer**: Integration of LuaJIT for algorithmic patches and procedural modulation.~~ (Deprecado - Bloat)
+- [ ] **Modulation Graph UI**: Interactive visual editor (Max/MSP style).
 - [ ] **Voice Architecture 2.0**: Dynamic processor composition for per-patch custom voice chains.
-- [ ] **Motor de Análisis y Resíntesis**: 256 partials STFT analysis, Morphing 3D, and Wavetable/Granular extraction.
-- [ ] **JIT Compilation**: LLVM/Cranelift backend for static modulation graph optimization.
-- [ ] **GPU Compute**: Offloading heavy spectral and neural engines to CUDA/Vulkan.
+- [ ] ~~**Motor de Análisis y Resíntesis**: 256 partials STFT analysis, Morphing 3D.~~ (Deprecado - Fuera de foco)
+- [ ] ~~**JIT Compilation**: LLVM/Cranelift backend.~~ (Deprecado)
+- [ ] ~~**GPU Compute**: Offloading to CUDA/Vulkan.~~ (Deprecado)
 
 ### Phase 9: Modular FX & Collaboration [BACKLOG]
-- [ ] **FX Rack Modular**: 8-slot per-voice and master racks with glitch-free reordering and sidechain.
-- [ ] **Git for Sounds (Advanced)**: Parameter diffing, Audio A/B comparison, and semantic embedding search.
-- [ ] **Cloud Collaboration**: Real-time multi-user editing with conflict resolution and low-latency audio streaming.
-- [ ] **Gesture Mapper**: Machine Learning for user gesture recognition and mapping.
+- [ ] **FX Rack Modular**: 8-slot per-voice and master racks.
+- [ ] **Git for Sounds (Advanced)**: Parameter diffing, Audio A/B comparison.
+- [ ] ~~**Cloud Collaboration**: Real-time multi-user editing.~~ (Desistido)
+- [ ] ~~**Gesture Mapper**: Machine Learning for user gesture recognition.~~ (Desistido)
 
 ### Phase 10: Stabilization & Hardened [DONE]
 - [x] **MIDI 2.0 Hybrid Support**: JUCE 8 UMP auto-detection and high-res processing (2026-03-30 00:22).
@@ -194,9 +194,37 @@
     - [x] **UI/Engine Synchronization**: Resolved property propagation leaks from ACE Catalog.
     - [x] **Layout Stabilization**: Enforced vertical rack stacking and horizontal control alignment.
 
-### Phase 28: Telemetry & Advanced Analysis [BACKLOG]
+### Phase 28: Telemetry & Advanced Analysis [HIGH PRIORITY]
 - [ ] **Real-Time Module Telemetry**: Visualization of CPU usage and signal levels per module.
 - [ ] **Logic Analysis**: State monitoring for complex modulation graphs.
 
+### Phase 29: Postponed / Legacy Migration
+- [ ] **Legacy Module Migration**: Porting older hardcoded modules to the ACE ERA 4.1 format.
+- [ ] **Engine C: Wavetable (OSC-WT-001)**.
+- [ ] **OSC-FM-001 (FM - DX7 style)**.
+
+### Phase 30: Semantic Bridge & Smart Visibility [DONE]
+- [x] **Smart Visibility**: Automatic routing of config vs signal parameters. (Build #385)
+- [x] **Semantic Bridge**: Unified discovery of ports/parameters.
+- [x] **Governance**: Formalized visibility rules in ACE Spec 1.0 and OMEGA Vision.
+
+### Phase 31: OMEGA Era 5 - Aseptic Meta-Engine [DONE]
+- [x] **ACE Meta-Engine Spec 5.2**: Transition to Role-based entities with CAD-style physical layout. (2026-04-10)
+- [x] **Global Lookups System**: Centralized dictionaries for MIDI, Voice Strategies, and Logic. (2026-04-10)
+- [x] **Consolidación Alpha (Absolute Standard)**: Purga de código legado Era 4 y unificación de la `ModulePatchModal` bajo el estándar aséptico. (2026-04-10)
+- [x] **Control Cells Architecture**: Vertical stacking of LED + Knob + Display with telemetric bindings. (2026-04-10)
+- [x] **Aseptic Front-Panel Policy**: Removal of all physical jacks from the rack front. (2026-04-10)
+- [x] **Living YAML Protocol**: Permission for engine-driven HP width auto-scaling. (2026-04-10)
+- [x] **Universal UI Dispatcher**: Unified role-based metadata routing in `index.ts`. (2026-04-10)
+
+### Phase 32: Physical Telemetry & Restoration [DONE]
+- [x] **Aseptic UI Certification**: Visual validation of the 8 HP `midi_2_cv` module and Patching Sanctuary modal. (2026-04-10)
+- [x] **TypeScript Pro Standard**: Full UI core refactor (zero-any, zero-ts-ignore, branded types). (2026-04-10)
+- [x] **OMEGA Essence Restoration (Build #419)**: Forensic restoration of `isPair` grouping, signal badges, and technical aesthetics in the Configuration Modal. (2026-04-11)
+- [x] **Metadata Dynamic Discovery**: Real-time loading of module descriptions from YAML manifest via C++ AceCatalog. (2026-04-11)
+- [x] **Aseptic Hardcode Purge (Build #420)**: Complete removal of hardcoded MIDI sources from `SemanticBrokerService` and `PatchbayMatrix`. OMEGA is now 100% dynamic. (2026-04-11)
+- [ ] **Bilateral Telemetry**: Connection of Control Cells to C++ engine state.
+- [ ] **Visual Stress Test**: Mocking high-density modules (64+ parameters) in the Sanctuary.
+
 ---
-*Last Updated: 2026-04-09 17:10*
+*Last Updated: 2026-04-11 10:55*

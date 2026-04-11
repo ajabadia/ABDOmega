@@ -1,0 +1,56 @@
+id: "osc_va"
+name: "JUNO DCO"
+family: "Oscillator"
+engine: "Modular"
+modelId: "DCO-60"
+version: 1
+status: "active"
+description: "Authentic digitally controlled oscillator (Era 5.2 Certified). Unifies Saw, Pulse, and Sub-oscillator sections."
+
+layout:
+  hp: 12
+  rack: "lower"
+  columns: 3
+
+registry:
+  - id: "layer.a.osc.saw.on"
+    label: "SAW"
+    roles: ["control"]
+    direction: "internal"
+    range: { min: 0, max: 1, default: 0 }
+    presentation: { tab: "MAIN", group: "WAVEFORM", order: 1, ui: { component: "toggle" } }
+
+  - id: "layer.a.osc.pulse.on"
+    label: "PULSE"
+    roles: ["control"]
+    direction: "internal"
+    range: { min: 0, max: 1, default: 1 }
+    presentation: { tab: "MAIN", group: "WAVEFORM", order: 2, ui: { component: "toggle" } }
+
+  - id: "layer.a.osc.sub.level"
+    label: "SUB"
+    roles: ["control", "mod_target"]
+    direction: "internal"
+    range: { min: 0, max: 1, default: 0.5 }
+    presentation: { tab: "MAIN", group: "MIXER", order: 3, ui: { component: "slider-v" } }
+
+  - id: "layer.a.osc.noise.level"
+    label: "NOISE"
+    roles: ["control", "mod_target"]
+    direction: "internal"
+    range: { min: 0, max: 1, default: 0 }
+    presentation: { tab: "MAIN", group: "MIXER", order: 4, ui: { component: "slider-v" } }
+
+  - id: "layer.a.osc.lfo.depth"
+    label: "LFO"
+    roles: ["control", "mod_target"]
+    direction: "internal"
+    range: { min: 0, max: 1, default: 0 }
+    presentation: { tab: "MAIN", group: "MOD", order: 5, ui: { component: "knob" } }
+
+  - id: "v_out"
+    label: "V_OUT"
+    roles: ["output", "stream"]
+    direction: "output"
+    type: "audio"
+    presentation: { tab: "PATCHING", group: "OUTPUTS", order: 10 }

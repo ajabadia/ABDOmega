@@ -319,6 +319,16 @@ export const ModuleDescriptors: Record<string, ModuleDescriptor> = {
         footer: { label: "RE-TIME ANALYZER" }
     },
 
+    // --- Era 5.2 Aseptic Constants ---
+    "ACE-MIDI-ADAPTER-ULTIMATE": {
+        id: "midi_2_cv",
+        title: "MIDI TO CV",
+        panelClass: "aseptic-utility-panel",
+        uiLayout: { columns: 1, gap: 10 },
+        items: [], // Dynamic Registry will override this
+        footer: { label: "ASEPTIC META-ENGINE" }
+    },
+
     "osci": {
         id: "osci",
         title: "OSCILLOSCOPE",

@@ -12,7 +12,7 @@
 #include "../../Core/Service/ISynthesisEngine.h"
 #include "OmegaModularVoiceFixed.h"
 #include "../../Core/Providers/ModulationTelemetryHub.h"
-#include "../../Core/Providers/ModulationTelemetryIndex.h"
+#include "../../Core/Providers/ModulationTelemetryRegistry.h"
 #include "../../Core/Util/PerformanceMonitor.h"
 #include "../../Core/Input/OmegaInput.h"
 #include "../../Core/Input/ModSource.h"
@@ -90,6 +90,13 @@ namespace Modular {
             mNoiseCombOsc.prepare(sampleRate);
             mResBankFlt.prepare(sampleRate);
             
+            // [Era 4.1] Aseptic Telemetry Registration
+            auto& reg = ModulationTelemetryRegistry::getInstance();
+            mSlotVcf = reg.registerPin("engine", "vcf_out", TelemetryType::Audio, "VCF Out");
+            mSlotDco = reg.registerPin("engine", "dco_main", TelemetryType::Audio, "DCO Main");
+            mSlotMaster = reg.registerPin("engine", "master_out", TelemetryType::Audio, "Final Out");
+            mSlotActivity = reg.registerPin("engine", "activity", TelemetryType::Discrete, "Signal Activity");
+
             for (auto& v : mVoices) v.prepare(sampleRate, samplesPerBlock);
             mModRuntime.reset();
         }
@@ -163,7 +170,7 @@ namespace Modular {
                             state.triggerRequested = false; 
                             if (v == 0) {
                                 totalDcoSum = voiceTelemetry.rawOsc;
-                                hub.pushSignal(::Omega::Core::Providers::TelemetryIndex::Audio_VCF_Out, voiceTelemetry.rawFilter);
+                                hub.pushSignal(mSlotVcf, voiceTelemetry.rawFilter);
                             }
                             mixedL += vL; mixedR += vR; 
                         } else {
@@ -184,8 +191,9 @@ namespace Modular {
                 mixedL *= masterGain; mixedR *= masterGain;
 
                 if (s % 32 == 0) {
-                    hub.pushSignal(TelemetryIndex::Audio_DCO_Main, totalDcoSum);
-                    hub.pushSignal(TelemetryIndex::Audio_Master_Out, mixedL); 
+                    hub.pushSignal(mSlotDco, totalDcoSum);
+                    hub.pushSignal(mSlotMaster, mixedL); 
+                    hub.pushSignal(mSlotActivity, std::abs(mixedL) > 0.01f ? 1.0f : 0.0f);
                 }
 
                 for (int c = 0; c < numChannels; ++c) buffer.setSample(c, s, (c == 0) ? mixedL : mixedR);
@@ -273,6 +281,12 @@ namespace Modular {
         std::atomic<::Omega::Core::Service::EngineConfig*>* mConfigProvider = nullptr;
         ::Omega::Core::Service::EngineConfig mCurrentConfig;
         ::Omega::Core::Util::PerformanceMonitor mPerfMonitor{"VirtualAnalogEngine"};
+
+        // Telemetry Cache Slots (Era 4.1 Logic)
+        int mSlotVcf = -1;
+        int mSlotDco = -1;
+        int mSlotMaster = -1;
+        int mSlotActivity = -1;
     };
 } // namespace Modular
 } // namespace Engine

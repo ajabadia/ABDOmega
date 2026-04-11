@@ -1,7 +1,3 @@
-/**
- * OMEGA Patchbay-Matrix (Hyper-ACE)
- * Features a compact Launcher in the rack and a high-density 8x4 Workspace.
- */
 export declare class ModulePatchbayMatrix {
     private el;
     private content;

@@ -1,6 +1,6 @@
 /**
  * OMEGA Synthesizer - Main Entry Point (TypeScript)
- * Phase 15.1 - Structural Maturity
+ * Phase 15.2 - Bootstrapping Stability
  */
 
 import { rpc, setupJuceShim } from './omega_rpc.js';
@@ -18,20 +18,24 @@ import { ModulePatchbayMatrix } from './components/ModulePatchbayMatrix.js';
 import { ModulePatchModal } from './components/ModulePatchModal.js';
 import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
 import { ModuleBrowser } from './components/ModuleBrowser.js';
+import { type OmegaRPC } from './omega_types.js';
 
 // Global instances for legacy bridge compatibility
-(window as any).omegaRPC = rpc;
-(window as any).metadataStore = new MetadataStore();
-(window as any).moduleManager = new ModuleManager();
-(window as any).Preferences = Preferences;
-(window as any).ServiceMode = ServiceMode;
-(window as any).ModuleRenderer = ModuleRenderer;
-(window as any).ModuleOscilloscope = ModuleOscilloscope;
-(window as any).ModuleMidiTrigger = ModuleMidiTrigger;
-(window as any).ModuleMidiViewer = ModuleMidiViewer;
-(window as any).ModulePatchbayMatrix = ModulePatchbayMatrix;
-(window as any).ModuleMidiToCv = ModuleMidiToCv;
-(window as any).ModuleBrowser = ModuleBrowser;
+const store = new MetadataStore();
+const manager = new ModuleManager();
+
+window.omegaRPC = rpc as unknown as OmegaRPC;
+window.metadataStore = store;
+window.moduleManager = manager;
+window.Preferences = Preferences;
+window.ServiceMode = ServiceMode;
+window.ModuleRenderer = ModuleRenderer;
+window.ModuleOscilloscope = ModuleOscilloscope;
+window.ModuleMidiTrigger = ModuleMidiTrigger;
+window.ModuleMidiViewer = ModuleMidiViewer;
+window.ModulePatchbayMatrix = ModulePatchbayMatrix;
+window.ModuleMidiToCv = ModuleMidiToCv;
+window.ModuleBrowser = ModuleBrowser;
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
@@ -40,18 +44,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1. Setup RPC Bridge
     setupJuceShim();
     
-    // 2. Load Metadata
-    const store = (window as any).metadataStore;
-    if (store) {
-        try {
-            console.log("[OMEGA] Loading Metadata...");
-            await Promise.race([
-                store.ensureLoaded(),
-                new Promise(resolve => setTimeout(resolve, 3000))
-            ]);
-        } catch (e) {
-            console.error("[OMEGA] Metadata load failed, continuing:", e);
-        }
+    // 2. Load Metadata (with Mock support in Store)
+    try {
+        console.log("[OMEGA] Loading Metadata...");
+        await Promise.race([
+            store.ensureLoaded(),
+            new Promise(resolve => setTimeout(resolve, 3000))
+        ]);
+        
+        // Ensure modulation metadata (and mock) is loaded
+        await store.getModulationMetadata();
+    } catch (e) {
+        console.error("[OMEGA] Metadata load failed, continuing:", e);
     }
     
     // 3. Initialize Components
@@ -62,9 +66,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Initialize Global Patchbay Hub
         const matrixHub = new ModulePatchbayMatrix();
-        (window as any).patchbayHub = matrixHub;
+        window.patchbayHub = matrixHub;
 
-        // Bind Matrix Trigger Buttons
         const matrixBtn = document.getElementById('btn-global-matrix');
         if (matrixBtn) matrixBtn.onclick = () => matrixHub.toggleWorkspace(true);
         
@@ -73,30 +76,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Initialize Module Browser
         const moduleBrowser = new ModuleBrowser();
-        (window as any).moduleBrowser = moduleBrowser;
+        window.moduleBrowser = moduleBrowser;
 
         const addModuleMenuLink = document.getElementById('menu-add-module');
-        if (addModuleMenuLink) addModuleMenuLink.onclick = () => (window as any).moduleBrowser.open();
+        if (addModuleMenuLink) addModuleMenuLink.onclick = () => window.moduleBrowser.open();
 
-        // Bind Matrix Shortcut to Browser
-        document.addEventListener('click', (e: any) => {
-            if (e.target.closest('#btn-add-module-shortcut')) {
-                (window as any).moduleBrowser.open();
-                (window as any).patchbayHub.toggleWorkspace(false);
-            }
+        // Initialize Unified Module Config Modal
+        const configModal = new ModulePatchModal();
+        window.modulePatchModal = configModal;
+
+        // Unified Configuration Dispatcher (Role-Based)
+        document.addEventListener('patch-request', async (e: CustomEvent) => {
+            const { instanceId } = e.detail;
+            const manifest = store.getInventoryItem(instanceId);
+            console.log(`[Dispatcher] Opening Alpha Config for: ${instanceId}`);
+            await configModal.open(instanceId, manifest);
         });
+
+        // 4. Registry Ready
+        console.log("[OMEGA] System Ready. Awaiting user interaction.");
 
     } catch (e) {
         console.error("[OMEGA] Component init failed:", e);
     }
     
-    // 4. Boot App Logic
+    // 5. Boot App Logic
     console.log("[OMEGA] Calling app.init()...");
     app.init();
 
-    // Global State Forwarding for the Matrix Hub
-    window.addEventListener('omega:stateUpdate', (e: any) => {
-        if ((window as any).patchbayHub) (window as any).patchbayHub.onStateUpdate(e.detail);
-        if ((window as any).modulePatchModal) (window as any).modulePatchModal.onStateUpdate(e.detail);
+    // Global State Forwarding
+    window.addEventListener('omega:stateUpdate', (e: CustomEvent) => {
+        if (window.patchbayHub) window.patchbayHub.onStateUpdate(e.detail);
+        if (window.modulePatchModal) window.modulePatchModal.onStateUpdate(e.detail);
     });
 });

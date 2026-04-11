@@ -1,319 +1,283 @@
+import { Era5ManifestParser } from '../logic/era5/Era5ManifestParser.js';
 /**
- * OMEGA Module Patch Modal (TypeScript)
- * The 'Pocket Patchbay' for focused module routing.
+ * OMEGA Unified Module Patch Modal
+ * Standardized for Era 5.2 Aseptic Meta-Engine.
  */
-import { MetadataStore } from '../metadata_store.js';
-import { OmegaRPC } from '../omega_rpc.js';
 export class ModulePatchModal {
     el = null;
-    titleEl = null;
-    subtitleEl = null;
-    inputsList = null;
-    outputsList = null;
-    usageFill = null;
-    usageText = null;
+    tabsContainer = null;
+    viewport = null;
     currentInstanceId = "";
-    inventory = [];
+    activeTab = "GENERAL";
+    currentTabs = [];
+    currentManifest = null;
     patchbayMatrix = [];
-    maxSlots = 32; // [Hyper-ACE] Dynamic limit
+    maxSlots = 32;
     constructor() {
-        console.log("[ModulePatchModal] Initializing [REV 2]...");
+        console.log("[ModulePatchModal] Initializing Unified Era 5.2 UI...");
         this.init();
-        this.syncMaxSlots();
     }
     init() {
-        document.addEventListener('patch-request', (e) => {
-            this.open(e.detail.instanceId, e.detail.componentId);
+        this.el = document.getElementById('module-patch-modal');
+        this.tabsContainer = document.getElementById('patch-tabs-container');
+        this.viewport = document.getElementById('patch-tab-viewport');
+        // Close logic (delegated to background click)
+        this.el?.addEventListener('click', (e) => {
+            if (e.target === this.el)
+                this.close();
+        });
+        // Tab Switching Listener (Delegated)
+        this.tabsContainer?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.era5-tab-btn');
+            if (btn) {
+                const tabId = btn.getAttribute('data-tab');
+                if (tabId)
+                    this.switchTab(tabId);
+            }
         });
     }
-    async syncMaxSlots() {
-        // @ts-ignore
-        if (window.omegaRPC) {
-            try {
-                // @ts-ignore
-                const settings = await window.omegaRPC.getSystemSettings();
-                const maxSlotsSetting = settings.find((s) => s.id === "maxPatchbaySlots");
-                if (maxSlotsSetting) {
-                    this.maxSlots = Math.floor(maxSlotsSetting.currentValue || 32);
-                    console.log(`[ModulePatchModal] Max Slots synced: ${this.maxSlots}`);
-                }
-            }
-            catch (e) {
-                console.warn("[ModulePatchModal] Failed to sync maxPatchbaySlots:", e);
-            }
-        }
-    }
-    ensureElements() {
-        if (this.el)
-            return true;
-        this.el = document.getElementById('module-patch-modal');
-        this.titleEl = document.getElementById('patch-modal-title');
-        this.subtitleEl = document.getElementById('patch-modal-subtitle');
-        this.inputsList = document.getElementById('patch-inputs-list');
-        this.outputsList = document.getElementById('patch-outputs-list');
-        this.usageFill = document.getElementById('matrix-usage-fill');
-        this.usageText = document.getElementById('matrix-usage-text');
+    async open(instanceId, manifest) {
         if (!this.el)
-            console.error("[ModulePatchModal] Root element #module-patch-modal not found!");
-        return !!this.el;
-    }
-    async open(instanceId, componentId = "") {
-        console.log(`[ModulePatchModal] Opening for instance: ${instanceId} (${componentId})`);
-        if (!this.ensureElements())
             return;
         this.currentInstanceId = instanceId;
+        this.currentManifest = manifest;
         this.el.style.display = 'flex';
-        if (this.titleEl) {
-            this.titleEl.innerText = instanceId.toUpperCase();
-        }
-        if (this.subtitleEl) {
-            this.subtitleEl.innerText = `HYPER-ACE ROUTING HUB`;
-        }
-        await this.refresh(componentId);
+        this.currentTabs = Era5ManifestParser.parse(manifest);
+        this.renderTabs(this.currentTabs);
+        // Default to GENERAL or first tab
+        const defaultTab = this.currentTabs.find(t => t.id === 'GENERAL') ? 'GENERAL' : (this.currentTabs[0]?.id || 'GENERAL');
+        this.switchTab(defaultTab);
     }
-    async refresh(componentId = "") {
-        console.log("[ModulePatchModal] Refreshing manifest and matrix...");
-        //@ts-ignore
-        const store = window.metadataStore;
-        //@ts-ignore
-        const rpc = window.omegaRPC;
-        if (!store || !rpc) {
-            console.error("[ModulePatchModal] Critical services (Metadata/RPC) missing!");
+    close() {
+        if (this.el)
+            this.el.style.display = 'none';
+    }
+    renderTabs(tabs) {
+        if (!this.tabsContainer)
             return;
-        }
-        // 1. Get Inventory and PatchbayMatrix
-        const metadata = await store.getModulationMetadata();
-        this.inventory = metadata.inventory || [];
-        console.log(`[ModulePatchModal] Inventory loaded: ${this.inventory.length} modules`);
-        const state = await rpc.getState();
-        const legacyMatrix = state.preset?.patchbayMatrix || [];
-        const voiceChain = state.preset?.voiceChain || {};
-        const modularConnections = voiceChain.CONNECTIONS || [];
-        // Unify both worlds for the UI
-        this.patchbayMatrix = [
-            ...legacyMatrix,
-            ...modularConnections.map((c) => ({ ...c, active: true }))
-        ];
-        console.log(`[ModulePatchModal] Unified Matrix loaded: ${this.patchbayMatrix.length} total slots`);
-        this.render(componentId);
-        this.updateUsage();
-    }
-    getCanonicalId(id) {
-        if (!id)
-            return "";
-        const parts = id.split('_');
-        if (parts.length > 1 && !isNaN(parseInt(parts[parts.length - 1]))) {
-            return parts.slice(0, -1).join('_');
-        }
-        return id;
-    }
-    render(componentId = "") {
-        console.log(`[ModulePatchModal] Rendering [REV 2] UI stage...`);
-        const canonicalId = this.getCanonicalId(this.currentInstanceId);
-        // Smarter lookup: Check instanceId first, then technical componentId, then generic id
-        const manifest = this.inventory.find(m => (m.instanceId && m.instanceId === this.currentInstanceId) ||
-            (m.instanceId && m.instanceId === canonicalId) ||
-            (m.id && m.id === this.currentInstanceId) ||
-            (m.id && m.id === canonicalId) ||
-            (m.id && m.id === componentId));
-        if (!manifest) {
-            console.error(`[ModulePatchModal] Manifest NOT FOUND for instance: ${this.currentInstanceId}`);
-            if (this.inputsList)
-                this.inputsList.innerHTML = `<div class="placeholder-msg">MANIFEST NOT FOUND [${this.currentInstanceId}]</div>`;
-            if (this.outputsList)
-                this.outputsList.innerHTML = `<div class="placeholder-msg">MANIFEST NOT FOUND [${this.currentInstanceId}]</div>`;
-            return;
-        }
-        console.log(`[ModulePatchModal] Rendering ${manifest.ports.length} ports...`);
-        if (this.inputsList)
-            this.renderSection(this.inputsList, manifest.ports.filter((p) => p.isInput), true);
-        if (this.outputsList)
-            this.renderSection(this.outputsList, manifest.ports.filter((p) => !p.isInput), false);
-    }
-    renderSection(container, ports, isTarget) {
-        container.innerHTML = '';
-        ports.forEach(port => {
-            const portGroup = document.createElement('div');
-            portGroup.className = 'patch-port-group';
-            const fullId = `${this.currentInstanceId}.${port.id}`;
-            const typeClass = `type-${port.type.toLowerCase() || 'cv'}`;
-            // Port Header
-            const header = document.createElement('div');
-            header.className = 'patch-port-header';
-            header.innerHTML = `
-                <div class="patch-port-id">${port.label}</div>
-                <div class="patch-type-badge ${typeClass}">${port.type}</div>
-                <button class="patch-add-btn" title="Add Slot">＋</button>
-            `;
-            const addBtn = header.querySelector('.patch-add-btn');
-            addBtn.onclick = () => this.showNewSlotRow(portGroup, port, isTarget);
-            portGroup.appendChild(header);
-            // Find ALL current connections in PatchbayMatrix for this port
-            const activeSlots = this.patchbayMatrix.map((s, idx) => ({ ...s, idx }))
-                .filter(s => s.active && (isTarget ? (s.target === fullId) : (s.source === fullId)));
-            console.log(`[ModulePatchModal] Port ${port.id}: ${activeSlots.length} active routes found`);
-            activeSlots.forEach(slot => {
-                this.renderSlotRow(portGroup, port, slot, isTarget);
-            });
-            if (activeSlots.length === 0) {
-                const emptyMsg = document.createElement('div');
-                emptyMsg.className = 'patch-empty-msg';
-                emptyMsg.innerText = "NO CONNECTIONS";
-                portGroup.appendChild(emptyMsg);
-            }
-            container.appendChild(portGroup);
+        this.tabsContainer.innerHTML = '';
+        tabs.filter(t => t.id !== 'PATCHING').forEach(tab => {
+            const btn = document.createElement('button');
+            btn.className = 'era5-tab-btn';
+            btn.innerText = tab.id.toUpperCase();
+            btn.setAttribute('data-tab', tab.id);
+            this.tabsContainer.appendChild(btn);
         });
+        // Add Persistent PATCHING Sanctuary (if entities exist or always)
+        const patchBtn = document.createElement('button');
+        patchBtn.className = 'era5-tab-btn sanctuary';
+        patchBtn.innerText = 'PATCHING';
+        patchBtn.setAttribute('data-tab', 'PATCHING');
+        this.tabsContainer.appendChild(patchBtn);
     }
-    renderSlotRow(container, port, slot, isTarget) {
-        const row = document.createElement('div');
-        row.className = 'patch-slot-row';
-        const remoteId = isTarget ? slot.source : slot.target;
-        row.innerHTML = `
-            <div class="patch-selector-container">
-                <select class="patch-selector">
-                    ${this.getCompatibleOptions(port, isTarget, remoteId)}
-                </select>
-            </div>
-            <div class="patch-amount-container">
-                <input type="range" class="patch-amount-slider" min="-1" max="1" step="0.01" value="${slot.amount || 1.0}">
-                <span class="patch-amount-value">${Math.round((slot.amount || 0) * 100)}%</span>
-            </div>
-            <button class="patch-remove-btn">×</button>
-        `;
-        const select = row.querySelector('.patch-selector');
-        const slider = row.querySelector('.patch-amount-slider');
-        const valDisp = row.querySelector('.patch-amount-value');
-        const removeBtn = row.querySelector('.patch-remove-btn');
-        select.onchange = (e) => {
-            const newRemote = e.target.value;
-            this.applyPatch(port.id, newRemote, isTarget, slot.idx);
-        };
-        slider.oninput = (e) => {
-            const val = parseFloat(e.target.value);
-            valDisp.innerText = `${Math.round(val * 100)}%`;
-            this.updateSlotParam(slot.idx, 'amount', val);
-        };
-        removeBtn.onclick = () => this.removePatch(slot.idx);
-        container.appendChild(row);
+    switchTab(tabId) {
+        this.activeTab = tabId;
+        // Update UI states
+        this.tabsContainer?.querySelectorAll('.era5-tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+        });
+        if (tabId === 'PATCHING') {
+            this.renderPatchingSanctuary();
+        }
+        else {
+            const tabData = this.currentTabs.find(t => t.id === tabId);
+            if (tabData)
+                this.renderGroups(tabData);
+        }
     }
-    showNewSlotRow(container, port, isTarget) {
-        const row = document.createElement('div');
-        row.className = 'patch-slot-row pending';
-        row.innerHTML = `
-            <div class="patch-selector-container">
-                <select class="patch-selector">
-                    <option value="">- SELECT REMOTE -</option>
-                    ${this.getCompatibleOptions(port, isTarget)}
-                </select>
-            </div>
-            <button class="patch-remove-btn">×</button>
-        `;
-        const select = row.querySelector('.patch-selector');
-        select.onchange = (e) => {
-            const remoteId = e.target.value;
-            if (remoteId)
-                this.applyPatch(port.id, remoteId, isTarget);
-        };
-        const removeBtn = row.querySelector('.patch-remove-btn');
-        removeBtn.onclick = () => row.remove();
-        container.appendChild(row);
-        select.focus();
-    }
-    getCompatibleOptions(port, isTarget, selectedId = "") {
-        let options = '';
-        this.inventory.forEach(m => {
-            console.log(`[ModulePatchModal] Checking module ${m.instanceId}, status: ${m.status}, ports: ${m.ports?.length}`);
-            if (m.status !== "active") {
-                console.log(`[ModulePatchModal] SKIPPING ${m.instanceId} because status !== active`);
-                return; // Ignorar módulos base del catálogo
-            }
-            if (m.instanceId === this.currentInstanceId) {
-                return; // Evitar el auto-ruteo (conectar salidas a entradas del mismo módulo)
-            }
-            m.ports.forEach((p) => {
-                const compatibleType = p.type === port.type;
-                const compatibleDirection = isTarget ? !p.isInput : p.isInput;
-                if (compatibleType && compatibleDirection) {
-                    const fullId = `${m.instanceId}.${p.id}`;
-                    console.log(`[ModulePatchModal] MATCHED option: ${fullId}`);
-                    const isSelected = fullId === selectedId;
-                    options += `<option value="${fullId}" ${isSelected ? 'selected' : ''}>${m.instanceId} > ${p.label}</option>`;
+    renderGroups(tab) {
+        if (!this.viewport)
+            return;
+        this.viewport.innerHTML = '';
+        const form = document.createElement('div');
+        form.id = 'patch-params-form';
+        form.className = 'era5-params-container';
+        this.viewport.appendChild(form);
+        tab.groups.forEach((entities, groupName) => {
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'era5-group-title';
+            groupHeader.innerText = groupName.toUpperCase();
+            form.appendChild(groupHeader);
+            // ERA 5.1/5.2 Pair-Detection & Technical Rendering
+            for (let i = 0; i < entities.length; i++) {
+                const entity = entities[i];
+                if (!entity)
+                    continue;
+                const nextEntity = entities[i + 1];
+                if (nextEntity && this.isPair(entity, nextEntity)) {
+                    this.renderParameterRow(form, [entity, nextEntity]);
+                    i++; // Skip next
                 }
-            });
+                else {
+                    this.renderParameterRow(form, [entity]);
+                }
+            }
         });
-        return options;
+        if (tab.groups.size === 0) {
+            form.innerHTML = `<div class="patch-empty-msg">NO CONFIGURATION PARAMETERS AVAILABLE</div>`;
+        }
     }
-    updateUsage() {
-        if (!this.usageFill || !this.usageText)
-            return;
-        const activeCount = this.patchbayMatrix.filter(s => s.active && s.source && s.target).length;
-        const percent = (activeCount / this.maxSlots) * 100;
-        this.usageFill.style.width = `${percent}%`;
-        this.usageText.innerText = `${activeCount}/${this.maxSlots} Slots Used`;
-        this.usageFill.style.background = percent > 90 ? '#ff5555' : 'var(--neon-cyan)';
+    isPair(a, b) {
+        const nameA = a.id.toLowerCase();
+        const nameB = b.id.toLowerCase();
+        const suffixes = [['min', 'max'], ['low', 'high'], ['lo', 'hi'], ['start', 'end']];
+        return suffixes.some(([s1, s2]) => {
+            if (nameA.endsWith(s1) && nameB.endsWith(s2)) {
+                return nameA.substring(0, nameA.length - s1.length) === nameB.substring(0, nameB.length - s2.length);
+            }
+            return false;
+        });
+    }
+    renderParameterRow(container, entities) {
+        const row = document.createElement('div');
+        row.className = 'patch-param-row' + (entities.length > 1 ? ' pair' : '');
+        let labelStr = entities[0]?.label || 'UNKNOWN';
+        if (entities.length > 1) {
+            labelStr = labelStr.replace(/(_min|min|_low|low|_lo|lo|_start|start)$/i, ' RANGE');
+        }
+        const label = document.createElement('div');
+        label.className = 'patch-param-label';
+        label.innerText = labelStr.toUpperCase();
+        row.appendChild(label);
+        const controlsWrapper = document.createElement('div');
+        controlsWrapper.className = 'patch-param-controls-wrapper';
+        entities.forEach(entity => {
+            const ctrl = document.createElement('div');
+            ctrl.className = 'patch-param-control';
+            if (entity.presentation.control === 'list' && entity.options) {
+                const select = document.createElement('select');
+                entity.options.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt.value.toString();
+                    o.innerText = opt.label;
+                    select.appendChild(o);
+                });
+                ctrl.appendChild(select);
+            }
+            else {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.value = entity.range?.default?.toString() || '0';
+                ctrl.appendChild(input);
+            }
+            controlsWrapper.appendChild(ctrl);
+        });
+        row.appendChild(controlsWrapper);
+        container.appendChild(row);
     }
     /**
-     * Reactive State Synchronization
-     * Called by the main app loop when the preset state changes.
+     * ERA 5.2 STANDARD: Control Cell Generator
      */
-    onStateUpdate(state) {
-        const legacyMatrix = (state.preset?.patchbayMatrix || state.patchbayMatrix || []);
-        const voiceChain = (state.preset?.voiceChain || state.voiceChain || {});
-        const modularConnections = (voiceChain.CONNECTIONS || []).map((c) => ({ ...c, active: true }));
-        this.patchbayMatrix = [
-            ...(Array.isArray(legacyMatrix) ? legacyMatrix : Object.values(legacyMatrix)),
-            ...modularConnections
-        ];
-        // If modal is open, re-render to reflect changes from Patchbay Hub or other sources
-        if (this.el && this.el.style.display === 'flex') {
-            console.log(`[ModulePatchModal] Reactive Sync: Updating view for ${this.currentInstanceId} (${this.patchbayMatrix.length} connections)`);
-            this.render();
-            this.updateUsage();
-        }
+    buildControlCell(entity) {
+        const cell = document.createElement('div');
+        cell.className = 'control-cell';
+        cell.id = `cell-${this.currentInstanceId}-${entity.id}`;
+        // 1. Attachments (TOP - LEDs etc)
+        entity.attachments?.forEach(att => {
+            const attEl = document.createElement('div');
+            attEl.className = `control-cell-attachment attachment-${att.type}`;
+            attEl.innerText = '●';
+            cell.appendChild(attEl);
+        });
+        // 2. Primary Component
+        const comp = document.createElement('div');
+        comp.className = `entity-control control-${entity.presentation.control}`;
+        comp.innerHTML = `<div class="knob-placeholder"></div>`;
+        cell.appendChild(comp);
+        // 3. Label
+        const label = document.createElement('div');
+        label.className = 'control-cell-label';
+        label.innerText = entity.label;
+        cell.appendChild(label);
+        // 4. Display (BOTTOM)
+        const disp = document.createElement('div');
+        disp.className = 'control-cell-display';
+        disp.innerText = entity.range?.default?.toString() || '0';
+        cell.appendChild(disp);
+        return cell;
     }
-    async applyPatch(localPortId, remoteId, isTarget, existingSlotIdx = -1) {
-        const localId = `${this.currentInstanceId}.${localPortId}`;
-        const source = isTarget ? remoteId : localId;
-        const target = isTarget ? localId : remoteId;
-        let slotIdx = existingSlotIdx;
-        if (slotIdx < 0) {
-            slotIdx = this.patchbayMatrix.findIndex(s => !s.active || (!s.source && !s.target));
-        }
-        if (slotIdx < 0 || slotIdx >= this.maxSlots) {
-            alert(`Patchbay Matrix is FULL (${this.maxSlots}/${this.maxSlots}). Please remove a patch first.`);
+    renderPatchingSanctuary() {
+        const viewport = this.viewport;
+        if (!viewport)
+            return;
+        viewport.innerHTML = `
+            <div class="era5-group-container aseptic-panel">
+                <div class="era5-group-title">PATCHING SANCTUARY</div>
+                <div class="patch-bay-layout" style="display: flex; gap: 40px;">
+                    <div class="patch-column" style="flex: 1;">
+                        <h3 class="patch-section-title" style="font-size: 10px; color: var(--neon-cyan); letter-spacing: 2px;">INPUTS / TARGETS</h3>
+                        <div id="era5-patch-inputs" class="patch-list"></div>
+                    </div>
+                    <div class="patch-column" style="flex: 1;">
+                        <h3 class="patch-section-title" style="font-size: 10px; color: var(--signal-audio); letter-spacing: 2px;">OUTPUTS / SOURCES</h3>
+                        <div id="era5-patch-outputs" class="patch-list"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        const inputsEl = document.getElementById('era5-patch-inputs');
+        const outputsEl = document.getElementById('era5-patch-outputs');
+        const patchingTabData = this.currentTabs.find(t => t.id === 'PATCHING');
+        if (!patchingTabData) {
+            if (inputsEl)
+                inputsEl.innerHTML = '<div class="patch-empty">NO INPUTS DEFINED</div>';
+            if (outputsEl)
+                outputsEl.innerHTML = '<div class="patch-empty">NO OUTPUTS DEFINED</div>';
             return;
         }
-        console.log(`[ModulePatchModal] Applying patch to slot ${slotIdx}...`);
-        //@ts-ignore
-        const rpc = window.omegaRPC;
-        await Promise.all([
-            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'source', value: source }),
-            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'target', value: target }),
-            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'amount', value: 1.0 }),
-            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'active', value: true })
-        ]);
-        // No manual refresh needed - onStateUpdate will handle it via broadcast!
+        // Collect all entities from patching tab groups
+        const allPatchEntities = [];
+        patchingTabData.groups.forEach(entities => allPatchEntities.push(...entities));
+        allPatchEntities.forEach(entity => {
+            const portGroup = document.createElement('div');
+            portGroup.className = 'patch-port-group';
+            portGroup.style.marginBottom = '8px';
+            const typeClass = `type-${entity.presentation.control.toLowerCase() || 'cv'}`;
+            const isOutput = entity.direction === 'output';
+            portGroup.innerHTML = `
+                <div class="patch-port-header">
+                    <div class="patch-port-id">${entity.label.toUpperCase()}</div>
+                    <div class="patch-type-badge ${typeClass}">${entity.presentation.control.toUpperCase()}</div>
+                    <button class="patch-add-btn" title="Add Slot">＋</button>
+                </div>
+            `;
+            // Connection Discovery (Era 5 mapping)
+            const fullId = `${this.currentInstanceId}.${entity.id}`;
+            const activeSlots = this.patchbayMatrix.filter(s => s.active && (isOutput ? s.source === fullId : s.target === fullId));
+            if (activeSlots.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'patch-empty-msg';
+                empty.innerText = "NO CONNECTIONS";
+                portGroup.appendChild(empty);
+            }
+            else {
+                activeSlots.forEach(slot => {
+                    const slotRow = document.createElement('div');
+                    slotRow.className = 'patch-slot-row';
+                    const remote = isOutput ? slot.target : slot.source;
+                    slotRow.innerHTML = `
+                        <div class="patch-selector-container">
+                            <span class="patch-label" style="font-size:10px; color:var(--neon-cyan)">${remote || 'AUTO'}</span>
+                        </div>
+                        <div class="patch-amount-container">
+                            <span class="patch-amount-value" style="font-family:monospace">${Math.round(slot.amount * 100)}%</span>
+                        </div>
+                    `;
+                    portGroup.appendChild(slotRow);
+                });
+            }
+            if (isOutput)
+                outputsEl?.appendChild(portGroup);
+            else
+                inputsEl?.appendChild(portGroup);
+        });
     }
-    async updateSlotParam(slotIdx, key, value) {
-        //@ts-ignore
-        const rpc = window.omegaRPC;
-        await rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key, value });
+    onStateUpdate(state) {
+        const matrix = state?.preset?.patchbayMatrix || [];
+        this.patchbayMatrix = Array.isArray(matrix) ? matrix : Object.values(matrix);
+        if (this.el?.style.display === 'flex') {
+            this.switchTab(this.activeTab); // Re-render current view
+        }
     }
-    async removePatch(slotIdx) {
-        console.log(`[ModulePatchModal] Removing patch from slot ${slotIdx}...`);
-        //@ts-ignore
-        const rpc = window.omegaRPC;
-        await Promise.all([
-            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'active', value: false }),
-            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'source', value: "" }),
-            rpc.send('updatePatchbayMatrixSlot', { slot: slotIdx, key: 'target', value: "" })
-        ]);
-    }
-}
-// @ts-ignore
-if (typeof window !== 'undefined') {
-    // @ts-ignore
-    //@ts-ignore
-    window.modulePatchModal = new ModulePatchModal();
 }
 //# sourceMappingURL=ModulePatchModal.js.map

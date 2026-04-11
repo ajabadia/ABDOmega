@@ -2,6 +2,27 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
 
+## [2.8.0] - 2026-04-11 (Build 420) - "Aseptic Essence Restoration"
+### Added
+- **OMEGA Essence Restoration (Phase 32)**:
+    - **Technical Configuration Modal**: Re-implemented `isPair` logic for intelligent parameter grouping (e.g., dual-range controls).
+    - **Visual Precision**: Restored signal-type badges (CV, MIDI, AUDIO) and `patch-param-row` styles in the Patching Sanctuary.
+    - **Dynamic Metadata Discovery**: C++ `AceCatalog` now extracts and serves module descriptions directly from YAML manifests to the WebUI Browser.
+- **Aseptic Hardcode Purge**:
+    - Purged legacy `addStandardMidiSources` from `SemanticBrokerService.cpp`.
+    - Modulation matrix is now 100% dynamic; `MIDI_IN` ports appear only when the module is explicitly loaded in the rack.
+### Improved
+- **Build System Stabilization**: Resolved WAMR linker errors (`wasm_trap_delete`) through environment sanitization and clean build orchestration.
+- **UI Responsiveness**: Optimized `loadMetadata` triggers for zero-latency port updates.
+
+## [2.7.0] - 2026-04-10 (Build 385) - "Semantic Bridge"
+### Added
+- **Smart Visibility (Semantic Bridge)**: Unified parameter and port discovery in UI.
+- **Automatic Routing**: Parameters of type `list`, `number`, and `text` are now automatically routed to the **General** configuration tab.
+- **Port Filtering**: Configuration-heavy ports (e.g., `midi_channel`) are promoted to the General tab and hidden from the Patching tab to ensure UI hygiene.
+- **Project Governance**: Formalized standard in `docs/OMEGA_Vision.md` and `DOCUMENTACION/OFICIAL/ACE_SPEC_1_0.md`.
+
+
 ## [2.6.0] - 2026-04-09 (Build 363) - "Aseptic Rack Stabilization"
 ### Added
 - **Metadata-Driven Rack Routing (Phase 27)**:

@@ -43,20 +43,24 @@ for %%f in ("%PLUGIN_SRC%\*.c") do (
     set "FILENAME=%%~nf"
     echo [OMEGA] Compiling !FILENAME!.c...
     
-    :: Compile to WASM using discovered Clang
-    "!CLANG_CMD!" --target=wasm32 -O3 -nostdlib -Wl,--no-entry -Wl,--export-all -Wl,--allow-undefined -o "%PLUGIN_OUT%\!FILENAME!.wasm" "%%f"
-
+    :: Determine Output Directory (Check if subfolder exists)
+    set "OUT_DIR=%PLUGIN_OUT%"
+    if exist "%PLUGIN_OUT%\!FILENAME!" (
+        set "OUT_DIR=%PLUGIN_OUT%\!FILENAME!"
+    )
     
-    if exist "%PLUGIN_OUT%\!FILENAME!.wasm" (
-        echo [SUCCESS] !FILENAME! built as WASM.
+    :: Compile to WASM using discovered Clang
+    "!CLANG_CMD!" --target=wasm32 -O3 -nostdlib -Wl,--no-entry -Wl,--export-all -Wl,--allow-undefined -o "!OUT_DIR!\!FILENAME!.wasm" "%%f"
+
+    if exist "!OUT_DIR!\!FILENAME!.wasm" (
+        echo [SUCCESS] !FILENAME! built as WASM in !OUT_DIR!
         
         :: AOT Optimization if wamrc is present
         where wamrc >nul 2>&1
         if !ERRORLEVEL! EQU 0 (
             echo [OMEGA] Generating AOT...
-            wamrc --target=x86_64 --format=aot -o "%PLUGIN_OUT%\!FILENAME!.aot" "%PLUGIN_OUT%\!FILENAME!.wasm"
+            wamrc --target=x86_64 --format=aot -o "!OUT_DIR!\!FILENAME!.aot" "!OUT_DIR!\!FILENAME!.wasm"
         )
-
     ) else (
         echo [FAILED] !FILENAME! compilation error.
     )

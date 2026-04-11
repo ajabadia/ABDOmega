@@ -14,11 +14,15 @@ namespace UI {
         : mProcessor(processor), mPreset(preset), mApvts(apvts)
     {
         mPresetController = std::make_unique<RpcPresetController>(mPreset, catalog, repository);
-        mTelemetryController = std::make_unique<RpcTelemetryController>();
+        mTelemetryController = std::make_unique<RpcTelemetryController>(settings);
         mSystemController = std::make_unique<RpcSystemController>(settings, repository);
         mMetadataController = std::make_unique<RpcMetadataController>(mProcessor);
         mInputController = std::make_unique<RpcInputController>(mProcessor);
         mModulationController = std::make_unique<RpcModulationController>(mPreset);
+
+        // [Era 4.1] System Telemetry Registration
+        auto& reg = Core::Providers::ModulationTelemetryRegistry::getInstance();
+        reg.registerPin("system", "midi_monitor", Core::Providers::TelemetryType::Discrete, "MIDI Monitor");
 
         mScopeState = juce::var(new juce::DynamicObject());
 

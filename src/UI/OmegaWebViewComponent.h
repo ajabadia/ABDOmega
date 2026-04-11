@@ -22,7 +22,7 @@ namespace Omega {
                 .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
                 .withWinWebView2Options(juce::WebBrowserComponent::Options::WinWebView2()
                     .withUserDataFolder(juce::File::getSpecialLocation(juce::File::tempDirectory)
-                        .getChildFile("OmegaSynth_WebView2_V72_Refinement")))
+                        .getChildFile("OmegaSynth_WebView2_V74_Diagnostic")))
                 .withNativeIntegrationEnabled(true)
                 .withInitialisationData("omega", createInitData())
                 .withNativeFunction("omegaNativeCall", (juce::WebBrowserComponent::NativeFunction) [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {

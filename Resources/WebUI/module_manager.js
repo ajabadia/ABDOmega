@@ -7,14 +7,16 @@ class ModuleManager {
         this.container = document.getElementById(containerId);
         this.activeModules = new Map();
         
-        // Component ID to JS Class Mapping
+        // Component ID to JS Class Mapping (Normalized Era 4.1)
         this.factoryMap = {
-            'PATCHBAY-MATRIX-001': 'ModuleMatrix',
-            'OSC-VA-001': 'ModuleJunoDCO',
-            'VCF-JUNO-001': 'ModuleJunoVCF',
-            'OSC-PM-001': 'ModuleJP',
-            'VCF-KORG-001': 'ModuleKorg',
-            'FX-ECHO-001': 'ModuleSpaceEcho'
+            'patchbay_matrix': 'ModuleMatrix',
+            'osc_va': 'ModuleJunoDCO',
+            'vcf_juno': 'ModuleJunoVCF',
+            'osc_jp': 'ModuleJP',
+            'vcf_korg': 'ModuleKorg',
+            'fx_echo': 'ModuleSpaceEcho',
+            'midi_in': 'ModuleGeneric',
+            'midi_2_cv': 'ModuleGeneric'
         };
     }
 

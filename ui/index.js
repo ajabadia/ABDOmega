@@ -1,6 +1,6 @@
 /**
  * OMEGA Synthesizer - Main Entry Point (TypeScript)
- * Phase 15.1 - Structural Maturity
+ * Phase 15.2 - Bootstrapping Stability
  */
 import { rpc, setupJuceShim } from './omega_rpc.js';
 import { MetadataStore } from './metadata_store.js';
@@ -17,10 +17,13 @@ import { ModulePatchbayMatrix } from './components/ModulePatchbayMatrix.js';
 import { ModulePatchModal } from './components/ModulePatchModal.js';
 import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
 import { ModuleBrowser } from './components/ModuleBrowser.js';
+import {} from './omega_types.js';
 // Global instances for legacy bridge compatibility
+const store = new MetadataStore();
+const manager = new ModuleManager();
 window.omegaRPC = rpc;
-window.metadataStore = new MetadataStore();
-window.moduleManager = new ModuleManager();
+window.metadataStore = store;
+window.moduleManager = manager;
 window.Preferences = Preferences;
 window.ServiceMode = ServiceMode;
 window.ModuleRenderer = ModuleRenderer;
@@ -35,19 +38,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("[OMEGA] Booting Synth UI...");
     // 1. Setup RPC Bridge
     setupJuceShim();
-    // 2. Load Metadata
-    const store = window.metadataStore;
-    if (store) {
-        try {
-            console.log("[OMEGA] Loading Metadata...");
-            await Promise.race([
-                store.ensureLoaded(),
-                new Promise(resolve => setTimeout(resolve, 3000))
-            ]);
-        }
-        catch (e) {
-            console.error("[OMEGA] Metadata load failed, continuing:", e);
-        }
+    // 2. Load Metadata (with Mock support in Store)
+    try {
+        console.log("[OMEGA] Loading Metadata...");
+        await Promise.race([
+            store.ensureLoaded(),
+            new Promise(resolve => setTimeout(resolve, 3000))
+        ]);
+        // Ensure modulation metadata (and mock) is loaded
+        await store.getModulationMetadata();
+    }
+    catch (e) {
+        console.error("[OMEGA] Metadata load failed, continuing:", e);
     }
     // 3. Initialize Components
     console.log("[OMEGA] Initializing Components...");
@@ -57,7 +59,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Global Patchbay Hub
         const matrixHub = new ModulePatchbayMatrix();
         window.patchbayHub = matrixHub;
-        // Bind Matrix Trigger Buttons
         const matrixBtn = document.getElementById('btn-global-matrix');
         if (matrixBtn)
             matrixBtn.onclick = () => matrixHub.toggleWorkspace(true);
@@ -70,21 +71,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const addModuleMenuLink = document.getElementById('menu-add-module');
         if (addModuleMenuLink)
             addModuleMenuLink.onclick = () => window.moduleBrowser.open();
-        // Bind Matrix Shortcut to Browser
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('#btn-add-module-shortcut')) {
-                window.moduleBrowser.open();
-                window.patchbayHub.toggleWorkspace(false);
-            }
+        // Initialize Unified Module Config Modal
+        const configModal = new ModulePatchModal();
+        window.modulePatchModal = configModal;
+        // Unified Configuration Dispatcher (Role-Based)
+        document.addEventListener('patch-request', async (e) => {
+            const { instanceId } = e.detail;
+            const manifest = store.getInventoryItem(instanceId);
+            console.log(`[Dispatcher] Opening Alpha Config for: ${instanceId}`);
+            await configModal.open(instanceId, manifest);
         });
+        // 4. Registry Ready
+        console.log("[OMEGA] System Ready. Awaiting user interaction.");
     }
     catch (e) {
         console.error("[OMEGA] Component init failed:", e);
     }
-    // 4. Boot App Logic
+    // 5. Boot App Logic
     console.log("[OMEGA] Calling app.init()...");
     app.init();
-    // Global State Forwarding for the Matrix Hub
+    // Global State Forwarding
     window.addEventListener('omega:stateUpdate', (e) => {
         if (window.patchbayHub)
             window.patchbayHub.onStateUpdate(e.detail);

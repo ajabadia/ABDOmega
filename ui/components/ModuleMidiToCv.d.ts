@@ -10,6 +10,7 @@ export declare class ModuleMidiToCv {
     constructor(container: HTMLElement, content: HTMLElement, options: any);
     init(): Promise<void>;
     render(): void;
+    private buildControlCell;
     onStateUpdate(state: any): void;
     addStyles(): void;
 }

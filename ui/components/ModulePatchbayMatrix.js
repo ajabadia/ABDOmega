@@ -1,7 +1,4 @@
-/**
- * OMEGA Patchbay-Matrix (Hyper-ACE)
- * Features a compact Launcher in the rack and a high-density 8x4 Workspace.
- */
+import {} from '../omega_types.js';
 export class ModulePatchbayMatrix {
     el = null;
     content = null;
@@ -27,12 +24,15 @@ export class ModulePatchbayMatrix {
         return !!(this.el && this.content);
     }
     async syncMaxSlots() {
-        // @ts-ignore
-        if (window.omegaRPC) {
+        const rpc = window.omegaRPC;
+        if (rpc) {
             try {
-                // @ts-ignore
-                const settings = await window.omegaRPC.getSystemSettings();
-                const maxSlotsSetting = settings.find((s) => s.id === "maxPatchbaySlots");
+                const settings = await rpc.getSystemSettings();
+                if (!settings || !Array.isArray(settings)) {
+                    console.warn("[PatchbayMatrix] Settings missing or invalid, skipping sync.");
+                    return;
+                }
+                const maxSlotsSetting = settings.find((s) => s && s.id === "maxPatchbaySlots");
                 if (maxSlotsSetting) {
                     const newValue = Math.floor(maxSlotsSetting.currentValue || 32);
                     if (this.maxSlots !== newValue) {
@@ -53,11 +53,10 @@ export class ModulePatchbayMatrix {
         }
     }
     async loadMetadata() {
-        // @ts-ignore
-        if (window.omegaRPC) {
+        const rpc = window.omegaRPC;
+        if (rpc) {
             try {
-                // @ts-ignore
-                const resp = await window.omegaRPC.send("getModulationMetadata", {});
+                const resp = await rpc.send("getModulationMetadata", {});
                 if (resp && (resp.sources || resp.targets)) {
                     this.sources = resp.sources || [];
                     this.targets = resp.targets || [];
@@ -78,6 +77,7 @@ export class ModulePatchbayMatrix {
         const modal = this.el;
         modal.style.display = open ? 'flex' : 'none';
         if (open) {
+            this.loadMetadata();
             this.syncMaxSlots();
             this.renderWorkspace();
         }
@@ -446,10 +446,9 @@ export class ModulePatchbayMatrix {
         }
     }
     sendUpdate(slot, key, value) {
-        // @ts-ignore
-        if (window.omegaRPC) {
-            // @ts-ignore
-            window.omegaRPC.call("updatePatchbayMatrixSlot", { slot, key, value });
+        const rpc = window.omegaRPC;
+        if (rpc) {
+            rpc.call("updatePatchbayMatrixSlot", { slot, key, value });
         }
     }
 }

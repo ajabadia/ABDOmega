@@ -3,7 +3,8 @@
 #include "RpcBaseController.h"
 #include <juce_core/juce_core.h>
 #include "../Core/Providers/ModulationTelemetryHub.h"
-#include "../Core/Providers/ModulationTelemetryIndex.h"
+#include "../Core/Providers/ModulationTelemetryRegistry.h"
+#include "../Core/Providers/SystemSettingsManager.h"
 #include "../Core/Input/MidiMonitor.h"
 
 namespace Omega {
@@ -14,13 +15,17 @@ namespace UI {
      */
     class RpcTelemetryController : public RpcBaseController {
     public:
-        RpcTelemetryController() = default;
+        RpcTelemetryController(Core::Service::SystemSettingsManager& settings) 
+            : mSettings(settings) {}
 
         juce::var handleGetTelemetry(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetTelemetrySources(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetScopeState(const juce::var& requestId, const juce::var& payload, const juce::var& currentScopeState);
         juce::var handleSetScopeState(const juce::var& requestId, const juce::var& payload, juce::var& targetScopeState);
         juce::var handleGetModConnections(const juce::var& requestId, const juce::var& payload);
+
+    private:
+        Core::Service::SystemSettingsManager& mSettings;
     };
 
 } // namespace UI

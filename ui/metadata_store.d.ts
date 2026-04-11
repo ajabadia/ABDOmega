@@ -32,11 +32,11 @@ export declare class MetadataStore {
     private timestamp;
     constructor();
     ensureLoaded(): Promise<boolean>;
-    getParam(id: string): ParamDescriptor | undefined;
-    getAllParams(): ParamDescriptor[];
-    getGroup(id: string): GroupDescriptor | undefined;
     getModulationMetadata(): Promise<any>;
     getInventoryItem(id: string): any;
+    getParam(id: string): ParamDescriptor | undefined;
+    getInventory(): any[];
+    isInitialized(): boolean;
     getVersion(): string;
     getBuild(): string;
     getTimestamp(): string;

@@ -50,3 +50,17 @@ settings:
     maxValue: 64
     isInteger: true
     category: "ENGINE"
+
+  - id: scopeResolution
+    label: "Oscilloscope Resolution"
+    tooltip: "Specifies the number of samples retrieved per telemetry frame for high-fidelity visualization. High values (2048) show cycles better but increase data bandwidth."
+    defaultValue: 1024
+    minValue: 256
+    maxValue: 2048
+    isInteger: true
+    category: "ENGINE"
+    options:
+      256: "Fast (256)"
+      512: "Performance (512)"
+      1024: "Standard (1024)"
+      2048: "High-Fidelity (2048)"

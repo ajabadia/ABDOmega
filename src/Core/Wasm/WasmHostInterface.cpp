@@ -17,9 +17,20 @@ namespace {
 
     /**
      * @brief Host Import: publish_telemetry
+     * [Era 4.1] Aseptic implementation.
      */
     void omega_publish_telemetry(wasm_exec_env_t exec_env, float val) {
-        // Enviar al controlador de RpcTelemetry si es necesario
+        using namespace Omega::Core::Providers;
+        
+        // In OMEGA, we currently use a global ID for the active WASM block.
+        // TODO: Map to specific instance ID in VA 2.2.
+        std::string instanceId = "wasm_module"; 
+        
+        auto& registry = ModulationTelemetryRegistry::getInstance();
+        auto& hub = ModulationTelemetryHub::getInstance();
+        
+        int slot = registry.registerPin(instanceId, "activity", TelemetryType::Discrete, "Activity");
+        hub.pushSignal(slot, val);
     }
 
     /**
@@ -43,12 +54,20 @@ namespace {
         // TODO: Mapear a la instancia de VoiceState adecuada
     }
 
+    /**
+     * @brief Host Import: set_voice_at (Aftertouch)
+     */
+    void omega_set_voice_at(wasm_exec_env_t exec_env, float pressure) {
+        // TODO: Mapear a la instancia de VoiceState adecuada
+    }
+
     static NativeSymbol g_omega_native_symbols[] = {
         { "omega_get_bus_ptr", (void*)omega_get_bus_ptr, "(i)i", nullptr },
         { "omega_publish_telemetry", (void*)omega_publish_telemetry, "(f)", nullptr },
         { "omega_set_voice_freq", (void*)omega_set_voice_freq, "(f)", nullptr },
         { "omega_set_voice_gate", (void*)omega_set_voice_gate, "(f)", nullptr },
-        { "omega_set_voice_vel", (void*)omega_set_voice_vel, "(f)", nullptr }
+        { "omega_set_voice_vel", (void*)omega_set_voice_vel, "(f)", nullptr },
+        { "omega_set_voice_at", (void*)omega_set_voice_at, "(f)", nullptr }
     };
 }
 
