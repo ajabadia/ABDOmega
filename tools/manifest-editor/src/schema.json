@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://omega-synth.dev/schema/module-schema-6.1.json",
+  "title": "OMEGA Aseptic Module Contract (Era 6.1)",
+  "type": "object",
+  "_metadata": {
+    "generator": "OMEGA Aseptic Schema Tool",
+    "engine_version": "6.1.0",
+    "build_id": "488",
+    "generated_at": "2026-04-13T12:08:23.000+02:00"
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "modelId",
+    "implementationId",
+    "engine",
+    "family",
+    "version",
+    "registry"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Module unique identifier (kebab-case)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Module purpose and short documentation"
+    },
+    "modelId": {
+      "type": "string",
+      "description": "Hardware reference or logical class (e.g. ACE-UTIL-MIDI-IN)"
+    },
+    "implementationId": {
+      "type": "integer",
+      "description": "Unique numeric identifier for engine binding"
+    },
+    "engine": {
+      "type": "string",
+      "enum": ["Modular", "WASM"],
+      "description": "Core execution engine"
+    },
+    "family": {
+      "type": "string",
+      "description": "Module category",
+      "enum": [
+        "OSCILLATOR",
+        "FILTER",
+        "ENVELOPE",
+        "IO",
+        "FX"
+      ]
+    },
+    "theme": {
+      "type": "string",
+      "enum": ["aseptic", "industrial", "classic"],
+      "description": "Visual aesthetic style"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version in semantic format (e.g. 6.1)"
+    },
+    "assets": {
+      "type": "object",
+      "properties": {
+        "icon": { "type": "string" },
+        "image": { "type": "string" }
+      }
+    },
+    "registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "roles"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Item internal binding ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Data type",
+            "enum": [
+              "int",
+              "float",
+              "bool",
+              "audio",
+              "cv"
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "control",
+                "stream",
+                "input",
+                "output",
+                "mod_source",
+                "mod_target",
+                "telemetry"
+              ]
+            }
+          },
+          "range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "default": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

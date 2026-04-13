@@ -12,6 +12,8 @@
 !/build_no.txt
 !/CMakeLists.txt
 !/ui/
+!/tools/
+!/DOCUMENTACION/
 !/.gitignore
 !/RULES.md
 !/BUILD.md
@@ -23,6 +25,8 @@
 !/docs/**
 !/scripts/**
 !/ui/**
+!/tools/**
+!/DOCUMENTACION/**
 
 # Exclude specific heavy or binary files
 *.exe
