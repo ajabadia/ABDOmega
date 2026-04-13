@@ -54,7 +54,8 @@
         "FILTER",
         "ENVELOPE",
         "IO",
-        "FX"
+        "FX",
+        "UTILITY"
       ]
     },
     "theme": {

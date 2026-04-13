@@ -141,6 +141,7 @@ function App() {
             <option value="ENVELOPE">📈 ENVELOPE</option>
             <option value="IO">🔌 IO (INPUT/OUTPUT)</option>
             <option value="FX">✨ FX (EFFECTS)</option>
+            <option value="UTILITY">🛠️ UTILITY</option>
           </select>
         </div>
 
