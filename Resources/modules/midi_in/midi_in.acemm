@@ -1,0 +1,37 @@
+id: midi_in
+name: MIDI IN
+description: Canonical MIDI Input Bridge for the OMEGA Rack (Era 5.2 Gold).
+modelId: ACE-UTIL-MIDI-IN
+implementationId: 601
+engine: WASM
+family: UTILITY
+theme: aseptic
+version: '6.1'
+registry:
+  - id: omega_on_midi
+    label: OMEGA ON MIDI
+    type: float
+    roles:
+      - control
+    range:
+      min: 0
+      max: 1
+      default: 0
+  - id: omega_process
+    label: OMEGA PROCESS
+    type: float
+    roles:
+      - control
+    range:
+      min: 0
+      max: 1
+      default: 0
+  - id: omega_on_param
+    label: OMEGA ON PARAM
+    type: float
+    roles:
+      - control
+    range:
+      min: 0
+      max: 1
+      default: 0

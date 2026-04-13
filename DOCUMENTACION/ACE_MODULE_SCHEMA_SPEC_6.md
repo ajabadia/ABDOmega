@@ -43,6 +43,20 @@ Los siguientes campos son mandatorios para la correcta vinculación con el motor
 - `engine`: Tipo de motor de ejecución (`WASM` para asépticos, `Modular` para legacy).
 - `theme`: Estética visual sugerida (`aseptic`, `industrial`, `classic`).
 
+### D. Technical Identity DNA (Era 6.1)
+Los siguientes campos son mandatorios para la correcta vinculación con el motor OMEGA y la gestión de flotas:
+- `modelId`: Identificador del "hardware" lógico o clase de referencia (ej. `ACE-VCO-60`).
+- `implementationId`: ID numérico único usado para el binding de parámetros y ruteo interno en el motor.
+- `engine`: Tipo de motor de ejecución (`WASM` para asépticos, `Modular` para legacy).
+- `theme`: Estética visual sugerida (`aseptic`, `industrial`, `classic`).
+
+### D. Technical Identity DNA (Era 6.1)
+Los siguientes campos son mandatorios para la correcta vinculación con el motor OMEGA y la gestión de flotas:
+- `modelId`: Identificador del "hardware" lógico o clase de referencia (ej. `ACE-VCO-60`).
+- `implementationId`: ID numérico único usado para el binding de parámetros y ruteo interno en el motor.
+- `engine`: Tipo de motor de ejecución (`WASM` para asépticos, `Modular` para legacy).
+- `theme`: Estética visual sugerida (`aseptic`, `industrial`, `classic`).
+
 ---
 
 ## 3. Capa 2: Workspace & View Policy (Hints Visuales)

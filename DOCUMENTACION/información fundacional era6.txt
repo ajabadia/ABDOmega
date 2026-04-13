@@ -1,0 +1,2111 @@
+ya me hago una idea bastante sólida del proyecto. Es un sintetizador modular híbrido llamado OMEGA / ABDOmega, con motor DSP en C++, plugin/standalone en JUCE 8 y una WebUI que se renderiza de forma dinámica a partir de metadatos y manifiestos YAML, no mediante paneles cableados a mano.
+
+Qué es
+OMEGA está planteado como una plataforma de síntesis modular “manifest-driven”, donde los módulos se describen a sí mismos y la UI/engine los descubren dinámicamente; el propio material del proyecto habla de una arquitectura “Hyper-ACE” y de una transición a un sistema “fully manifest-driven” y “zero-coupled from the UI”.
+
+También se ve que no es un sinte simple de una sola familia tímbrica: mezcla emulación VA tipo Juno/JP/MS-20 con componentes más experimentales o de modelado físico inspirados en Prophecy/Z1, además de una matriz de modulación evolucionada a “Patchbay-Matrix”.
+
+Capas principales
+La documentación interna describe una arquitectura de 4 capas: Engine para compilación/intérprete y modulación, Core para presets/esquemas/proveedores de datos, DSP para algoritmos de osciladores y filtros, y Plugin para el wrapper JUCE y el puente con la UI.
+
+Eso encaja con varios indicios del código: aparecen servicios de PresetService, EngineConfigManager, ParamBindingRegistry, PatchbayMatrixService, SemanticBrokerService y un OmegaAudioProcessor como punto de unión entre motor y WebUI.
+
+Modelo mental
+El modelo mental que mejor encaja con el bundle es este:
+
+Preset YAML / ValueTree como estado canónico del instrumento.
+
+AceCatalog carga manifiestos de módulos y extrae parámetros, puertos, telemetría y metadatos visuales.
+
+SemanticBrokerService reconstruye un inventario vivo de módulos/puertos disponibles para la UI y la modulación.
+
+PatchbayMatrixService compila rutas declarativas de modulación a rutas de runtime para el motor de voz.
+
+ParamBindingRegistry convierte IDs semánticos tipo layer.a.cutoff o layer.a.env.attack en escritura real sobre VoiceConfig.
+
+WebUI consulta metadatos por RPC y renderiza módulos de forma declarativa.
+
+En otras palabras: el proyecto intenta que el sistema no “sepa” de módulos concretos más de lo estrictamente necesario, sino que los infiera desde catálogo, preset y manifiestos.
+
+Presets y estado
+El preset parece ser una pieza central y muy trabajada. OmegaPreset actúa como fachada para serialización YAML, normalización, valores por defecto, capas, visual scope y patchbay; además expone acceso a layers, voiceArch, visual y patchbayMatrix.
+
+También se aprecia una convivencia entre dos modelos: uno más “legacy” por categorías (oscillators, filters, envelopes, etc.) y otro más grafo (voiceChain con nodes y connections), lo que sugiere que el sistema está en una transición controlada hacia una topología más flexible.
+
+Modulación
+La modulación es uno de los ejes del proyecto. La documentación interna menciona una evolución desde “modulation matrix” hacia Patchbay-Matrix, con slots dinámicos, profundidad bipolar, posibilidad de via, y compilación a rutas de bajo nivel para el plan de voz.
+
+En el código, PatchbayMatrixService::compileMatrix recorre slots activos del preset, resuelve índices de señal y parámetros de destino mediante registros de metadatos, y vuelca eso a VoiceCompiledVoicePlan, lo que confirma que la matriz no es solo UI sino una capa declarativa que se compila al runtime del motor.
+
+UI y bridge
+La UI no parece una piel superficial, sino un subsistema importante. La documentación insiste en que OmegaUiBridge debe actuar solo como router, y que cualquier lógica nueva debe ir a controladores RPC especializados; además, el proyecto impone que rangos, labels, defaults y enums salgan del ParameterMetadataRegistry y no se dupliquen en la WebUI.
+
+Eso me dice que el objetivo no es solo “hacer una interfaz bonita”, sino conseguir una UI completamente gobernada por metadatos, con menos hardcode, menos duplicación y más capacidad para añadir módulos sin tocar demasiadas capas.
+
+Filosofía técnica
+Hay una filosofía muy marcada de real-time safety: se prohíbe reservar memoria dinámicamente en el hilo de audio y se evita usar funciones matemáticas costosas dentro de bucles por muestra salvo aproximaciones o LUTs; además, se exige preasignación en constructor o prepareToPlay.
+
+También se nota una obsesión sana por la higiene arquitectónica: changelog muy detallado, roadmap por fases, purga de hardcodes, single source of truth para metadatos y fuerte separación entre engine, preset, bridge y UI.
+
+Lo que creo que persigue
+Mi lectura breve es esta: OMEGA no es solo un sintetizador; es un framework de sintetizador modular orientado a catálogo/manifiestos, donde el verdadero producto es la combinación de motor DSP + preset semántico + catálogo dinámico + WebUI declarativa.
+
+Eso le permite crecer por familias de módulos, cambiar layouts, exponer telemetría, añadir patching y reducir el coste de integrar nuevos bloques sin rehacer toda la aplicación.
+
+Mi resumen en una frase
+Si tuviera que resumirlo en una frase: es un sinte modular híbrido con ambición de “SDK interno”, basado en manifiestos YAML, presets semánticos y compilación declarativa de voz/modulación sobre un backend DSP en C++/JUCE.
+
+Si quieres, en el siguiente mensaje puedo hacer una de estas tres cosas:
+
+un mapa de arquitectura más preciso,
+
+un recorrido end-to-end desde preset → engine → UI,
+
+o un análisis crítico de fortalezas, riesgos y deuda técnica potencial.
+
+ok, muy bien resumido. Te voy a pasar unas conversaciones con antigravity que conforman la visión de la "ERA 5". Esta era intenta desprenderse de la carga legacy e ir hacia un sistema totalmente aséptico y modular, hacia ese modulo central que solo interpreta módulos externos, los muestra y los cablea. EL caso es que creo que no se está consiguiendo, porque llevo muchas horas y cuando avanzo un paso, parece que retrase dos. El legacy está muy presente y quiero quitarlo (reservar el código para migrarlo módulo a módulo en el futuro)
+
+conversacion-era-5.txt
+2 pasos completados
+Sí: viendo la visión de ERA 5 y comparándola con el bundle, creo que tu intuición es correcta. La dirección conceptual es buena, pero el proyecto parece haber intentado “declararse aséptico” antes de extirpar de verdad las dependencias estructurales del legacy, y por eso cada avance activa viejas rutas, supuestos o filtros ocultos en otras capas.
+
+Mi lectura honesta es que no estás fallando en la visión; está fallando el método de transición. En tus conversaciones aparece repetidamente la idea de “purga absoluta”, “sin retrocompatibilidad” y “motor tonto guiado por manifiestos”, pero en el bundle siguen asomando restos de Era 4: layouts por rejilla, heurísticas, IDs especiales, caminos alternativos en el renderer y lógica mixta entre descriptor, manifest y estado.
+
+Diagnóstico
+La ERA 5 que describes quiere un núcleo central que solo interprete entidades externas, las renderice y las conecte, con un registro único de roles, tipado fuerte, layout físico, tabs dinámicas y patching aislado en su santuario.
+
+Sin embargo, en el código actual todavía aparecen señales de arquitectura híbrida: ModuleRenderer sigue normalizando uiLayout, items y registry a la vez; ModuleManager conserva rutas de renderizado y constantes heredadas; y AceCatalog todavía traduce roles a categorías antiguas como parameters y ports, en vez de trabajar con una entidad unificada de primer nivel.
+
+El problema real
+El problema no es solo “queda legacy”, sino algo más concreto: el sistema sigue teniendo demasiados traductores bidireccionales entre modelos mentales distintos.
+
+Ahora mismo conviven al menos estos mundos:
+
+manifiesto antiguo por parameters/ports/uiLayout,
+
+manifiesto nuevo por registry/roles/layout/attachments,
+
+renderizado legacy por items + row/col,
+
+bridge/RPC con semántica más moderna,
+
+engine que en algunos sitios sigue esperando clasificaciones tipo parámetro/puerto/implementationId.
+
+Cuando coexistían por compatibilidad podía tener sentido, pero si el proyecto es alpha y ya has decidido que no necesitas retrocompatibilidad, esa convivencia ya no es una red de seguridad: es la fuente principal de entropía.
+
+Mi conclusión técnica
+Yo no seguiría modificando “sobre lo existente” como estrategia principal. Haría una migración quirúrgica, pero no incremental-ambigua; más bien un enfoque de core nuevo pequeño + legacy congelado alrededor.
+
+Dicho simple:
+
+no borraría el legacy todavía,
+
+no intentaría seguir adaptándolo capa por capa “in place”,
+
+y tampoco haría una reescritura total del proyecto entero de golpe.
+
+Haría una extracción de un “Aseptic Core” mínimo y autoritario, y todo lo demás quedaría o bien adaptado a ese núcleo, o bien relegado a legacy/ como código no tocable salvo emergencia.
+
+Qué congelaría ya
+Si tu objetivo es reservar el código antiguo para migrarlo módulo a módulo en el futuro, entonces yo declararía legacy congelado todo lo que exprese el paradigma viejo de forma estructural.
+
+Especialmente pondría bajo cuarentena:
+
+renderizado basado en uiLayout/items/row/col,
+
+especializaciones de módulos por nombre o modelId heredado,
+
+filtros de descubrimiento por implementationId o reglas especiales de catálogo,
+
+cualquier puente UI que “adivine” pestañas, tipos o visibilidad en lugar de leerlos del manifiesto,
+
+lógica que reconstruya parameters y ports desde roles, o al revés, salvo en un único adaptador transitorio bien aislado.
+
+Qué construiría nuevo
+Tu nueva base debería tener muy pocas piezas, pero absolutamente canónicas.
+
+Yo la reduciría a estas cinco:
+
+Pieza	Responsabilidad única
+Era5ManifestSchema	Validar que el YAML tenga tipado, direction, roles, layout y presentation coherentes. 
+Era5Catalog	Cargar manifiestos sin traducirlos al modelo antiguo. 
+Era5ViewModelBuilder	Convertir registry en una estructura pura de UI: tabs, groups, control cells, patching sources/targets. 
+Era5Renderer	Pintar rack y modal únicamente desde ese view model, sin heurísticas legacy. 
+Era5BindingLayer	Resolver bindings de parámetro, telemetría y patching hacia engine/RPC. 
+Si algo no cabe limpio dentro de una de esas piezas, probablemente sigue siendo deuda de Era 4.
+
+Regla de oro
+Tu regla de oro para los próximos días debería ser esta:
+
+ninguna capa nueva de ERA 5 puede leer estructuras legacy directamente.
+
+Si necesitas algo del viejo mundo, lo hace un adaptador explícito y temporal. No dos, no repartido, no “por comodidad”. Uno solo, con nombre vergonzosamente claro, por ejemplo:
+
+LegacyManifestAdapter
+
+LegacyPatchingAdapter
+
+LegacyDescriptorBridge
+
+Eso te permite medir deuda real. Si la nueva UI necesita 14 excepciones repartidas, no tienes transición: tienes contaminación.
+
+Plan pragmático
+Yo haría este orden:
+
+Congelar el legacy: mover o renombrar todo lo estructuralmente viejo a legacy/ o *.legacy.*, sin borrarlo.
+
+Definir el contrato ERA 5 executable: no solo documento, sino schema/validator con errores duros.
+
+Elegir un único módulo piloto: midi2cv es buena elección porque toca control, listas, MIDI, patching y telemetría.
+
+Levantar un pipeline entero solo para ese módulo: manifiesto → catálogo → view model → renderer → modal → binding mock.
+
+No conectar DSP real todavía hasta que el contrato visual y estructural sea estable. Esto encaja además con lo que ya visteis en la conversación: primero validación visual y mocking.
+
+Una vez estabilizado, conectar bindings reales y medir qué partes del engine siguen exigiendo categorías antiguas.
+
+Solo después migrar el segundo módulo.
+
+Lo que no haría
+No haría estas tres cosas, porque creo que son las que más te están frenando:
+
+No intentaría reescribir todos los YAML a la vez.
+
+No intentaría dejar el frontend entero “ya purgado” si el backend todavía obliga a traducciones implícitas.
+
+No confiaría en changelog o sensación de avance como prueba de pureza arquitectónica; lo que importa es si el sistema puede renderizar y cablear un módulo nuevo sin nombres especiales, sin ifs por modelo y sin reconstrucciones heredadas.
+
+Señal clara de éxito
+Sabrás que ERA 5 empieza a ser real cuando puedas hacer esto: añadir un módulo nuevo solo creando su manifiesto y, como mucho, su implementación DSP/telemetría, sin tocar renderer, modal, catálogo, manager ni listas especiales.
+
+Ahora mismo, por lo que se ve en el material, aún no estás ahí del todo. El proyecto sí ha avanzado mucho en esa dirección, pero todavía depende de demasiadas “curas locales” para que la pureza sea sistémica.
+
+Mi recomendación directa
+Mi recomendación corta es: sí, manda partes a legacy, pero no de forma cosmética; hazlo como frontera arquitectónica explícita.
+
+En tu caso haría una decisión formal:
+
+Legacy permitido: solo para preservar comportamiento viejo y como referencia de migración.
+
+Legacy prohibido: como dependencia de cualquier nueva pieza ERA 5.
+
+Eso te va a doler dos o tres días, pero probablemente te ahorre muchas jornadas de “avanzo uno, retrocedo dos”.
+
+Siguiente paso útil
+Creo que lo más valioso ahora no es seguir filosofando la era, sino hacer un mapa de contaminación legacy del bundle actual: identificar exactamente qué archivos y subsistemas siguen imponiendo el modelo antiguo y clasificarlos en:
+
+conservar temporalmente,
+
+encapsular,
+
+reescribir ya,
+
+eliminar.
+
+Si quieres, en el siguiente mensaje te hago justamente eso: un plan quirúrgico de migración con lista concreta de zonas sospechosas del proyecto y el orden recomendado para extirparlas.
+
+
+
+Perfecto; te planteo un plan quirúrgico muy concreto para desenganchar la ERA 5 del legacy sin reescribir “todo a la vez”.
+
+1. Delimitar el legacy estructural
+Objetivo: marcar fronteras claras entre “motor ERA 5” y “todo lo demás”, sin borrar nada todavía.
+
+En tu repo actual yo pondría en modo “legacy congelado” todo lo que cumpla alguna de estas condiciones:
+
+Usa parameters / ports como bloques separados en manifiestos.
+
+Define layout por uiLayout con row, col, width, height o grids fijos.
+
+Tiene lógica de UI que:
+
+infiere pestañas General/Patching,
+
+deduce controles desde categorías en vez de leer presentation/tab/group y attachments,
+
+pinta jacks/cables en el frontal.
+
+Eso incluye típicamente:
+
+Manifiestos Era 4 (debugtest.yaml, antiguos test de UI, manifests con uiLayout).
+
+Cualquier Module* de la WebUI que aún tenga lógica específica por tipo de módulo, más allá de “pasar descriptors” al renderer.
+
+Capa de renderer que entienda a la vez items/row/col y el nuevo registry/roles/attachments.
+
+Acción:
+
+Muévelos a Resources/legacy y src/UI/legacy o renómbralos con sufijo .legacy.*.
+
+No toques su contenido; solo marca la frontera para que tu mente y tu IDE los vean como “no ampliables”.
+
+2. Declarar un “núcleo ERA 5” mínimo
+Ahora, define explícitamente qué es el “motor aséptico” al que todo le debe obedecer.
+
+Tu propia conversación ya tiene el contrato casi completo; puedes formalizarlo así:
+
+Schema ERA 5 (YAML) autoritario (en C++ o TS, me da igual mientras sea rígido):
+
+layout: hpMin, rack (UPPER 3U / LOWER 1U), directivas de auto-layout (break, grupos).
+
+registry: lista de entidades con campos obligatorios:
+
+id, label, type (int, float, bool, string, list),
+
+precision (DSP), uiPrecision (display),
+
+roles (control, signal, modtarget, modsource, expert...),
+
+direction (input, output),
+
+presentation (tab, group, order),
+
+attachments (LED, display, etc.) con reglas claras de binding.
+
+Si falta algo, error duro; nada de “lo infiero”.
+
+Catálogo ERA 5:
+
+Carga solo manifests que pasen el schema ERA 5.
+
+No traduce a parameters/ports; el modelo interno es 1:1 con el manifest (Entity, Role, ControlCell).
+
+Builder de ViewModel:
+
+A partir de registry + layout, genera:
+
+la estructura de tabs (Main, Patching, Setup, MIDI...),
+
+grupos, orden, y apilado de control cells (LED+knob+display).
+
+Renderer ERA 5:
+
+Solo entiende ese view model.
+
+No sabe nada de ModuleJuno, uiLayout, ni de grids antiguos.
+
+Capa de binding:
+
+Resuelve para cada Entity:
+
+binding de valor (ID → param del engine),
+
+binding de telemetría (ID → stream),
+
+binding de patching (sources/targets) hacia Patchbay Hub.
+
+Tu objetivo inmediato: que este núcleo compile y pueda renderizar exactamente un módulo ERA 5 sin tocar nada legacy.
+
+3. Construir un “pipeline vertical” con un solo módulo
+Escoge el módulo que ya habéis conceptualizado a fondo: midi2cvv5.concept.yaml.
+
+Plan:
+
+Refina midi2cvv5.concept.yaml para que cumpla al 100% la constitución ERA 5.2 (tipo, precision, layout, roles, attachments).
+
+Haz que Era5Catalog solo lea ese módulo (puede vivir en Resources/ace/era5-only/).
+
+Implementa Era5ViewModelBuilder y Era5Renderer para que pinten:
+
+rack UPPER/LOWER con HP derivado,
+
+modal con tabs dinámicas (Main, Patching, Setup, MIDI) según roles/presentation,
+
+control cells LED+knob+display donde haya attachments.
+
+Conecta bindings solo a mocks:
+
+valor: en memoria, sin engine real,
+
+telemetría: LFO falso, etc.,
+
+patching: no hace falta compilar rutas reales todavía.
+
+Cuando esto funcione, habrás demostrado que la ERA 5 es ejecutable y no solo textual.
+
+4. Encapsular el legacy en adaptadores explícitos
+Una vez tengas el pipeline ERA 5 corriendo con un módulo:
+
+sitúas los adaptadores entre mundo nuevo y viejo de forma consciente, no salpicada.
+
+Propongo tres adaptadores, máximo:
+
+LegacyManifestAdapter:
+
+Entrada: manifest Era 4 (parameters/ports/uiLayout).
+
+Salida: estructura ERA 5 (layout/registry/roles/attachments).
+
+Uso: solo mientras migres módulos; después desaparecerá.
+
+LegacyParamBindingAdapter:
+
+Entrada: Entity.id, roles, type.
+
+Salida: nombres o indexes que el engine actual entienda.
+
+Internamente puede depender de ParamBindingRegistry y ValueTree.
+
+LegacyPatchbayAdapter:
+
+Entrada: roles de modsource/modtarget.
+
+Salida: rutas para Patchbay Matrix 2.0 actual.
+
+Regla: ningún otro sitio del código nuevo puede leer directamente estructuras Era 4; siempre a través de estos adaptadores.
+
+Eso te obliga a que todo lo nuevo piense en ERA 5, y el legacy solo exista como traducción temporal.
+
+5. Clasificar y migrar módulos, no capas enteras
+En lugar de “refactorizar toda la UI”, migra módulo por módulo con el pipeline ya establecido.
+
+Para cada módulo:
+
+¿Tiene código UI específico / manifest viejo?
+
+Sí → reescribir manifest en ERA 5, y añadir bindings en Era5BindingLayer.
+
+Mientras tanto, si necesitas usarlo, pasa por LegacyManifestAdapter.
+
+¿Tiene DSP acoplado a estructuras antiguas (nombres, índices mágicos)?
+
+Documenta qué IDs semánticos corresponderán en ERA 5 (ej. midi2cv.noteOut).
+
+Crea en ParamBindingRegistry las rutas necesarias para resolver esos IDs.
+
+Cuando un módulo tenga:
+
+manifest ERA 5,
+
+bindings directos sin adaptador,
+
+UI y patching sin rutas especiales,
+
+entonces puedes retirar su manifest viejo y cualquier ruta legacy asociada.
+
+De esta forma, tu “mapa de contaminación” se convierte en una lista finita de módulos pendientes, no en una niebla general.
+
+6. Criterios de “pureza ERA 5” para darte feedback objetivo
+Para saber si vas en línea recta y no en zigzag, define checklists muy concretos:
+
+Un módulo es 100% ERA 5 si:
+
+No existe ningún if (id == "JUNO" / "ms20" / etc.) en Renderer, Modal o Manager.
+
+Su manifest solo usa registry/roles/layout/attachments/lookups.
+
+La UI se organiza solo por presentation.tab/group/order y no hay código que lo “reclasifique”.
+
+Sus bindings hacia engine y Patchbay no pasan por adaptadores legacy (o los adaptadores son no-op).
+
+Puedes añadir o quitar una ControlCell en el YAML sin tocar TypeScript/C++.
+
+Cuando tengas 2–3 módulos en ese estado, el resto del trabajo será rutinario.
+
+7. Qué te propongo como siguiente paso concreto
+Para que esto no se quede en teoría, te propongo una acción inmediata:
+
+Elegimos juntos un directorio concreto (por ejemplo Resources/ace, src/UI, src/CoreProviders) y hago para ti una tabla de clasificación:
+
+archivos marcadamente legacy a congelar,
+
+candidatos a adaptador,
+
+piezas que ya están muy cerca de ERA 5 y valen la pena reutilizar,
+
+huecos donde falta aún crear el “Era5Catalog / Era5ViewModel / Era5Renderer”.
+
+¿Te encaja más que empecemos por la capa WebUI/TS (renderer y modal) o por la zona C++ core/manifest/preset para definir bien el schema y los bindings?
+
+
+
+
+
+para construir el núcleo central de la WebUI/TS, yo no empezaría por módulos concretos, sino por consolidar el eje MetadataStore → ModuleManager → ModuleRenderer → RPC/State Sync. El propio bundle ya apunta a esa dirección: la renderización está convergiendo a ModuleRenderer genérico, con resolución de descriptores desde catálogo/manifiesto/inventory y generación semántica del layout cuando no hay items explícitos.
+
+Núcleo central
+Tu núcleo TS ya tiene una forma bastante clara y, de hecho, casi te está “pidiendo” ser formalizado como una arquitectura estable de 5 piezas: MetadataStore, Catalog/Manifest normalization, ModuleManager, ModuleRenderer y State/Event bridge.
+
+ModuleManager decide qué instancias existen y en qué rack viven; ModuleRenderer decide cómo se pintan; metadataStore y omegaCatalog son la fuente de verdad para parámetros, inventory y layouts; y handleOmegaMessage distribuye los cambios de estado a manager, patchbay y modal de configuración.
+
+Orden recomendado
+Yo lo atacaría en este orden:
+
+MetadataStore fuerte y tipado.
+
+DescriptorResolver único.
+
+ModuleRenderer genérico completo.
+
+ModuleManager puramente estructural.
+
+State hub / event bus para difundir cambios.
+
+Módulos especiales mínimos, solo donde de verdad aporten algo.
+
+Ese orden encaja con la intención del proyecto de reducir hardcode y de priorizar rendering declarativo desde manifiestos en vez de paneles específicos por módulo.
+
+Qué dejaría fuera al principio
+Yo no invertiría ahora en nuevos ModuleX especializados, salvo excepciones muy justificadas como un osciloscopio, un visor MIDI o una vista avanzada de patching. El bundle ya dice que “Any specialized ModuleX class is now deprecated in favor of data-driven ModuleRenderer”, aunque mantiene un caso especial para midi2cv.
+
+Eso sugiere que el camino correcto es que lo normal sea descriptor + manifest + renderer genérico, y lo excepcional sea un widget especializado porque necesita interacción o visualización no trivial.
+
+Pieza 1: MetadataStore
+MetadataStore debe convertirse en el auténtico source of truth frontend para:
+
+parámetros,
+
+inventory de módulos,
+
+manifests normalizados,
+
+metadatos de modulación,
+
+lookups por id, instanceId y canonical ID.
+
+Ahora ya se usa así en varias zonas: ensureLoaded(), getModulationMetadata(), getParam(), getInventoryItem() y acceso directo a inventory; por eso merece encapsular mejor la normalización y dejar de depender de búsquedas “manuales” dispersas.
+
+Pieza 2: resolver de descriptores
+Ahora mismo ModuleManager.resolveDescriptor() mezcla varias fuentes: primero window.omegaCatalog, luego metadataStore.inventory, y finalmente ModuleDescriptors hardcoded como fallback.
+
+Yo sacaría eso a un DescriptorResolver formal con precedencia explícita:
+
+manifest.layout/uiLayout si existe.
+
+catalog.uiLayout si existe.
+
+inventory.uiLayout si existe.
+
+legacy ModuleDescriptors como fallback.
+
+si no hay nada, generación semántica desde registry.
+
+Con eso eliminas lógica repetida, haces más testeable el sistema y dejas ModuleManager limpio, dedicado a estructura y no a resolver layouts.
+
+Pieza 3: ModuleRenderer
+Ésta es la pieza más importante. ModuleRenderer ya normaliza descriptor con precedencia del manifest, soporta uiLayout legacy como string JSON, y puede autogenerar layout desde registry cuando no hay items explícitos.
+
+Además ya cubre bastantes looks (knob, slider-v, slider-h, select, switch, toggle, button, display, led) y sincroniza cambios por setParam() y onStateUpdate(), así que aquí hay una base muy válida para convertirlo en el “panel universal” de OMEGA.
+
+Qué le falta al renderer
+Yo reforzaría ModuleRenderer en cuatro frentes:
+
+Render pipeline declarativo, separando mejor normalize → layout model → DOM render → bind.
+
+Sistema de widgets registrables, para que look no dependa de un switch enorme.
+
+Soporte más claro para puertos/telemetría/modulación, no solo parámetros.
+
+Actualización incremental, para no tocar todo el DOM si solo cambian dos valores.
+
+Ahora el renderer ya hace parte de eso, pero todavía se nota una implementación monolítica centrada en strings HTML y bindings directos sobre el DOM.
+
+Pieza 4: ModuleManager
+ModuleManager hoy hace tres trabajos a la vez: interpreta el estado estructural, decide el rack, resuelve descriptor y además instancia clases concretas.
+
+Yo lo dejaría solo como orquestador estructural:
+
+recibe estado,
+
+calcula árbol de módulos visibles,
+
+compara contra el árbol anterior,
+
+monta/desmonta instancias,
+
+difunde updates a las instancias activas.
+
+Eso encaja con su comportamiento actual de distinguir entre cambios estructurales y simples cambios de estado, evitando re-render completo cuando el número/estructura de módulos no cambia.
+
+Estructura de datos ideal
+Para esa fase central, el frontend debería trabajar con una entidad intermedia tipo ModuleViewModel:
+
+instanceId
+
+componentId
+
+canonicalId
+
+label
+
+rack
+
+group
+
+layer
+
+manifest
+
+descriptor
+
+registry
+
+params
+
+telemetryBindings
+
+ports
+
+uiFlags
+
+Hoy esos datos existen, pero repartidos entre state, inventory, catalog, descriptor y options pasadas a addModule(). Centralizarlos simplificaría muchísimo el sistema.
+
+Eventos y sincronización
+La WebUI recibe mensajes por handleOmegaMessage, y desde ahí reenvía onStateUpdate a moduleManager, patchbayHub y modulePatchModal; además hay listeners JUCE para cambios de parámetro, LCD, versión y banco/patch.
+
+Yo unificaría eso con un state hub muy pequeño, algo como OmegaUiStateBus, para que no tengas varios caminos paralelos de actualización. Ahora mismo parece convivir el flujo por backend JUCE y el flujo por RPC/evento de estado general, y eso suele acabar en incoherencias si crece.
+
+Qué sería el verdadero “core”
+Si lo aterrizo en una decisión concreta: el core WebUI/TS no sería “los módulos”, sino estas interfaces y servicios:
+
+MetadataStore
+
+DescriptorResolver
+
+ModuleRegistry o WidgetRegistry
+
+ModuleManager
+
+ModuleRenderer
+
+UiStateBus
+
+RpcAdapter
+
+Con eso ya puedes enchufar cualquier módulo nuevo al final, porque el sistema central ya sabe descubrirlo, pintarlo, enlazar parámetros y reaccionar al estado.
+
+Qué haría con los descriptores hardcoded
+Los ModuleDescriptors legacy siguen siendo útiles, pero yo los trataría como una capa de compatibilidad, no como el camino principal. El bundle deja claro que aún existen muchos paneles definidos así, pero la tendencia es reemplazarlos por datos de catálogo/manifiesto y por registro semántico.
+
+Mi recomendación sería:
+
+mantenerlos para módulos antiguos,
+
+migrarlos poco a poco a manifests,
+
+y no crear muchos nuevos salvo que sean necesarios como bootstrap.
+
+Excepciones razonables
+Sí dejaría módulos específicos para:
+
+Patchbay workspace, porque es una interacción compleja y no un panel estándar.
+
+Oscilloscope / telemetry visual, porque necesita rendering temporal propio.
+
+MIDI viewer / monitor, por la misma razón.
+
+quizá ModulePatchModal, si actúa como editor avanzado de puertos/rutas y no como simple panel.
+
+Todo lo demás intentaría resolverlo con renderer declarativo.
+
+Mi recomendación práctica
+Si mañana hubiese que trabajar sobre esto, yo propondría esta estrategia:
+
+Fase A: blindar MetadataStore y DescriptorResolver.
+
+Fase B: convertir ModuleRenderer en renderer universal extensible por widgets.
+
+Fase C: adelgazar ModuleManager para que solo monte/desmonte y rote eventos.
+
+Fase D: aislar casos especiales, patchbay y scopes.
+
+Fase E: dejar la creación de nuevos módulos para el final, cuando ya todo entre por el mismo pipeline.
+
+Eso es exactamente coherente con lo que dices: hacer primero el núcleo central de la WebUI/TS y dejar los módulos para lo último.
+
+Cómo lo resumiría
+Mi postura es: sí, el siguiente paso correcto es consolidar un core declarativo de frontend y no seguir añadiendo paneles/módulos individuales. El código ya contiene las pistas de esa arquitectura: ModuleRenderer genérico, resolución por manifest/catálogo/inventory, generación semántica desde registry, y un ModuleManager que ya sabe distinguir estructura de estado.
+
+Si quieres, en el siguiente mensaje te hago una de estas dos cosas:
+
+un diseño técnico concreto del core WebUI/TS con clases, interfaces y responsabilidades,
+
+o un plan de refactor por fases sobre tus ficheros actuales (manager.ts, renderer.ts, metadatastore.ts, etc.).
+
+
+
+si lo diseñamos como producto nuevo, sin retrocompatibilidad, entonces yo haría una WebUI 100% schema-driven, donde el backend publica un grafo de módulos, parámetros, puertos, vistas y acciones, y el frontend solo hace cinco cosas: cargar esquema, construir view-models, renderizar widgets, sincronizar estado y emitir comandos. Eso encaja con la dirección que ya insinuaba el bundle, pero aquí lo llevaríamos a una forma más limpia, sin capas legacy ni fallbacks a descriptores hardcoded.
+
+Principio rector
+La idea central sería: el frontend no conoce módulos concretos. Conoce únicamente:
+
+tipos de entidad,
+
+contratos de UI,
+
+tipos de widget,
+
+canales de estado,
+
+y acciones RPC.
+
+En el bundle actual ya aparece esta orientación porque ModuleRenderer puede construir paneles desde registry y presentation.ui, mientras que el store y el RPC ya exponen metadata, inventory y parámetros; la diferencia es que en el diseño nuevo eso dejaría de ser una tendencia y pasaría a ser la regla absoluta.
+
+Objetivo del core
+El core debería resolver estas cuatro preguntas:
+
+Qué existe: módulos, puertos, parámetros, acciones, tabs, vistas.
+
+Cómo se ve: layout, grupos, widgets, labels, variantes, adjuntos visuales.
+
+Cuál es su estado: valores, telemetría, disponibilidad, conexión, bypass, selección.
+
+Cómo se interactúa: comandos, binding bidireccional, modulación, navegación y edición.
+
+Eso reemplaza el enfoque actual donde el manager todavía interpreta distintas estructuras (layers, auxiliary, mainChain, voiceArch) y el renderer mezcla descriptor, manifest y fallback.
+
+Arquitectura propuesta
+Yo la dividiría en 7 subsistemas:
+
+Subsistema	Responsabilidad
+SchemaStore	Cargar y cachear esquema declarativo completo del sinte.
+PatchStore	Mantener el estado vivo: valores, telemetría, selección, patchbay.
+GraphStore	Mantener la topología de módulos, racks, capas y conexiones.
+ViewModelBuilder	Transformar schema + estado en modelos listos para render.
+WidgetRegistry	Mapear widgetType a implementación visual/interactiva.
+LayoutEngine	Resolver tabs, grupos, grid, paneles, docks y workspaces.
+CommandBus	Emitir comandos al backend y distribuir eventos entrantes.
+Esto simplifica mucho respecto al bundle actual, donde MetadataStore, ModuleManager, ModuleRenderer, handleOmegaMessage y varias ventanas/modales comparten responsabilidades de forma parcial.
+
+Modelo de datos
+Yo no usaría “descriptor” como concepto principal. Usaría tres niveles formales:
+
+Schema: definición estática o semicambiante del sistema.
+
+Graph: instancias activas en el patch/preset actual.
+
+State: valores vivos y telemetría.
+
+Eso evita mezclar en el mismo objeto cosas de catálogo, layout y runtime, que es justo lo que hoy pasa en resolveDescriptor() y addModule() al combinar componentId, manifest, inventory, uiLayout y estado estructural.
+
+Contrato del schema
+El backend debería servir un único documento inicial, por ejemplo getUiSchema(), con:
+
+system
+
+modules
+
+widgets
+
+parameterDefs
+
+signalDefs
+
+views
+
+actions
+
+themes
+
+patchingRules
+
+Eso sustituiría la combinación actual de getMetadata(), getModulationMetadata(), listCatalog y manifiestos recuperados indirectamente desde inventory; ahora mismo esa información está repartida en varias llamadas y estructuras.
+
+Entidades base
+Yo definiría estas entidades TS:
+
+ts
+type ModuleTypeId = string;
+type ModuleInstanceId = string;
+type ParamId = string;
+type PortId = string;
+type ViewId = string;
+type WidgetTypeId = string;
+Y luego:
+
+ts
+interface UiSchema {
+  system: SystemSchema;
+  moduleTypes: Record<ModuleTypeId, ModuleTypeSchema>;
+  parameterDefs: Record<ParamId, ParameterSchema>;
+  widgetTypes: Record<WidgetTypeId, WidgetSchema>;
+  views: Record<ViewId, ViewSchema>;
+  patching: PatchingSchema;
+}
+Esto es coherente con el proyecto porque ya hay una noción de inventory, parámetros, presentation/ui, tabs y patchbay, pero todavía no están unificados bajo un solo contrato.
+
+ModuleTypeSchema
+Cada tipo de módulo debería declararse así:
+
+ts
+interface ModuleTypeSchema {
+  id: ModuleTypeId;
+  title: string;
+  family: 'osc' | 'filter' | 'env' | 'lfo' | 'fx' | 'utility' | 'io';
+  category: string;
+  defaultRack: 'upper' | 'lower' | 'workspace';
+  panel: PanelSchema;
+  ports: PortSchema[];
+  params: ModuleParamRef[];
+  telemetry?: TelemetrySchema[];
+  actions?: ActionSchema[];
+  capabilities?: CapabilityFlags;
+}
+La idea sale directamente de lo que hoy se extrae de inventory/catalog/manifests: id, name/title, rack, uiLayout, registry, y metadatos de modulación/telemetría.
+
+PanelSchema
+Aquí estaría el verdadero corazón visual:
+
+ts
+interface PanelSchema {
+  hp?: number;
+  theme?: string;
+  tabs: PanelTabSchema[];
+  header?: HeaderSchema;
+  footer?: FooterSchema;
+}
+Cada tab contendría grupos y cada grupo contendría items de UI. Esto se parece bastante a la idea del parser Era 5.2, que ya convierte manifest.registry en tabs y grupos usando presentation.tab, presentation.group y presentation.order; simplemente aquí lo haríamos como contrato primario, no como parser sobre una forma intermedia.
+
+UI items
+Cada item de UI debería ser explícito y tipado:
+
+ts
+interface UiItemSchema {
+  id: string;
+  widget: WidgetTypeId;
+  label?: string;
+  bind: BindingRef;
+  layout: GridPlacement;
+  variant?: string;
+  adornments?: AdornmentSchema[];
+  visibility?: VisibilityRule[];
+  enableWhen?: RuleExpr[];
+}
+Eso formaliza lo que hoy aparece implícitamente en items con campos como paramId, source, portId, look, label, row, col, colSpan y variant.
+
+Binding unificado
+No usaría paramId o source mezclados según el caso. Haría un binding unificado:
+
+ts
+type BindingRef =
+  | { kind: 'param'; id: ParamId }
+  | { kind: 'telemetry'; id: string }
+  | { kind: 'port'; id: PortId }
+  | { kind: 'action'; id: string }
+  | { kind: 'computed'; expr: string };
+Eso mejora el modelo actual, donde el renderer decide sobre la marcha si el item se liga a paramId, source o portId, y luego tiene ramas separadas en renderItem, bind y onStateUpdate.
+
+WidgetRegistry
+Yo haría un registro de widgets, no un switch (look) gigante. Ahora mismo ModuleRenderer ya tiene un switch para knob, slider-v, slider-h, select, button, toggle, display, led; eso funciona, pero escala mal.
+
+El diseño nuevo sería:
+
+ts
+interface WidgetController {
+  mount(ctx: WidgetMountContext): WidgetInstance;
+}
+
+interface WidgetInstance {
+  update(value: unknown, ctx: WidgetUpdateContext): void;
+  destroy(): void;
+}
+Y un registro:
+
+ts
+class WidgetRegistry {
+  register(type: WidgetTypeId, controller: WidgetController): void;
+  resolve(type: WidgetTypeId): WidgetController;
+}
+Widgets base
+Los widgets del core serían pocos y genéricos:
+
+knob
+
+fader
+
+switch
+
+toggle
+
+select
+
+button
+
+valueDisplay
+
+led
+
+meter
+
+wavePreview
+
+portJack
+
+scopeMini
+
+xyPad
+
+keyboardZone
+
+Esto encaja con los controles ya visibles en el bundle, pero evita crear componentes de módulo enteros si lo único especial es un control concreto.
+
+Stores
+Yo separaría muy claramente los stores.
+
+SchemaStore
+Carga una sola vez el contrato declarativo global.
+No contiene estado mutable del patch.
+
+GraphStore
+Contiene instancias activas:
+
+ts
+interface PatchGraph {
+  racks: RackView[];
+  modules: ModuleNode[];
+  connections: ConnectionEdge[];
+}
+Esto sustituye el parsing actual de layers, auxiliary, mainChain, voiceChain y categorías heredadas.
+
+PatchStore
+Contiene:
+
+valores de parámetros,
+
+telemetría,
+
+estado de selección,
+
+bypass/mute/solo,
+
+y patchbay state.
+
+Eso reemplazaría el enfoque actual donde el estado llega por onStateUpdate y cada subsistema decide qué parte le interesa.
+
+CommandBus
+El frontend debería tener una sola salida hacia el backend:
+
+ts
+interface CommandBus {
+  dispatch(command: UiCommand): Promise<UiCommandResult>;
+  subscribe(eventType: string, handler: (e: UiEvent) => void): Unsubscribe;
+}
+Comandos típicos:
+
+param.set
+
+module.add
+
+module.remove
+
+module.move
+
+patch.connect
+
+patch.disconnect
+
+preset.load
+
+preset.save
+
+ui.select
+
+ui.focus
+
+Hoy ya existe un patrón parecido vía omegaRPC.setParam(), send(...), menuAction(...) y handleOmegaMessage, pero está demasiado disperso entre bridge legacy, mensajes de backend y llamadas ad hoc.
+
+Flujo de arranque
+El arranque nuevo sería mucho más limpio:
+
+boot()
+
+schemaStore.load()
+
+graphStore.loadInitialGraph()
+
+patchStore.loadInitialState()
+
+layoutEngine.mountShell()
+
+workspaceRenderer.render(graph + state)
+
+commandBus.subscribe(events)
+
+En el bundle actual el bootstrap mezcla ensureLoaded, getModulationMetadata, inicialización de modales, browser, patchbay hub, app init y listeners globales; funcional, sí, pero poco compacto como núcleo nuevo.
+
+LayoutEngine
+El layout no debería vivir dentro del module renderer. El LayoutEngine debería resolver:
+
+shell general,
+
+racks,
+
+workspaces,
+
+paneles flotantes,
+
+modales,
+
+tabs,
+
+groups,
+
+grid placement.
+
+Ahora mismo parte de eso está mezclado entre HTML fijo de la app, ModuleRenderer, Era5ManifestParser y componentes concretos como browser o patch modal.
+
+Racks y workspaces
+Yo distinguiría tres superficies oficiales:
+
+RackView: módulos de voz/chain.
+
+WorkspaceView: patchbay, osciloscopio grande, inspector, browser.
+
+OverlayView: modales y paneles contextuales.
+
+Esto encaja con el bundle, donde ya existen racks superior/inferior, un patchbay hub modal, un browser modal y un modal de configuración unificado; la diferencia es que aquí eso quedaría diseñado desde el principio y no como conjunto de ventanas acopladas.
+
+Module instances
+El backend debería enviar un grafo limpio:
+
+ts
+interface ModuleNode {
+  instanceId: ModuleInstanceId;
+  typeId: ModuleTypeId;
+  rack: 'upper' | 'lower' | 'workspace';
+  order: number;
+  layer?: string;
+  group?: string;
+  title?: string;
+  enabled: boolean;
+}
+Y ya está. Sin componentId/item.id/node.id/slotName ni inferencias por varias rutas como ocurre hoy en ModuleManager.
+
+ViewModelBuilder
+Esta pieza es clave. Convierte:
+
+schema,
+
+node del grafo,
+
+patch state,
+
+selección actual,
+
+en un ModuleViewModel renderizable.
+
+Algo así:
+
+ts
+interface ModuleViewModel {
+  instanceId: string;
+  title: string;
+  rack: string;
+  panel: ResolvedPanelVm;
+  ports: PortVm[];
+  status: ModuleStatusVm;
+}
+Esto descarga al renderer de tener que resolver metadatos cada vez y elimina el patrón actual de “normalizar descriptor y buscar params sobre la marcha”.
+
+Renderer de panel
+Yo tendría un único PanelRenderer genérico con esta responsabilidad:
+
+recibe ModuleViewModel,
+
+crea estructura DOM del panel,
+
+delega cada UiItemVm al WidgetRegistry,
+
+actualiza incrementalmente.
+
+Esto es conceptualmente parecido al ModuleRenderer actual, pero más limpio porque el renderer ya no decidiría ni de dónde viene el schema ni cómo se construyó el layout.
+
+Patching
+El patchbay no lo modelaría como modal “especial” del todo. Lo modelaría como una vista sobre el mismo grafo y los mismos puertos. El bundle ya muestra que el sistema tiene inventario, sources, targets y actualización dedicada de patchbay matrix, así que la información ya existe en el dominio.
+
+Modelo:
+
+ts
+interface ConnectionEdge {
+  id: string;
+  fromPortId: string;
+  toParamId: string;
+  amount: number;
+  via?: string;
+  enabled: boolean;
+}
+Con esto puedes renderizar:
+
+una matriz,
+
+un inspector,
+
+badges de modulación en cada panel,
+
+o cables visuales si algún día quieres.
+
+Telemetría
+La telemetría debe ser un canal separado del estado de parámetros. En el bundle actual ambos ya aparecen diferenciados en onStateUpdate, donde el renderer trata parámetros y telemetría por separado; yo mantendría eso como principio firme.
+
+Así, PatchStore tendría:
+
+paramValues
+
+telemetryValues
+
+connectionValues
+
+uiState
+
+Selección y foco
+También separaría el estado de UI pura:
+
+ts
+interface UiSessionState {
+  selectedModuleId?: string;
+  selectedPortId?: string;
+  activeWorkspace?: string;
+  openOverlays: string[];
+  focusedControlId?: string;
+}
+Ahora mismo estas cosas se reparten entre DOM, modales abiertos y componentes con estado propio.
+
+Organización de paquetes
+Yo estructuraría el frontend así:
+
+text
+src/
+  app/
+    boot.ts
+    shell.ts
+  core/
+    schema/
+    graph/
+    state/
+    commands/
+    events/
+    viewmodels/
+  rendering/
+    panels/
+    widgets/
+    layout/
+    theme/
+  features/
+    rack/
+    patchbay/
+    browser/
+    presets/
+    preferences/
+    service/
+  adapters/
+    rpc/
+    juce/
+  types/
+Eso sustituye la organización actual más centrada en archivos por componente suelto (modulemanager, modulerenderer, preferences, service, browser, etc.).
+
+Stack recomendado
+Si fuese nuevo de verdad, yo haría dos opciones:
+
+Opción A: Web Components + stores propios, si quieres control fino, poco runtime y máxima proximidad al DOM.
+
+Opción B: React + Zustand + typed schema, si quieres velocidad de desarrollo y composición más cómoda.
+
+Dado el perfil del proyecto y tu manera de trabajar, yo probablemente elegiría Web Components o Lit + Zustand-like store minimal, porque encaja bien con una UI modular, widgets reutilizables y un shell embebido en plugin. El bundle actual es DOM imperativo puro, así que un paso intermedio razonable sería Lit/Web Components antes que una SPA pesada.
+
+Decisiones de diseño que sí tomaría ya
+Un solo contrato de schema.
+
+Un solo bus de comandos y eventos.
+
+Un solo renderer genérico de paneles.
+
+Widgets registrables en vez de switch por look.
+
+Grafo explícito de módulos/puertos/conexiones.
+
+Stores separados para schema, graph, runtime state y UI session.
+
+Nada de módulos hardcoded salvo widgets especiales.
+
+Lo que no haría
+No mezclaría layout con runtime state.
+
+No usaría window.* como bus principal de dependencias. El bundle actual lo usa mucho para compatibilidad global.
+
+No pondría lógica de resolución de schema dentro del renderer.
+
+No haría que ModuleManager conozca widgets o markup.
+
+No duplicaría información entre inventory, catálogo y manifiesto.
+
+Diseño mínimo viable
+Si quieres empezar pequeño pero bien diseñado, el MVP técnico sería:
+
+SchemaStore
+
+PatchStore
+
+GraphStore
+
+CommandBus
+
+ViewModelBuilder
+
+PanelRenderer
+
+WidgetRegistry
+
+widgets base: knob, fader, toggle, select, display, led, meter
+
+RackView
+
+PatchbayWorkspace
+
+Con eso ya puedes levantar toda la WebUI nueva sin escribir módulos concretos uno a uno.
+
+Mi propuesta final
+Yo diseñaría el núcleo como un frontend declarativo basado en schema + graph + state, donde el backend describe completamente el sintetizador y el frontend solo compone vistas, widgets y comandos. El equivalente conceptual al ModuleRenderer actual seguiría existiendo, pero ya no como pieza “lista para todo”, sino como una capa limpia entre ViewModelBuilder y WidgetRegistry; y el equivalente al ModuleManager actual se reduciría a gestionar la presencia y orden de nodos del grafo, no a decidir cómo se ven.
+
+Si quieres, en el siguiente mensaje te hago ya el blueprint concreto en TypeScript, con interfaces, clases principales y flujo de datos entre ellas.
+
+
+
+te propongo un blueprint técnico concreto para una WebUI nueva, sin retrocompatibilidad, orientada a schema + graph + state + commands. La propuesta toma como base lo que ya demuestra el bundle —RPC con getMetadata, getModulationMetadata, setParam, eventos onStateUpdate/onPatchbayMatrixUpdate, parser tab/grupo desde presentation, y renderer genérico por look/widget— pero reorganizado como arquitectura limpia de primer día.
+
+Visión del sistema
+La WebUI se diseña como un runtime declarativo de instrumentos. El backend expone contratos; el frontend no conoce un “Juno panel” o un “MS-20 panel”, sino tipos de módulo, vistas, widgets y bindings.
+
+Esto encaja con el proyecto actual porque ya hay una separación emergente entre metadata, inventory, patching, tabs/grupos de presentación y renderizado genérico de controles; además, el bridge ya enruta comandos como setParam, getMetadata, getTelemetry, listCatalog y getModulationMetadata, y emite eventos de sincronización para rack completo y patchbay.
+
+Capas
+Propongo estas capas:
+
+Transport: RPC y stream de eventos.
+
+Domain contracts: schema, graph, state, commands, events.
+
+Stores: schema, graph, runtime, session.
+
+View-model: resolver y normalizar vistas listas para render.
+
+Rendering: shell, panel renderer, widget registry, workspaces.
+
+Features: rack, patchbay, browser, preset, preferences, service.
+
+Eso sustituye la mezcla actual donde MetadataStore, ModuleManager, ModuleRenderer, OmegaApp, ModuleBrowser, ModulePatchModal y PatchbayHub comparten parte del flujo.
+
+Estructura de paquetes
+text
+src/
+  app/
+    boot.ts
+    container.ts
+    shell.ts
+  transport/
+    rpcClient.ts
+    eventStream.ts
+    backendAdapter.ts
+  domain/
+    schema.ts
+    graph.ts
+    state.ts
+    commands.ts
+    events.ts
+  stores/
+    schemaStore.ts
+    graphStore.ts
+    runtimeStore.ts
+    sessionStore.ts
+  vm/
+    viewModelBuilder.ts
+    selectors.ts
+  rendering/
+    panelRenderer.ts
+    widgetRegistry.ts
+    widgets/
+    layout/
+    theme/
+  features/
+    rack/
+    patchbay/
+    browser/
+    presets/
+    preferences/
+    service/
+  utils/
+    ids.ts
+    rules.ts
+    memo.ts
+Esta separación responde a problemas visibles en el bundle: el bootstrap mezcla carga de metadata con inicialización de modales, el renderer resuelve schema y DOM a la vez, y el manager interpreta estructura y crea vistas en la misma pieza.
+
+Contratos de dominio
+Schema
+El backend debería exponer un único getUiSchema() que unifique lo que hoy está repartido entre getMetadata, getModulationMetadata, listCatalog y manifiestos de registry/layout.
+
+ts
+export interface UiSchema {
+  system: SystemSchema;
+  moduleTypes: Record<ModuleTypeId, ModuleTypeSchema>;
+  parameterDefs: Record<ParamId, ParameterSchema>;
+  telemetryDefs: Record<TelemetryId, TelemetrySchema>;
+  portDefs: Record<PortTypeId, PortTypeSchema>;
+  views: Record<ViewId, ViewSchema>;
+  widgetDefs: Record<WidgetTypeId, WidgetSchema>;
+  patching: PatchingSchema;
+  theme: ThemeSchema;
+}
+IDs tipados
+ts
+export type ModuleTypeId = string;
+export type ModuleInstanceId = string;
+export type ParamId = string;
+export type TelemetryId = string;
+export type PortId = string;
+export type PortTypeId = string;
+export type WidgetTypeId = string;
+export type ViewId = string;
+Esto evita la ambigüedad actual entre id, componentId, instanceId, slotName, nodeId y similares que el manager actual tiene que normalizar.
+
+Módulo tipo
+ts
+export interface ModuleTypeSchema {
+  id: ModuleTypeId;
+  title: string;
+  family: 'osc' | 'filter' | 'env' | 'lfo' | 'fx' | 'utility' | 'io';
+  category: string;
+  capabilities: CapabilityFlags;
+  defaults: ModuleDefaults;
+  panel: PanelSchema;
+  ports: PortSchema[];
+  params: ModuleParamRef[];
+  telemetry?: ModuleTelemetryRef[];
+  actions?: ActionSchema[];
+}
+Esto formaliza en una sola entidad lo que en el bundle aparece repartido entre catálogo, inventory y registry.
+
+Panel schema
+El panel no debería inferirse desde diferentes formatos. Debería venir ya resuelto en el schema:
+
+ts
+export interface PanelSchema {
+  hp?: number;
+  theme?: string;
+  header?: PanelHeaderSchema;
+  tabs: PanelTabSchema[];
+  footer?: PanelFooterSchema;
+}
+ts
+export interface PanelTabSchema {
+  id: string;
+  label: string;
+  groups: PanelGroupSchema[];
+}
+ts
+export interface PanelGroupSchema {
+  id: string;
+  label?: string;
+  layout: GridLayoutSchema;
+  items: UiItemSchema[];
+}
+Esto aprovecha la idea ya presente en el parser Era 5.2, donde presentation.tab, presentation.group y presentation.order generan tabs y grupos ordenados.
+
+UI item schema
+ts
+export interface UiItemSchema {
+  id: string;
+  widget: WidgetTypeId;
+  label?: string;
+  bind: BindingRef;
+  placement: GridPlacement;
+  variant?: string;
+  props?: Record<string, unknown>;
+  adornments?: AdornmentSchema[];
+  visibleWhen?: RuleExpr[];
+  enabledWhen?: RuleExpr[];
+}
+Eso es la evolución directa de los items actuales con look, paramId, source, portId, row, col, colSpan y variant.
+
+Binding unificado
+ts
+export type BindingRef =
+  | { kind: 'param'; id: ParamId }
+  | { kind: 'telemetry'; id: TelemetryId }
+  | { kind: 'port'; id: PortId }
+  | { kind: 'action'; id: string }
+  | { kind: 'computed'; expr: string };
+Esta unificación mejora el renderer actual, que tiene que decidir dinámicamente si un item está ligado a paramId, source o portId y tratar cada caso por separado.
+
+Graph runtime
+El patch activo debe venir como un grafo explícito.
+
+ts
+export interface PatchGraph {
+  racks: RackNode[];
+  modules: ModuleNode[];
+  connections: ConnectionEdge[];
+}
+ts
+export interface ModuleNode {
+  instanceId: ModuleInstanceId;
+  typeId: ModuleTypeId;
+  rackId: string;
+  order: number;
+  layerId?: string;
+  enabled: boolean;
+  titleOverride?: string;
+}
+ts
+export interface RackNode {
+  id: string;
+  kind: 'upper' | 'lower' | 'workspace';
+  label: string;
+}
+Esto elimina la necesidad actual de reconstruir estructura desde layers, auxiliary, mainChain, voiceChain y listas por categorías.
+
+Conexiones
+ts
+export interface ConnectionEdge {
+  id: string;
+  sourcePortId: PortId;
+  targetPortId: PortId;
+  amount?: number;
+  mode?: 'add' | 'mul' | 'replace';
+  enabled: boolean;
+}
+Esto modela de forma limpia lo que hoy se publica como patchbay/matrix/modulation metadata y actualizaciones específicas de patchbay.
+
+Runtime state
+ts
+export interface RuntimeState {
+  params: Record<ParamId, number | string | boolean>;
+  telemetry: Record<TelemetryId, number | string | boolean | number[]>;
+  ports: Record<PortId, PortRuntimeState>;
+  modules: Record<ModuleInstanceId, ModuleRuntimeState>;
+  transport: TransportRuntimeState;
+}
+Separar parámetros y telemetría es importante porque el renderer actual ya los trata por canales distintos en onStateUpdate().
+
+Session state
+ts
+export interface SessionState {
+  selectedModuleId?: ModuleInstanceId;
+  selectedPortId?: PortId;
+  activeWorkspaceId?: string;
+  openPanels: string[];
+  focusedItemId?: string;
+  inspectorTarget?: string;
+}
+Esto extrae a un store formal lo que ahora vive desperdigado entre DOM, modales y componentes particulares.
+
+Commands
+ts
+export type UiCommand =
+  | { type: 'param.set'; paramId: ParamId; value: number | string | boolean }
+  | { type: 'module.add'; moduleTypeId: ModuleTypeId; rackId: string; index?: number }
+  | { type: 'module.remove'; instanceId: ModuleInstanceId }
+  | { type: 'module.move'; instanceId: ModuleInstanceId; rackId: string; index: number }
+  | { type: 'connection.add'; sourcePortId: PortId; targetPortId: PortId; amount?: number }
+  | { type: 'connection.remove'; connectionId: string }
+  | { type: 'preset.load'; presetId: string }
+  | { type: 'preset.save'; name: string }
+  | { type: 'session.selectModule'; instanceId: ModuleInstanceId };
+Esto ordena lo que hoy está repartido entre setParam, menuAction, addModule, loadPreset y updatePatchbayMatrixSlot.
+
+Events
+ts
+export type UiEvent =
+  | { type: 'runtime.updated'; patch: Partial<RuntimeState> }
+  | { type: 'graph.updated'; graph: PatchGraph }
+  | { type: 'connections.updated'; connections: ConnectionEdge[] }
+  | { type: 'preset.loaded'; presetId: string }
+  | { type: 'backend.ready' }
+  | { type: 'error'; message: string };
+Esto simplifica la separación actual entre onStateUpdate, onPatchbayMatrixUpdate, cambios de parámetro APVTS y eventos específicos de backend.
+
+Transport
+RpcClient
+ts
+export interface RpcClient {
+  request<TReq, TRes>(method: string, payload?: TReq): Promise<TRes>;
+}
+EventStream
+ts
+export interface EventStream {
+  subscribe(handler: (event: UiEvent) => void): () => void;
+}
+El bundle actual ya demuestra dos canales: llamada/respuesta por RPC y notificación espontánea desde backend a través de handleOmegaMessage; por tanto, el nuevo diseño debe conservar ese patrón pero con contratos más limpios.
+
+Backend adapter
+ts
+export class BackendAdapter {
+  constructor(
+    private rpc: RpcClient,
+    private events: EventStream
+  ) {}
+
+  async loadSchema(): Promise<UiSchema> { /* request getUiSchema */ }
+  async loadInitialGraph(): Promise<PatchGraph> { /* request getPatchGraph */ }
+  async loadInitialState(): Promise<RuntimeState> { /* request getRuntimeState */ }
+  dispatch(command: UiCommand): Promise<void> { /* map to RPC */ }
+  onEvent(handler: (event: UiEvent) => void): () => void { /* stream */ }
+}
+Esto reemplaza la dependencia actual de window.omegaRPC, window.juce, setupJuceShim y callbacks globales.
+
+Stores
+SchemaStore
+ts
+export class SchemaStore {
+  private schema?: UiSchema;
+
+  async load(adapter: BackendAdapter) {
+    this.schema = await adapter.loadSchema();
+  }
+
+  get(): UiSchema {
+    if (!this.schema) throw new Error('Schema not loaded');
+    return this.schema;
+  }
+}
+GraphStore
+ts
+export class GraphStore {
+  private graph?: PatchGraph;
+
+  set(graph: PatchGraph) { this.graph = graph; }
+  get(): PatchGraph { if (!this.graph) throw new Error('Graph not loaded'); return this.graph; }
+}
+RuntimeStore
+ts
+export class RuntimeStore {
+  private state: RuntimeState = {
+    params: {},
+    telemetry: {},
+    ports: {},
+    modules: {},
+    transport: {}
+  };
+
+  patch(next: Partial<RuntimeState>) {
+    this.state = deepMerge(this.state, next);
+  }
+
+  get(): RuntimeState { return this.state; }
+}
+SessionStore
+ts
+export class SessionStore {
+  private state: SessionState = { openPanels: [] };
+  set(patch: Partial<SessionState>) { this.state = { ...this.state, ...patch }; }
+  get(): SessionState { return this.state; }
+}
+Inyección de dependencias
+ts
+export interface AppContainer {
+  adapter: BackendAdapter;
+  schemaStore: SchemaStore;
+  graphStore: GraphStore;
+  runtimeStore: RuntimeStore;
+  sessionStore: SessionStore;
+  viewModelBuilder: ViewModelBuilder;
+  widgetRegistry: WidgetRegistry;
+  commandBus: CommandBus;
+}
+Esta composición es mucho más limpia que el patrón actual basado en globals window.metadataStore, window.moduleManager, window.patchbayHub, window.modulePatchModal, etc.
+
+ViewModelBuilder
+Es la pieza central del frontend.
+
+ts
+export class ViewModelBuilder {
+  constructor(
+    private schemaStore: SchemaStore,
+    private graphStore: GraphStore,
+    private runtimeStore: RuntimeStore,
+    private sessionStore: SessionStore
+  ) {}
+
+  buildRackView(rackId: string): RackViewModel {
+    const schema = this.schemaStore.get();
+    const graph = this.graphStore.get();
+    const runtime = this.runtimeStore.get();
+    const session = this.sessionStore.get();
+
+    const modules = graph.modules
+      .filter(m => m.rackId === rackId && m.enabled)
+      .sort((a, b) => a.order - b.order)
+      .map(node => this.buildModuleVm(node, schema, runtime, session));
+
+    return { rackId, modules };
+  }
+
+  buildModuleVm(
+    node: ModuleNode,
+    schema: UiSchema,
+    runtime: RuntimeState,
+    session: SessionState
+  ): ModuleViewModel {
+    const type = schema.moduleTypes[node.typeId];
+    return {
+      instanceId: node.instanceId,
+      typeId: node.typeId,
+      title: node.titleOverride ?? type.title,
+      selected: session.selectedModuleId === node.instanceId,
+      panel: this.buildPanelVm(type.panel, runtime),
+      ports: this.buildPortVms(node, type, runtime),
+      status: runtime.modules[node.instanceId] ?? {}
+    };
+  }
+}
+Esto descarga al renderer de la lógica que hoy tiene ModuleRenderer al consultar metadata, normalizar descriptor y leer estado en tiempo real.
+
+View models
+ts
+export interface RackViewModel {
+  rackId: string;
+  modules: ModuleViewModel[];
+}
+ts
+export interface ModuleViewModel {
+  instanceId: ModuleInstanceId;
+  typeId: ModuleTypeId;
+  title: string;
+  selected: boolean;
+  panel: PanelViewModel;
+  ports: PortViewModel[];
+  status: ModuleRuntimeState;
+}
+ts
+export interface PanelViewModel {
+  tabs: PanelTabViewModel[];
+}
+ts
+export interface PanelTabViewModel {
+  id: string;
+  label: string;
+  groups: PanelGroupViewModel[];
+}
+ts
+export interface PanelGroupViewModel {
+  id: string;
+  label?: string;
+  items: UiItemViewModel[];
+  layout: GridLayoutSchema;
+}
+ts
+export interface UiItemViewModel {
+  id: string;
+  widget: WidgetTypeId;
+  label?: string;
+  value: unknown;
+  placement: GridPlacement;
+  variant?: string;
+  props?: Record<string, unknown>;
+  enabled: boolean;
+  visible: boolean;
+  bind: BindingRef;
+}
+CommandBus
+ts
+export class CommandBus {
+  constructor(private adapter: BackendAdapter) {}
+
+  async dispatch(command: UiCommand): Promise<void> {
+    await this.adapter.dispatch(command);
+  }
+}
+Con esto todos los widgets y features emiten comandos por la misma vía, en lugar de hablar directamente con window.omegaRPC.setParam, menuAction o APIs sueltas.
+
+WidgetRegistry
+ts
+export interface WidgetMountContext {
+  el: HTMLElement;
+  item: UiItemViewModel;
+  commands: CommandBus;
+}
+
+export interface WidgetUpdateContext {
+  item: UiItemViewModel;
+}
+
+export interface WidgetInstance {
+  update(ctx: WidgetUpdateContext): void;
+  destroy(): void;
+}
+
+export interface WidgetController {
+  mount(ctx: WidgetMountContext): WidgetInstance;
+}
+ts
+export class WidgetRegistry {
+  private controllers = new Map<WidgetTypeId, WidgetController>();
+
+  register(type: WidgetTypeId, controller: WidgetController) {
+    this.controllers.set(type, controller);
+  }
+
+  get(type: WidgetTypeId): WidgetController {
+    const ctrl = this.controllers.get(type);
+    if (!ctrl) throw new Error(`Widget not registered: ${type}`);
+    return ctrl;
+  }
+}
+Esto reemplaza el switch monolítico del renderer actual sobre knob, slider-v, select, toggle, display, led, etc.
+
+PanelRenderer
+ts
+export class PanelRenderer {
+  constructor(private registry: WidgetRegistry, private commands: CommandBus) {}
+
+  renderModule(el: HTMLElement, moduleVm: ModuleViewModel): RenderedModule {
+    el.innerHTML = '';
+
+    const panel = document.createElement('section');
+    panel.className = 'omega-panel';
+
+    const title = document.createElement('header');
+    title.className = 'omega-panel__header';
+    title.textContent = moduleVm.title;
+    panel.appendChild(title);
+
+    const body = document.createElement('div');
+    body.className = 'omega-panel__body';
+
+    const widgetInstances: WidgetInstance[] = [];
+
+    for (const tab of moduleVm.panel.tabs) {
+      const tabEl = document.createElement('div');
+      tabEl.className = 'omega-panel__tab';
+
+      for (const group of tab.groups) {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'omega-panel__group';
+
+        for (const item of group.items.filter(i => i.visible)) {
+          const itemEl = document.createElement('div');
+          itemEl.className = 'omega-panel__item';
+          groupEl.appendChild(itemEl);
+
+          const ctrl = this.registry.get(item.widget);
+          const inst = ctrl.mount({
+            el: itemEl,
+            item,
+            commands: this.commands
+          });
+
+          widgetInstances.push(inst);
+        }
+
+        tabEl.appendChild(groupEl);
+      }
+
+      body.appendChild(tabEl);
+    }
+
+    panel.appendChild(body);
+    el.appendChild(panel);
+
+    return {
+      update(nextVm: ModuleViewModel) {
+        // diff/update por item id
+      },
+      destroy() {
+        widgetInstances.forEach(w => w.destroy());
+      }
+    };
+  }
+}
+Rack feature
+ts
+export class RackController {
+  private rendered = new Map<ModuleInstanceId, RenderedModule>();
+
+  constructor(
+    private root: HTMLElement,
+    private vm: ViewModelBuilder,
+    private renderer: PanelRenderer
+  ) {}
+
+  sync(rackId: string) {
+    const rackVm = this.vm.buildRackView(rackId);
+    const activeIds = new Set(rackVm.modules.map(m => m.instanceId));
+
+    for (const [id, rendered] of this.rendered) {
+      if (!activeIds.has(id)) {
+        rendered.destroy();
+        this.rendered.delete(id);
+      }
+    }
+
+    for (const moduleVm of rackVm.modules) {
+      let rendered = this.rendered.get(moduleVm.instanceId);
+
+      if (!rendered) {
+        const host = document.createElement('div');
+        host.dataset.instanceId = moduleVm.instanceId;
+        this.root.appendChild(host);
+        rendered = this.renderer.renderModule(host, moduleVm);
+        this.rendered.set(moduleVm.instanceId, rendered);
+      } else {
+        rendered.update(moduleVm);
+      }
+    }
+  }
+}
+Eso simplifica el rol del ModuleManager actual, que hoy mezcla reconstrucción de racks, resolución de descriptor, elección de clase y creación de DOM.
+
+Widgets base
+Knob
+ts
+export class KnobWidget implements WidgetController {
+  mount(ctx: WidgetMountContext): WidgetInstance {
+    const { el, item, commands } = ctx;
+    el.className = 'widget widget--knob';
+    el.innerHTML = `<button class="knob">${item.label ?? ''}</button>`;
+
+    const knob = el.querySelector('.knob') as HTMLButtonElement;
+
+    const send = (value: number) => {
+      if (item.bind.kind === 'param') {
+        commands.dispatch({ type: 'param.set', paramId: item.bind.id, value });
+      }
+    };
+
+    return {
+      update({ item }) {
+        knob.setAttribute('data-value', String(item.value ?? 0));
+      },
+      destroy() {}
+    };
+  }
+}
+Toggle
+ts
+export class ToggleWidget implements WidgetController {
+  mount(ctx: WidgetMountContext): WidgetInstance {
+    const { el, item, commands } = ctx;
+    const btn = document.createElement('button');
+    btn.className = 'widget widget--toggle';
+    el.appendChild(btn);
+
+    btn.onclick = () => {
+      if (item.bind.kind === 'param') {
+        const next = item.value ? 0 : 1;
+        commands.dispatch({ type: 'param.set', paramId: item.bind.id, value: next });
+      }
+    };
+
+    return {
+      update({ item }) {
+        btn.textContent = item.label ?? '';
+        btn.setAttribute('aria-pressed', String(Boolean(item.value)));
+      },
+      destroy() {}
+    };
+  }
+}
+Patchbay workspace
+El patchbay debe ser una feature sobre el mismo grafo, no un subsistema desconectado. En el bundle actual ya se ve que existe un flujo dedicado de actualización ligera para patchbay (onPatchbayMatrixUpdate) precisamente para evitar reconstrucciones de rack pesadas.
+
+ts
+export class PatchbayWorkspaceController {
+  constructor(
+    private root: HTMLElement,
+    private graphStore: GraphStore,
+    private runtimeStore: RuntimeStore,
+    private commands: CommandBus
+  ) {}
+
+  render() {
+    const graph = this.graphStore.get();
+    const runtime = this.runtimeStore.get();
+    // pinta matriz / inspector / slots
+  }
+}
+Browser feature
+El browser de módulos no debería consultar un catálogo diferente del schema principal. Hoy el ModuleBrowser usa listCatalog y cachea window.omegaCatalog; en el diseño nuevo, simplemente lee schema.moduleTypes.
+
+ts
+export class ModuleBrowserController {
+  constructor(
+    private schemaStore: SchemaStore,
+    private commands: CommandBus
+  ) {}
+
+  listFamilies() { /* derive from schema.moduleTypes */ }
+  addModule(typeId: ModuleTypeId, rackId: string) {
+    return this.commands.dispatch({ type: 'module.add', moduleTypeId: typeId, rackId });
+  }
+}
+Boot sequence
+ts
+export async function boot(container: AppContainer) {
+  await container.schemaStore.load(container.adapter);
+
+  const graph = await container.adapter.loadInitialGraph();
+  container.graphStore.set(graph);
+
+  const state = await container.adapter.loadInitialState();
+  container.runtimeStore.patch(state);
+
+  const shell = createShell();
+  mountShell(shell);
+
+  const upperRack = new RackController(
+    shell.upperRack,
+    container.viewModelBuilder,
+    new PanelRenderer(container.widgetRegistry, container.commandBus)
+  );
+
+  upperRack.sync('upper');
+
+  container.adapter.onEvent((event) => {
+    switch (event.type) {
+      case 'runtime.updated':
+        container.runtimeStore.patch(event.patch);
+        upperRack.sync('upper');
+        break;
+      case 'graph.updated':
+        container.graphStore.set(event.graph);
+        upperRack.sync('upper');
+        break;
+      case 'connections.updated':
+        // refresh patchbay only
+        break;
+    }
+  });
+}
+Este arranque es el equivalente limpio del bootstrap actual con ensureLoaded, getModulationMetadata, uiReady, preload de catálogo e inicialización de patchbay/browser/modales.
+
+APIs backend recomendadas
+Si rediseñas también el bridge, yo expondría estas APIs:
+
+getUiSchema
+
+getPatchGraph
+
+getRuntimeState
+
+dispatchCommand
+
+subscribeEvents
+
+En el estado actual, el bridge ya demuestra que soporta una capa RPC suficientemente rica para esto, aunque hoy esté fragmentada por controladores (RpcPresetController, RpcTelemetryController, RpcMetadataController, RpcModulationController, etc.).
+
+Evolución del bridge
+El OmegaUiBridge actual ya es un router central hacia controladores de preset, telemetría, sistema, metadata, input y modulación, y además emite notificaciones al frontend cuando cambia el estado o la matriz de patchbay.
+
+Por tanto, el rediseño ideal no necesita reinventar el concepto de bridge: necesita reducir el número de métodos públicos y elevar el nivel del contrato, pasando de muchas llamadas de bajo nivel a pocas llamadas estructuradas: schema, graph, runtime, command, events.
+
+Reglas de diseño
+El frontend nunca consulta directamente window.* para estado de negocio.
+
+Los widgets nunca hablan con RPC directamente; siempre usan CommandBus.
+
+El renderer nunca resuelve metadata; solo consume view-models.
+
+El grafo y el runtime state se actualizan por separado.
+
+Patchbay y rack comparten dominio, pero no necesariamente el mismo ritmo de render.
+
+Primer sprint
+Yo implementaría este primer corte:
+
+getUiSchema, getPatchGraph, getRuntimeState en backend.
+
+BackendAdapter, SchemaStore, GraphStore, RuntimeStore, SessionStore.
+
+ViewModelBuilder.
+
+WidgetRegistry con knob, toggle, select, display, led, meter.
+
+PanelRenderer.
+
+RackController para upper y lower.
+
+PatchbayWorkspaceController.
+
+Con eso ya tendrías el “núcleo central” real y los módulos quedarían reducidos a datos de schema más widgets puntuales.
+
+Mi recomendación concreta
+Si quieres la versión más pragmática: construye primero los contratos TS y los stores, no la UI visual. En este proyecto el mayor multiplicador de valor no está en dibujar knobs antes, sino en fijar bien schema, graph, runtime y command flow, porque el bundle demuestra que ahí es donde ahora conviven las mayores tensiones arquitectónicas: metadata por un lado, inventory por otro, parser/tab model por otro, y manager/renderer tratando de cerrar el círculo.
+
+Si quieres, en el siguiente mensaje te puedo dar ya el esqueleto real de código de schema.ts, graph.ts, state.ts, widgetRegistry.ts y viewModelBuilder.ts listo para arrancar el refactor.
+
+
+
+
+antes una pregunta: sería más sencillo iniciar un proyecto nuevo o continuar modificando el que tengo?
+
+Yo te diría: continúa desde el proyecto actual para el backend y el contrato con JUCE, pero arranca una WebUI nueva en paralelo. Rehacer todo desde cero sería innecesario porque ya tienes un bridge funcional, controladores RPC separados y una base de metadata/modulación bastante madura; en cambio, seguir iterando sobre la UI actual te obligará a cargar con demasiada deuda estructural y demasiados globals.
+
+Mi recomendación
+La opción con mejor relación riesgo/beneficio es “strangler pattern”: conservar engine, preset, bridge y contratos útiles, y levantar una nueva front-end app que hable con ese backend mediante un contrato más limpio.
+
+No te recomendaría un “big bang rewrite” completo porque el proyecto ya tiene piezas valiosas y estables —OmegaUiBridge, controladores RPC especializados, eventos onStateUpdate/onPatchbayMatrixUpdate, MetadataStore, parser de presentación y catálogo/inventory— que sería absurdo tirar; pero tampoco te recomendaría seguir ampliando la UI actual como base definitiva porque está fuertemente acoplada a globals, shims de compatibilidad, render imperativo y varias rutas de resolución “fallback”.
+
+Por qué no empezaría todo de cero
+En el lado bueno, la capa C++ ya no está verde: el bridge ya enruta getMetadata, setParam, getSystemSettings, getTelemetry, getModulationMetadata, listCatalog, menuAction, loadPreset y otros métodos a controladores específicos, lo que significa que ya existe una frontera backend/frontend bastante real.
+
+Además, el propio bundle demuestra que el proyecto ya soporta notificaciones asíncronas a la UI, escucha de parámetros desde APVTS y un flujo separado para cambios estructurales frente a cambios ligeros de patchbay, así que no estás partiendo de una integración improvisada.
+
+Por qué no seguiría “encima” de la UI actual
+La WebUI actual está muy condicionada por una arquitectura de transición: hay globals como window.omegaRPC, window.juce, window.metadataStore, window.moduleManager, window.patchbayHub y window.modulePatchModal; además, existe un shim explícito para mapear llamadas legacy de window.juce hacia RPC moderno.
+
+También se ve mucha lógica mezclada: ModuleManager resuelve estructura, decide racks, busca descriptores por múltiples fuentes, crea DOM, instancia clases y aplica fallback a placeholders; OmegaApp concentra bootstrap, eventos, interacciones, modales, menús y sincronización visual; y el renderer aún depende de look, paramId, source, portId y catálogos con múltiples rutas de resolución.
+
+La señal más clara
+La señal más fuerte de que la UI actual ya está forzada es que conviven varias generaciones del mismo concepto:
+
+catálogo precargado con listCatalog,
+
+inventory de getModulationMetadata,
+
+ModuleDescriptors hardcodeados,
+
+parser de presentation.group/order/ui,
+
+resolución por componentId, id, instanceId, canonicalId,
+
+y shims para compatibilidad de API.
+
+Eso no significa que esté “mal”, sino que está actuando como puente evolutivo, no como arquitectura final.
+
+Regla práctica
+Si tu objetivo fuera solo “sacar otra iteración rápido”, podrías seguir modificando la UI actual. Pero si tu objetivo real es tener una base estable para 1–2 años de módulos nuevos, patchbay más serio, workspaces y render declarativo, entonces seguir parcheando la UI actual te saldrá más caro que crear una nueva app apoyada en el backend existente.
+
+Dicho de forma simple: el backend actual parece reutilizable; la UI actual parece transicional.
+
+Qué conservaría
+Yo conservaría sin tocar demasiado:
+
+OmegaUiBridge como punto de entrada nativo.
+
+La separación por controladores RPC (Preset, Telemetry, System, Metadata, Input, Modulation).
+
+El modelo de notificaciones push desde C++ a JS.
+
+El sistema de metadata y presentación derivado de manifiestos.
+
+El flujo de patchbay/modulation metadata ya existente.
+
+Esas piezas ya representan trabajo arquitectónico valioso y son justo lo que hace viable una UI nueva sin rehacer el sinte entero.
+
+Qué reharía
+Yo rehacería:
+
+bootstrap de frontend,
+
+stores,
+
+router de eventos en JS,
+
+renderer de módulos,
+
+registry de widgets,
+
+browser de módulos,
+
+patchbay workspace,
+
+shell principal y gestión de estado de sesión.
+
+Ahí es donde más se nota el acoplamiento actual y donde más ganarías en claridad.
+
+Decisión resumida
+Opción	Veredicto	Motivo
+Seguir modificando la UI actual	Solo si buscas rapidez táctica 
+Ya funciona, pero arrastra globals, fallback paths y mezcla de generaciones de diseño 
+Rehacer todo desde cero	No 
+Tirarías bridge, RPC, metadata y modulación ya maduras sin necesidad 
+Nueva UI paralela sobre backend actual	Sí, es la mejor opción 
+Conservas lo estable y eliminas la deuda donde más duele: el frontend 
+Mi consejo concreto
+Yo haría esto:
+
+Congelar la UI actual salvo fixes críticos.
+
+Definir un contrato nuevo schema + graph + runtime + command/events encima del bridge existente.
+
+Crear una WebUI nueva en carpeta/proyecto paralelo.
+
+Migrar por slices: primero rack básico, luego widgets base, luego browser, luego patchbay.
+
+Cuando la nueva UI cubra el 70–80% de uso real, retirar la vieja.
+
+Ese enfoque te da seguridad, evita romper el plugin entero y además te permite comparar ambas UIs contra el mismo backend.
+
+Mi respuesta corta sería: no empieces todo desde cero, pero tampoco sigas construyendo sobre la UI actual como si fuera la base definitiva; haz un frontend nuevo en paralelo y reutiliza el backend/bridge que ya tienes.
+
+Si quieres, el siguiente paso te lo puedo aterrizar a algo muy práctico: un plan de migración en 5 fases con carpetas, APIs puente y criterio de corte.
+
+
+o que hemos hablado al principio de la conversación tiene validez o es mejor evolucionar el enfoque desde el nuevo punto de partida? quieres que te pase documentación que tengo para ver si es compatible con lo nuevo?
+
+Sí, tiene validez, pero yo no lo trataría ya como diseño objetivo final sino como material fundacional y transicional. Lo que hablamos al principio sigue siendo correcto en lo conceptual —Hyper-ACE, manifests, AceCatalog, SemanticBrokerService, ParameterMetadataRegistry, Patchbay-Matrix, zero-coupling con la UI— porque esa dirección está explícitamente consolidada en el roadmap y el changelog del proyecto.
+
+Lo que sí cambiaría es el marco desde el que interpretarlo: antes lo leíamos como “arquitectura dinámica avanzada”; ahora, con el reset que acabamos de hacer, conviene releerlo como pre-Era 6, es decir, como una base excelente pero todavía atravesada por decisiones transicionales de Era 5.x, como descriptores fallback, RPC fragmentado, managers de reconciliación y compatibilidad frontend heredada.
+
+Mi recomendación
+Mi recomendación clara es: no desechar lo hablado al principio, pero sí evolucionarlo desde el nuevo punto de partida. La parte válida hay que conservarla como doctrina de base; la parte táctica o de implementación concreta hay que reevaluarla bajo el prisma “Aseptic Contract Runtime”.
+
+Dicho de otra forma:
+
+la visión inicial sigue siendo buena,
+
+la arquitectura objetivo debe reformularse,
+
+y las soluciones intermedias de Era 5.2 ya no deberían condicionar Era 6.
+
+Qué conservaría
+Conservaría como válidos estos ejes:
+
+manifest-driven modules,
+
+backend como SOT, especialmente ParameterMetadataRegistry,
+
+descubrimiento semántico vía SemanticBrokerService,
+
+catálogo dinámico vía AceCatalog,
+
+patching compilado dinámicamente,
+
+separación fuerte entre Core, Engine, DSP y Plugin,
+
+política de purga de hardcodes y zero-coupling UI.
+
+Esos puntos no chocan con Era 6; al contrario, son justamente los cimientos más compatibles con ella.
+
+Qué reinterpretaría
+Reinterpretaría o descartaría como objetivo final:
+
+ModuleDescriptors como apoyo permanente,
+
+la UI dinámica basada en varias fuentes parciales de verdad,
+
+el bridge como colección extensa de endpoints específicos,
+
+shims tipo window.juce,
+
+la reconstrucción estructural desde formatos heredados de preset/voice/rack.
+
+Eso puede haber sido útil para llegar hasta aquí, pero desde el nuevo punto de partida ya no conviene tomarlo como arquitectura deseable.
+
+Sobre tu documentación
+Sí, pásamela. Tiene bastante sentido revisarla ahora porque el criterio correcto ya no es “si está bien hecha”, sino si encaja con la nueva semántica Era 6.
+
+Yo la evaluaría con este filtro:
+
+Compatible si refuerza SOT, manifests, graph, contratos, separación de capas o declaratividad.
+
+Transicional si documenta mecanismos útiles pero temporales de Era 5.x.
+
+Obsoleta para Era 6 si presupone retrocompatibilidad frontend, fallbacks duros o lógica específica incrustada en UI.
+
+Qué me pases mejor
+Si puedes, pásame sobre todo documentación de este tipo:
+
+visión/arquitectura,
+
+ACE-Spec o contratos de manifests,
+
+bridge/RPC,
+
+modelo de preset/graph/voice architecture,
+
+UI renderer/module manager,
+
+patchbay/matrix,
+
+reglas de identidad semántica e IDs.
+
+Con eso puedo decirte con bastante precisión qué parte encaja tal cual, qué parte hay que elevar de nivel, y qué parte conviene jubilar para que Era 6 no nazca con lastre.
