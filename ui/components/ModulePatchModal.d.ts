@@ -1,6 +1,6 @@
 /**
  * OMEGA Unified Module Patch Modal
- * Standardized for Era 5.2 Aseptic Meta-Engine.
+ * Standardized for Era 6 Aseptic Contract Runtime.
  */
 export declare class ModulePatchModal {
     private el;
@@ -8,24 +8,27 @@ export declare class ModulePatchModal {
     private viewport;
     private currentInstanceId;
     private activeTab;
-    private currentTabs;
-    private currentManifest;
+    private currentSchema;
     private patchbayMatrix;
     private maxSlots;
     constructor();
     private init;
-    open(instanceId: string, manifest: any): Promise<void>;
+    open(instanceId: string, schema: any): Promise<void>;
     close(): void;
     private renderTabs;
+    private getTabsFromSchema;
     private switchTab;
-    private renderGroups;
-    private isPair;
+    private renderTabContent;
+    private setupListeners;
     private renderParameterRow;
     /**
-     * ERA 5.2 STANDARD: Control Cell Generator
+     * ERA 6 STANDARD: Unified Control Cell Generator
      */
     private buildControlCell;
-    private renderPatchingSanctuary;
-    onStateUpdate(state: any): void;
+    /**
+     * ERA 6: Real-time UI refresh from Aseptic Store
+     */
+    private updateRealtimeUI;
+    private renderError;
 }
 //# sourceMappingURL=ModulePatchModal.d.ts.map

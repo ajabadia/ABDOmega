@@ -1,6 +1,7 @@
 /**
  * OMEGA Module Renderer (TypeScript)
  * Generic engine for declarative UI modules.
+ * ERA 6: Pure Aseptic Contract Rendering
  */
 export interface LayoutItem {
     id?: string;
@@ -9,21 +10,14 @@ export interface LayoutItem {
     paramGroup?: string;
     source?: string;
     portId?: string;
-    control?: string;
-    semantic?: 'scalar' | 'vector' | 'list' | 'toggle' | 'trigger' | 'port' | 'telemetry' | 'monitor' | 'label' | 'graph' | 'state' | 'keyboard';
-    look?: 'knob' | 'slider-v' | 'slider-h' | 'display' | 'select' | 'led' | 'jack' | 'switch' | 'meter' | 'button' | 'joystick' | 'scope' | 'graph' | 'adsr';
+    look?: 'knob' | 'slider-v' | 'slider-h' | 'display' | 'select' | 'led' | 'switch' | 'meter' | 'button' | 'toggle' | 'telemetry';
     label?: string;
     row: number;
     col: number;
     colSpan?: number;
     variant?: string;
     color?: string;
-}
-export interface PortDescriptor {
-    id: string;
-    label: string;
-    type: 'voltage' | 'midi' | 'list' | 'float' | 'text' | 'bool';
-    direction: 'input' | 'output';
+    order?: number;
 }
 export interface ModuleDescriptor {
     id: string;
@@ -31,18 +25,14 @@ export interface ModuleDescriptor {
     hp?: number;
     title?: string;
     panelClass?: string;
-    toolbarFocusIndex?: number;
     uiLayout?: {
         columns: number;
         rows?: number;
         gap?: number;
     };
-    ports?: PortDescriptor[];
+    registry?: any[];
     items: LayoutItem[];
-    footer?: {
-        paramId?: string;
-        label?: string;
-    };
+    theme?: string;
 }
 export declare class ModuleRenderer {
     private el;
@@ -52,20 +42,23 @@ export declare class ModuleRenderer {
     private isInitialized;
     constructor(el: HTMLElement, content: HTMLElement, descriptor: ModuleDescriptor);
     private normalizeDescriptor;
+    private getRegistryEntity;
     init(): Promise<void>;
     render(): void;
     private renderItem;
-    private renderFooter;
+    private buildControlCell;
+    private renderAttachment;
+    private renderComponent;
     private bind;
     private _bindKnob;
+    private _bindDisplay;
     setParam(id: string, value: number): void;
     updateControlUI(id: string, value: number): void;
-    private _getParamValueLabel;
-    private _bindDisplay;
+    private _getEntityValueLabel;
     private _updateKnobVisual;
-    onStateUpdate(state: any): void;
+    private syncAllFromStore;
     private updateTelemetryUI;
-    private updatePortsUI;
+    onStateUpdate(state: any): void;
 }
 export default ModuleRenderer;
 //# sourceMappingURL=module_renderer.d.ts.map

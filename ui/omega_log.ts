@@ -1,5 +1,5 @@
 /**
- * OMEGA Logger Utility - Era 5.2 Dynamic Discovery Diagnostic
+ * OMEGA Logger Utility - Era 6 Aseptic Telemetry
  * Provides precision timestamps [HH:MM:SS.ms] for all console entries.
  */
 

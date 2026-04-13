@@ -81,10 +81,15 @@ export class ModuleMidiTrigger {
                 fireBtn.style.transform = '';
             }
 
+            // Era 6: Unified dispatch through Command Dispatcher
             // @ts-ignore
-            if (window.omegaRPC) {
+            if (window.rpcCommandDispatcher) {
                 // @ts-ignore
-                window.omegaRPC.sendMidi(status, midiNote, velocity);
+                window.rpcCommandDispatcher.dispatch({ 
+                    type: 'sendMidi', 
+                    target: 'system', 
+                    args: [status, midiNote, velocity] 
+                });
             }
         };
 

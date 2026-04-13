@@ -9,6 +9,7 @@ export declare class ModulePatchbayMatrix {
     private manualChangeTimer;
     private selectedSlot;
     private maxSlots;
+    private structureBuilt;
     constructor(options?: any);
     private ensureElements;
     private syncMaxSlots;
@@ -18,16 +19,16 @@ export declare class ModulePatchbayMatrix {
     onStateUpdate(state: any): void;
     private triggerActivity;
     private renderWorkspace;
-    private renderCard;
+    private setupHeaderToggles;
+    private renderStructure;
+    private getSlotSkeleton;
+    private syncSlotsFromState;
     private getAmountColor;
     private addModulation;
     private renderInspector;
-    private getBipolarStyle;
     private getNameForId;
     private generateOptions;
-    private setupSelectionListeners;
-    private attachWorkspaceListeners;
-    private updateFromMouse;
+    private attachGridListeners;
     private attachInspectorListeners;
     private sendUpdate;
 }

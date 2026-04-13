@@ -38,21 +38,15 @@ export class ModuleBrowser {
 
     private async fetchCatalog() {
         // @ts-ignore
-        if (window.omegaRPC) {
-            try {
-                // @ts-ignore
-                const resp = await window.omegaRPC.send("listCatalog", {});
-                if (resp && resp.components) {
-                    this.catalog = resp.components;
-                    // Cache globally so ModuleManager can resolve descriptors
-                    // without re-fetching or depending on metadataStore.inventory.
-                    (window as any).omegaCatalog = Object.fromEntries(
-                        resp.components.map((c: any) => [c.id, c])
-                    );
-                }
-            } catch (e) {
-                console.error("[ModuleBrowser] Failed to fetch catalog:", e);
-            }
+        const invStore = window.inventoryStore;
+        if (invStore) {
+            await invStore.ensureLoaded();
+            this.catalog = invStore.getAllItems();
+            
+            // Sync legacy global if still needed for transitional shims
+            (window as any).omegaCatalog = Object.fromEntries(
+                this.catalog.map((c: any) => [c.id, c])
+            );
         }
     }
 
@@ -169,21 +163,23 @@ export class ModuleBrowser {
 
     private async addModule(componentId: string) {
         // @ts-ignore
-        if (window.omegaRPC) {
+        if (window.rpcCommandDispatcher) {
             try {
                 // @ts-ignore
-                const resp = await window.omegaRPC.send("addModule", { componentId });
+                const resp = await window.rpcCommandDispatcher.dispatch({ 
+                    type: 'systemAction', 
+                    target: 'addModule', 
+                    value: { componentId } 
+                });
+                
                 if (resp && !resp.error) {
-                    // Close browser on success
                     this.el!.style.display = 'none';
-                    console.log("[ModuleBrowser] Module added successfully:", componentId);
-                    
-                    // The backend will notify onStateUpdate, which will refresh the rack automatically.
+                    console.log("[ModuleBrowser] Aseptic Instantiation Success:", componentId);
                 } else {
-                    alert("Failed to add module: " + (resp.error || "Unknown error"));
+                    alert("Failed to add module: " + (resp?.error || "Unknown error"));
                 }
             } catch (e) {
-                console.error("[ModuleBrowser] RPC Error adding module:", e);
+                console.error("[ModuleBrowser] Dispatch Error:", e);
             }
         }
     }

@@ -1,6 +1,6 @@
 /**
  * service.ts - OMEGA Service Mode (TypeScript Implementation)
- * Phase 15.1 - Structural Maturity
+ * Era 6 - Managed Dispatch Edition
  */
 
 interface CalibrationParam {
@@ -18,26 +18,27 @@ export class OMEGA_ServiceMode {
     private activeVoice: number = -1;
 
     constructor() {
-        console.log("[Service TS] Initialized");
+        console.log("[Service] Initialized (Aseptic)");
     }
 
     public async init() {
         try {
             await this.refreshParams();
         } catch (e) {
-            console.error("[Service TS] Init failed:", e);
+            console.error("[Service] Init failed:", e);
         }
         this.renderVoices();
     }
 
     public async refreshParams() {
-        const win = window as any;
-        if (win.juce && win.juce.getCalibrationParams) {
+        // [Era 6] Request data via hardened RPC
+        const rpc = (window as any).omegaRPC;
+        if (rpc) {
             try {
-                this.params = await win.juce.getCalibrationParams();
+                this.params = await rpc.send("getCalibrationParams");
                 this.renderParams();
             } catch (e) {
-                console.error("[Service TS] getCalibrationParams failed:", e);
+                console.error("[Service] getCalibrationParams failed:", e);
             }
         }
     }
@@ -66,15 +67,19 @@ export class OMEGA_ServiceMode {
         });
     }
 
-    public updateParam(id: string, value: string) {
+    public async updateParam(id: string, value: string) {
         const val = parseFloat(value);
         const p = this.params.find(x => x.id === id);
         const display = document.getElementById(`val-${id}`);
         if (display && p) display.innerText = val.toFixed(2) + p.unit;
         
-        const win = window as any;
-        if (win.juce && win.juce.setCalibrationParam) {
-            win.juce.setCalibrationParam(id, val);
+        // [Era 6] Unified Dispatch
+        const dispatcher = (window as any).rpcCommandDispatcher;
+        if (dispatcher) {
+            await dispatcher.dispatch({
+                type: 'serviceAction',
+                value: { action: 'setCalibrationParam', id, value: val }
+            });
         }
     }
 
@@ -93,26 +98,28 @@ export class OMEGA_ServiceMode {
         }
     }
 
-    public toggleVoiceTest(index: number) {
-        const win = window as any;
-        if (!win.juce) return;
+    public async toggleVoiceTest(index: number) {
+        const dispatcher = (window as any).rpcCommandDispatcher;
+        if (!dispatcher) return;
 
         if (this.activeVoice === index) {
             this.activeVoice = -1;
-            win.juce.serviceAction({ action: 'stopVoiceTest' });
+            await dispatcher.dispatch({ type: 'serviceAction', value: { action: 'stopVoiceTest' } });
             document.querySelectorAll('.voice-test-btn').forEach(b => b.classList.remove('active'));
         } else {
             this.activeVoice = index;
-            win.juce.serviceAction({ action: 'testVoice', voice: index });
+            await dispatcher.dispatch({ type: 'serviceAction', value: { action: 'testVoice', voice: index } });
             document.querySelectorAll('.voice-test-btn').forEach(b => b.classList.remove('active'));
             const btn = document.getElementById(`btn-voice-${index}`);
             if (btn) btn.classList.add('active');
         }
     }
 
-    public serviceAction(action: string) {
-        const win = window as any;
-        if (win.juce) win.juce.serviceAction({ action });
+    public async serviceAction(action: string) {
+        const dispatcher = (window as any).rpcCommandDispatcher;
+        if (dispatcher) {
+            await dispatcher.dispatch({ type: 'serviceAction', value: { action } });
+        }
     }
 }
 

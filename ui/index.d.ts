@@ -1,6 +1,6 @@
 /**
  * OMEGA Synthesizer - Main Entry Point (TypeScript)
- * Phase 15.2 - Bootstrapping Stability
+ * Era 6.1 - Absolute Aseptic Boot
  */
 export {};
 //# sourceMappingURL=index.d.ts.map

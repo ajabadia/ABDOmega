@@ -1,6 +1,7 @@
 /**
  * PresetBrowser.ts - OMEGA Advanced Preset Management
  * Handles the 3-column browser (Category > Library > Patch)
+ * Era 6 - Managed Dispatch Edition
  */
 export interface Patch {
     name: string;

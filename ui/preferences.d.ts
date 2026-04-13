@@ -1,6 +1,6 @@
 /**
  * preferences.ts - OMEGA Premium Preferences Logic (TypeScript Implementation)
- * Phase 15.1 - Structural Maturity
+ * Era 6 - Managed Dispatch Edition
  */
 export interface SystemSetting {
     id: string;
@@ -23,9 +23,8 @@ export declare class OMEGA_Preferences {
     private setupTabs;
     refresh(): Promise<void>;
     render(): void;
-    private setSetting;
     update(id: string, value: any): Promise<void>;
-    reset(id: string): Promise<void>;
+    reset(id: string): void;
 }
 export declare const Preferences: OMEGA_Preferences;
 //# sourceMappingURL=preferences.d.ts.map

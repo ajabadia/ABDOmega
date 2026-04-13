@@ -1,6 +1,6 @@
 /**
  * service.ts - OMEGA Service Mode (TypeScript Implementation)
- * Phase 15.1 - Structural Maturity
+ * Era 6 - Managed Dispatch Edition
  */
 export declare class OMEGA_ServiceMode {
     private params;
@@ -9,10 +9,10 @@ export declare class OMEGA_ServiceMode {
     init(): Promise<void>;
     refreshParams(): Promise<void>;
     private renderParams;
-    updateParam(id: string, value: string): void;
+    updateParam(id: string, value: string): Promise<void>;
     private renderVoices;
-    toggleVoiceTest(index: number): void;
-    serviceAction(action: string): void;
+    toggleVoiceTest(index: number): Promise<void>;
+    serviceAction(action: string): Promise<void>;
 }
 export declare const ServiceMode: OMEGA_ServiceMode;
 //# sourceMappingURL=service.d.ts.map

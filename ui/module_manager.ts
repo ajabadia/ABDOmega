@@ -1,9 +1,6 @@
-/**
- * OMEGA Module Manager (TypeScript)
- * Handles dynamic instantiation of Eurorack modules.
- */
-
-import { ModuleDescriptors } from './module_descriptors.js';
+// --- ERA 6: Multi-Store Aseptic Architecture ---
+import { type ModuleSchema } from './SchemaStore.js';
+import { type InventoryItem } from './InventoryStore.js';
 
 export class ModuleManager {
     private activeModules: Map<string, any> = new Map();
@@ -40,9 +37,9 @@ export class ModuleManager {
             this.lastState = safeState;
             
             // @ts-ignore
-            await window.metadataStore.ensureLoaded();
+            await window.schemaStore.ensureLoaded();
             // @ts-ignore
-            await window.metadataStore.getModulationMetadata();
+            await window.inventoryStore.ensureLoaded();
             
             const upper = document.getElementById('upper-rack');
             const lower = document.getElementById('lower-rack');
@@ -78,8 +75,7 @@ export class ModuleManager {
             const aux = auxList;
             
             if (aux.length === 0 && (!layerList || layerList.length === 0) && mainChain.length === 0) {
-                console.log("[ModuleManager] No modules found. Injecting emergency module.");
-                await this.injectEmergencyModule();
+                console.log("[ModuleManager] No modules found. Awaiting legitimate preset data.");
                 return;
             }
             
@@ -89,61 +85,33 @@ export class ModuleManager {
                 const label = item.label || item.name || item.slotName || id;
                 
                 const componentId = item.componentId || item.id || "";
-                const descriptor = this.resolveDescriptor(item);
                 
-                // --- Era 4.1 Aseptic Routing ---
-                const stateRack = item.rack !== undefined ? item.rack : (item.params && item.params.rack);
-                const manifestRack = descriptor?.rack;
+                // Era 6: Resolve schema from SchemaStore
+                // @ts-ignore
+                const schema: ModuleSchema = window.schemaStore.getSchema(componentId);
                 
-                let rackValue = stateRack !== undefined ? stateRack : manifestRack;
-                const source = stateRack !== undefined ? "State" : (manifestRack !== undefined ? "Manifest" : "Default");
+                // --- Era 6 Absolute Aseptic Routing ---
+                // Routing must be explicit or derived from system graph. No silent fallbacks.
+                const rackValue = item.rack?.toString().toLowerCase();
+                const targetRack = rackValue === 'upper' ? upper : lower;
+                const rackType = rackValue === 'upper' ? 'aux' : 'main';
 
-                // NEW ERA 4.1 DEFAULT: if undefined, go to UPPER
-                if (rackValue === undefined) {
-                    rackValue = "upper";
-                }
-
-                console.log(`[ModuleManager] Routing ${id} [${componentId}]: value=${rackValue} (Source: ${source}), panelClass=${descriptor?.panelClass}`);
-
-                let targetRack = upper;
-                let rackType = "aux";
-
-                const isLower = (typeof rackValue === 'string' && rackValue.toLowerCase() === "lower") || 
-                                (typeof rackValue === 'string' && rackValue.toLowerCase() === "main") ||
-                                rackValue === 1 || rackValue === 1.0;
-
-                if (isLower) {
-                    targetRack = lower;
-                    rackType = "main";
-                }
-                
-                // --- Era 4 Purity Guard ---
-                // System-level infrastructure (Patchbay Matrix) never renders in the user rack.
-                // ID must be the canonical Era 4 snake_case: 'patchbay_matrix'
-                if (componentId === "patchbay_matrix") {
-                    console.log(`[ModuleManager] Skipping system component in rack: ${componentId}`);
+                // System Guard: Matrix is managed as a singleton system overlay
+                if (componentId === "patchbay_matrix" || componentId === "system.matrix") {
                     continue;
                 }
 
-                if (descriptor) {
-                    // Decide class based on descriptor or generic renderer
-                    // Era 4.1: Unified Semantic Rendering
-                    // Any specialized ModuleX class is now deprecated in favor of data-driven ModuleRenderer
-                    // Era 5.2 Aseptic Selection
-                    let className = (componentId === "ACE-MIDI-ADAPTER-ULTIMATE" || componentId === "midi_2_cv") ? "ModuleMidiToCv" : "ModuleRenderer";
+                if (schema) {
+                    // Era 6: Class discovery should ideally be in schema, but we maintain minimal mapping for core adapters
+                    const className = (componentId === "midi_2_cv" || componentId === "midi_adapter") ? "ModuleMidiToCv" : "ModuleRenderer";
                     
-                    // Fetch full manifest from Store for Zero-Hardcoding
-                    // @ts-ignore
-                    const manifest = window.metadataStore?.getInventoryItem(id) || window.metadataStore?.getInventoryItem(componentId);
-
                     await this.addModule(id, className, rackType, targetRack, { 
                         label, 
-                        descriptor, 
                         componentId,
-                        manifest // Essential for Aseptic Dynamic Rendering
+                        manifest: schema
                     });
                 } else {
-                    await this.addPlaceholder(id, rackType, targetRack, componentId);
+                    await this.renderContractError(id, rackType, targetRack, componentId, "MISSING_CONTRACT");
                 }
             }
 
@@ -156,7 +124,7 @@ export class ModuleManager {
                     const nodes = this.normalizeList(chain.nodes);
                     for (const node of nodes) {
                         const componentId = node.componentId || node.id;
-                        const descriptor = (ModuleDescriptors as any)[componentId];
+                        const descriptor = null; // Forced to null to trigger AceCatalog resolution
                         
                         let type = "core";
                         const role = (node.role || "").toLowerCase();
@@ -173,7 +141,7 @@ export class ModuleManager {
                                 descriptor, componentId, layer, group: "MAIN" 
                             });
                         } else if (lower) {
-                            await this.addPlaceholder(node.nodeId || node.id || componentId, type, lower, componentId);
+                            await this.renderContractError(node.nodeId || node.id || componentId, type, lower, componentId, "UNRESOLVED_GRAPH_NODE");
                         }
                     }
                 } else if (arch) {
@@ -191,15 +159,16 @@ export class ModuleManager {
 
                         for (const item of cat.list) {
                             const componentId = item.componentId || item.id || item.type;
-                            const descriptor = this.resolveDescriptor(item);
+                            // @ts-ignore
+                            const schema = window.schemaStore.getSchema(componentId);
                             const layer = "A";
 
-                            if (descriptor && lower) {
+                            if (schema && lower) {
                                 await this.addModule(item.slotName || componentId, "ModuleRenderer", cat.type, lower, { 
-                                    descriptor, componentId, layer, group: "MAIN" 
+                                    componentId, layer, group: "MAIN", manifest: schema
                                 });
                             } else if (lower) {
-                                await this.addPlaceholder(item.slotName || componentId, cat.type, lower, componentId);
+                                await this.renderContractError(item.slotName || componentId, cat.type, lower, componentId, "ASEPTIC_SCHEMA_MISSING");
                             }
                         }
                     }
@@ -220,42 +189,20 @@ export class ModuleManager {
         }
     }
 
-    private async addPlaceholder(id: string, type: string, container: HTMLElement | null, componentId: string): Promise<void> {
+    private async renderContractError(id: string, type: string, container: HTMLElement | null, componentId: string, reason: string): Promise<void> {
         if (!container) return;
         const el = document.createElement('div');
-        el.className = `module module-${type} placeholder`;
+        el.className = `module module-${type} contract-error`;
         el.innerHTML = `
-            <div class="module-header">${id} <div class="led amber-pulsing" style="display:inline-block; margin-left:8px;" title="Module Power: ON"></div></div>
+            <div class="module-header error">${id}</div>
             <div class="module-content">
-                <div class="placeholder-msg">GENERIC PANEL</div>
+                <div class="contract-error-icon">⚠️</div>
+                <div class="contract-error-msg">CONTRACT ERROR</div>
+                <div class="contract-error-reason">${reason}</div>
                 <div class="label-tiny">${componentId}</div>
             </div>
         `;
         container.appendChild(el);
-    }
-
-    private async injectEmergencyModule(): Promise<void> {
-        console.log("[ModuleManager] Injecting Emergency Mirror Alert...");
-        const upper = document.getElementById('upper-rack');
-        const lower = document.getElementById('lower-rack');
-        
-        // --- Structural Purge (Aseptic 2.1.9) ---
-        if (upper) upper.innerHTML = '';
-        if (lower) lower.innerHTML = '';
-
-        const descriptor = (ModuleDescriptors as any)["ERR-EMPTY-001"];
-        
-        // 1. Mirror - Upper Alert
-        await this.addModule("EMERGENCY_SYSTEM_UPPER", "ModuleEmergency", "aux", upper, { 
-            label: "SYSTEM MONITOR",
-            descriptor: descriptor 
-        });
-
-        // 2. Main - Lower Guard
-        await this.addModule("EMERGENCY_SYSTEM_LOWER", "ModuleEmergency", "main", lower, { 
-            label: "ENGINE GUARD",
-            descriptor: descriptor 
-        });
     }
 
     private async addModule(id: string, className: string, type: string, container: HTMLElement | null, options: any = {}): Promise<void> {
@@ -267,30 +214,6 @@ export class ModuleManager {
         
         const header = document.createElement('div');
         header.className = 'module-header';
-        header.innerText = options.label || options.descriptor?.title || id;
-        
-        // Add Patch Settings Icon
-        const patchIcon = document.createElement('div');
-        patchIcon.className = 'module-patch-icon';
-        patchIcon.innerHTML = '⚙️';
-        patchIcon.title = 'Patch Module';
-        patchIcon.onclick = (e) => {
-            e.stopPropagation();
-            document.dispatchEvent(new CustomEvent('patch-request', { 
-                detail: { 
-                    instanceId: id,
-                    componentId: options.componentId 
-                } 
-            }));
-        };
-        header.appendChild(patchIcon);
-        
-        // Add Status LED (Absolute Centered)
-        const led = document.createElement('div');
-        led.className = 'led status-indicator';
-        led.title = 'Module Active';
-        header.appendChild(led);
-
         el.appendChild(header);
         
         const content = document.createElement('div');
@@ -302,7 +225,7 @@ export class ModuleManager {
         // @ts-ignore
         if (window[className]) {
             // @ts-ignore
-            const instance = new window[className](el, content, options.manifest ? options : (options.descriptor || options));
+            const instance = new window[className](el, content, options.manifest);
             this.activeModules.set(id, instance);
             
             if (instance.init) await instance.init();
@@ -322,68 +245,6 @@ export class ModuleManager {
         return id;
     }
 
-    private resolveDescriptor(item: any): any {
-        if (!item) return null;
-        const id = item.componentId || item.id;
-        if (!id) return null;
-
-        const canonicalId = this.getCanonicalId(id as string);
-
-        // 1. Primary: window.omegaCatalog (preloaded static components)
-        // @ts-ignore
-        const catalog = (window as any).omegaCatalog || {};
-        const catItem = catalog[id] || catalog[canonicalId];
-
-        if (catItem) {
-            if (catItem.uiLayout) {
-                let layoutObj = catItem.uiLayout;
-                if (typeof layoutObj === 'string') {
-                    try { layoutObj = JSON.parse(layoutObj); } catch(e) { console.error("Parse err: ", e); }
-                }
-                const desc = JSON.parse(JSON.stringify(layoutObj)); // Deep copy
-                desc.id = id;
-                desc.title = catItem.name || id;
-                desc.panelClass = catItem.panelClass || desc.panelClass || 'utility-panel';
-                desc.rack = catItem.rack || desc.rack;
-                return desc;
-            }
-            return { 
-                id, 
-                title: catItem.name || id, 
-                panelClass: catItem.panelClass || 'utility-panel',
-                rack: catItem.rack,
-                items: [],
-                grid: { columns: 2, gap: 12 }
-            };
-        }
-
-        // 2. Fallback: metadataStore inventory (dynamic/auxiliary components)
-        // @ts-ignore
-        const store = window.metadataStore;
-        if (store && store.inventory) {
-            const invItem = store.inventory.find((m: any) => m.id === id || m.id === canonicalId || m.instanceId === id);
-            if (invItem && invItem.uiLayout) {
-                let layoutObj = invItem.uiLayout;
-                if (typeof layoutObj === 'string') {
-                    try { layoutObj = JSON.parse(layoutObj); } catch(e) { console.error("Parse err: ", e); }
-                }
-                const desc = JSON.parse(JSON.stringify(layoutObj));
-                desc.id = id;
-                desc.title = invItem.name || id;
-                desc.panelClass = invItem.style || desc.panelClass || 'universal-panel';
-                return desc;
-            }
-        }
-
-        // 3. Static Descriptor Hardcoded Fallback
-        return (ModuleDescriptors as any)[id] || (ModuleDescriptors as any)[canonicalId] || {
-            id,
-            title: id.toUpperCase(),
-            items: [],
-            grid: { columns: 1, gap: 10 },
-            panelClass: "universal-panel"
-        };
-    }
 }
 
 // @ts-ignore

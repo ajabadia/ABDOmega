@@ -1,10 +1,9 @@
 /**
  * OMEGA Synthesizer - Main Entry Point (TypeScript)
- * Phase 15.2 - Bootstrapping Stability
+ * Era 6.1 - Absolute Aseptic Boot
  */
 
-import { rpc, setupJuceShim } from './omega_rpc.js';
-import { MetadataStore } from './metadata_store.js';
+import { rpc } from './omega_rpc.js';
 import { ModuleManager } from './module_manager.js';
 import { app } from './script.js';
 import { Preferences } from './preferences.js';
@@ -18,95 +17,125 @@ import { ModulePatchbayMatrix } from './components/ModulePatchbayMatrix.js';
 import { ModulePatchModal } from './components/ModulePatchModal.js';
 import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
 import { ModuleBrowser } from './components/ModuleBrowser.js';
-import { type OmegaRPC } from './omega_types.js';
+import { InventoryStore } from './InventoryStore.js';
+import { RpcCommandDispatcher } from './RpcCommandDispatcher.js';
+import { RuntimeStore, SchemaStore, GraphStore, SessionStore } from './runtimeStores.js';
 
-// Global instances for legacy bridge compatibility
-const store = new MetadataStore();
+// Global Singleton Initialization
+const runtimeStore = new RuntimeStore();
+const schemaStore = new SchemaStore();
+const graphStore = new GraphStore();
+const sessionStore = new SessionStore();
+const inventoryStore = new InventoryStore();
+const rpcCommandDispatcher = new RpcCommandDispatcher();
+
+// Internal Management
 const manager = new ModuleManager();
 
-window.omegaRPC = rpc as unknown as OmegaRPC;
-window.metadataStore = store;
-window.moduleManager = manager;
-window.Preferences = Preferences;
-window.ServiceMode = ServiceMode;
-window.ModuleRenderer = ModuleRenderer;
-window.ModuleOscilloscope = ModuleOscilloscope;
-window.ModuleMidiTrigger = ModuleMidiTrigger;
-window.ModuleMidiViewer = ModuleMidiViewer;
-window.ModulePatchbayMatrix = ModulePatchbayMatrix;
-window.ModuleMidiToCv = ModuleMidiToCv;
-window.ModuleBrowser = ModuleBrowser;
+// Bridge to window for legacy component compatibility (limited)
+const win = window as any;
+win.runtimeStore = runtimeStore;
+win.schemaStore = schemaStore;
+win.graphStore = graphStore;
+win.sessionStore = sessionStore;
+win.inventoryStore = inventoryStore;
+win.rpcCommandDispatcher = rpcCommandDispatcher;
+win.moduleManager = manager;
+win.omegaRPC = rpc;
 
-// Initialize App
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("[OMEGA] Booting Synth UI...");
+// Component Registry
+win.Preferences = Preferences;
+win.ServiceMode = ServiceMode;
+win.ModuleRenderer = ModuleRenderer;
+win.ModuleOscilloscope = ModuleOscilloscope;
+win.ModuleMidiTrigger = ModuleMidiTrigger;
+win.ModuleMidiViewer = ModuleMidiViewer;
+win.ModulePatchbayMatrix = ModulePatchbayMatrix;
+win.ModuleMidiToCv = ModuleMidiToCv;
+win.ModuleBrowser = ModuleBrowser;
+
+// Initialize System
+    document.addEventListener('DOMContentLoaded', async () => {
+    console.log("[OMEGA] Booting Era 6.1 Aseptic UI...");
     
-    // 1. Setup RPC Bridge
-    setupJuceShim();
-    
-    // 2. Load Metadata (with Mock support in Store)
+    // [Era 6.1] Aseptic Bootstrap Delay
+    // Wait 1.5s for JUCE to inject native functions and the bridge to stabilize
+    await new Promise(r => setTimeout(r, 1500));
+
+    // 1. Load Authoritative Stores (Schema & Inventory)
     try {
-        console.log("[OMEGA] Loading Metadata...");
-        await Promise.race([
-            store.ensureLoaded(),
-            new Promise(resolve => setTimeout(resolve, 3000))
+        await Promise.all([
+            schemaStore.ensureLoaded(),
+            inventoryStore.ensureLoaded()
         ]);
-        
-        // Ensure modulation metadata (and mock) is loaded
-        await store.getModulationMetadata();
     } catch (e) {
-        console.error("[OMEGA] Metadata load failed, continuing:", e);
+        console.error("[OMEGA] Store initialization failed:", e);
     }
     
-    // 3. Initialize Components
-    console.log("[OMEGA] Initializing Components...");
+    // 2. Component Initialization
     try {
         await Preferences.init();
         await PresetBrowser.init();
         
-        // Initialize Global Patchbay Hub
+        // Global Patchbay Hub (Internal listener)
         const matrixHub = new ModulePatchbayMatrix();
-        window.patchbayHub = matrixHub;
+        win.patchbayHub = matrixHub;
 
-        const matrixBtn = document.getElementById('btn-global-matrix');
-        if (matrixBtn) matrixBtn.onclick = () => matrixHub.toggleWorkspace(true);
-        
-        const matrixMenuLink = document.getElementById('menu-matrix');
-        if (matrixMenuLink) matrixMenuLink.onclick = () => matrixHub.toggleWorkspace(true);
-
-        // Initialize Module Browser
-        const moduleBrowser = new ModuleBrowser();
-        window.moduleBrowser = moduleBrowser;
-
-        const addModuleMenuLink = document.getElementById('menu-add-module');
-        if (addModuleMenuLink) addModuleMenuLink.onclick = () => window.moduleBrowser.open();
-
-        // Initialize Unified Module Config Modal
+        // Unified Module Config Modal
         const configModal = new ModulePatchModal();
-        window.modulePatchModal = configModal;
+        win.modulePatchModal = configModal;
 
-        // Unified Configuration Dispatcher (Role-Based)
-        document.addEventListener('patch-request', async (e: CustomEvent) => {
-            const { instanceId } = e.detail;
-            const manifest = store.getInventoryItem(instanceId);
-            console.log(`[Dispatcher] Opening Alpha Config for: ${instanceId}`);
-            await configModal.open(instanceId, manifest);
+        // 3. Global Menu Actions
+        const bind = (id: string, fn: () => void) => {
+            const el = document.getElementById(id);
+            if (el) el.onclick = fn;
+        };
+
+        bind('btn-global-matrix', () => matrixHub.toggleWorkspace(true));
+        bind('menu-matrix', () => matrixHub.toggleWorkspace(true));
+
+        // [Phase 1] System Modals
+        const showModal = (id: string) => {
+            const m = document.getElementById(id);
+            if (m) m.style.display = 'flex';
+        };
+
+        bind('menu-about', () => showModal('about-modal'));
+        bind('menu-preferences', async () => {
+             await Preferences.init();
+             showModal('preferences-modal');
         });
 
-        // 4. Registry Ready
-        console.log("[OMEGA] System Ready. Awaiting user interaction.");
+        if (win.moduleBrowser) {
+            bind('menu-add-module', () => win.moduleBrowser.open());
+        }
+
+        // 4. Component Event Hub
+        document.addEventListener('patch-request', ((e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            const { instanceId, componentId } = detail;
+            const schema = schemaStore.getSchemaForComponent(componentId);
+            configModal.open(instanceId, schema);
+        }) as EventListener);
 
     } catch (e) {
-        console.error("[OMEGA] Component init failed:", e);
+        console.error("[OMEGA] Boot failure during component init:", e);
     }
     
-    // 5. Boot App Logic
-    console.log("[OMEGA] Calling app.init()...");
+    // 5. App Launch
     app.init();
 
-    // Global State Forwarding
-    window.addEventListener('omega:stateUpdate', (e: CustomEvent) => {
-        if (window.patchbayHub) window.patchbayHub.onStateUpdate(e.detail);
-        if (window.modulePatchModal) window.modulePatchModal.onStateUpdate(e.detail);
-    });
+    // 6. Global Aseptic Hub - Centralized Store Routing
+    const handleAsepticEvent = (e: CustomEvent) => {
+        const type = e.type.replace('omega:', '');
+        runtimeStore.reduceEvent({ type, ...e.detail });
+        
+        // Notify reactive components if they don't use direct subscription yet
+        if (win.patchbayHub?.updateSync) win.patchbayHub.updateSync();
+        if (win.modulePatchModal?.updateSync) win.modulePatchModal.updateSync();
+    };
+
+    window.addEventListener('omega:onStateUpdate', handleAsepticEvent as EventListener);
+    window.addEventListener('omega:PARAMCHANGE', handleAsepticEvent as EventListener);
+    window.addEventListener('omega:telemetryUpdate', handleAsepticEvent as EventListener);
 });

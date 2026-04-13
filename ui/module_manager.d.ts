@@ -1,7 +1,3 @@
-/**
- * OMEGA Module Manager (TypeScript)
- * Handles dynamic instantiation of Eurorack modules.
- */
 export declare class ModuleManager {
     private activeModules;
     private oscilloscopes;
@@ -12,11 +8,9 @@ export declare class ModuleManager {
     constructor();
     private normalizeList;
     updateRack(state: any): Promise<void>;
-    private addPlaceholder;
-    private injectEmergencyModule;
+    private renderContractError;
     private addModule;
     private getCanonicalId;
-    private resolveDescriptor;
 }
 export default ModuleManager;
 //# sourceMappingURL=module_manager.d.ts.map
