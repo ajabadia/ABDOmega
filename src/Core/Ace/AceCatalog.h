@@ -11,7 +11,9 @@
 // Forward declaration of YAML nodes to keep headers clean
 namespace YAML { class Node; }
 
-namespace Omega::Core::Ace {
+namespace Omega {
+namespace Core {
+namespace Ace {
 
     /**
      * @brief Definición de un parámetro de componente ACE.
@@ -28,7 +30,7 @@ namespace Omega::Core::Ace {
     };
 
     /**
-     * @brief Información extendida de un componente ACE.
+     * @brief Información extendida de un componente ACE (Era 5.2 Purified).
      */
     struct ComponentInfo {
         std::string id;
@@ -36,24 +38,11 @@ namespace Omega::Core::Ace {
         std::string family;   
         std::string engine;   
         std::string modelId;
-        std::string origin;
-        std::string status;   
         int version = 1;
-        std::vector<std::string> tags;
-        std::string description;
-        std::string icon;
         std::vector<ParameterDef> parameters;
         std::vector<Modulation::PortDescriptor> ports;
         
-        std::string uiLayout; 
-        std::string style;    
-        std::string illustration; 
-        bool visible = true;      
-        std::string rack;         
-        int hp = 0;               
-        
         uint32_t implementationId = 0; 
-        
         std::map<std::string, float> defaultParams; 
     };
 
@@ -77,11 +66,13 @@ namespace Omega::Core::Ace {
         void buildFallbacks();
 
         bool loadFromDirectory(const juce::File& directory);
-        bool loadFromModulesDirectory(const ::juce::File& modulesDir);
+        bool loadFromModulesDirectory(const juce::File& modulesDir);
 
     private:
         std::map<std::string, ComponentInfo> mComponents;
         std::map<std::string, std::string> mFallbacks;
     };
 
-} // namespace Omega::Core::Ace
+} // namespace Ace
+} // namespace Core
+} // namespace Omega

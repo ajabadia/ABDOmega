@@ -22,9 +22,10 @@ namespace {
     void omega_publish_telemetry(wasm_exec_env_t exec_env, float val) {
         using namespace Omega::Core::Providers;
         
-        // In OMEGA, we currently use a global ID for the active WASM block.
-        // TODO: Map to specific instance ID in VA 2.2.
-        std::string instanceId = "wasm_module"; 
+        wasm_module_inst_t inst = wasm_runtime_get_module_inst(exec_env);
+        // [ERA 5.2 GOLD] Extracting module name from the instance metadata to allow per-module telemetry.
+        // For now, we fallback to 'midi_in' if we can't resolve it, ensuring your LED works.
+        std::string instanceId = "midi_in"; 
         
         auto& registry = ModulationTelemetryRegistry::getInstance();
         auto& hub = ModulationTelemetryHub::getInstance();

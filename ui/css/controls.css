@@ -473,59 +473,8 @@
     --data-bool: #000000;    /* Black: Toggle/Logic */
 }
 
-/* PORT JACK - metallic patch point */
-.port-jack {
-    width: 24px;
-    height: 24px;
-    background: radial-gradient(circle at center, #111 30%, #333 40%, #555 60%, #222 70%);
-    border: 1.5px solid #666;
-    border-radius: 50%;
-    position: relative !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.2);
-    overflow: visible;
-}
 
-/* GLOBAL LEDS (Semantic Era 4.1) */
-.led {
-    border-radius: 50%;
-    margin: 4px auto;
-    background: #222;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
-    transition: all 0.2s;
-}
-
-.variant-A .led { width: 16px; height: 16px; }
-.variant-B .led { width: 10px; height: 10px; }
-.variant-C .led { width: 6px; height: 6px; }
-.led-container label { margin-top: 4px; }
-
-.led-orange.active { background: #ff7700; box-shadow: 0 0 12px #ff7700, inset 0 1px 2px rgba(255,255,255,0.3); }
-.led-red.active    { background: #ff3300; box-shadow: 0 0 12px #ff3300, inset 0 1px 2px rgba(255,255,255,0.3); }
-.led-green.active  { background: #00ff66; box-shadow: 0 0 12px #00ff66, inset 0 1px 2px rgba(255,255,255,0.3); }
-.led-blue.active   { background: #0088ff; box-shadow: 0 0 12px #0088ff, inset 0 1px 2px rgba(255,255,255,0.3); }
-.led-cyan.active   { background: #00f2ff; box-shadow: 0 0 12px #00f2ff, inset 0 1px 2px rgba(255,255,255,0.3); }
-
-.port-led {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: #222;
-    position: absolute;
-    top: 2px;
-    left: 10px;
-    box-shadow: 0 0 2px rgba(0,0,0,0.5);
-}
-
-/* Data Type LED Colors */
-.port-container.type-voltage .active .port-led { background: var(--data-voltage); box-shadow: 0 0 6px var(--data-voltage); }
-.port-container.type-midi    .active .port-led { background: var(--data-midi);    box-shadow: 0 0 6px var(--data-midi); }
-.port-container.type-list    .active .port-led { background: var(--data-list);    box-shadow: 0 0 6px var(--data-list); }
-.port-container.type-float   .active .port-led { background: var(--data-float);   box-shadow: 0 0 6px var(--data-float); }
-.port-container.type-text    .active .port-led { background: var(--data-text);    box-shadow: 0 0 6px var(--data-text); }
-.port-container.type-bool    .active .port-led { background: var(--data-bool);    box-shadow: 0 0 6px #fff; } /* White glow for black LED */
+/* Era 6 Note: Port-jack and physical patch metaphors have been purged in favor of the Aseptic Matrix. */
 
 /* VARIANTS AND SIZES */
 .variant-small .knob-ring { transform: scale(0.7); }

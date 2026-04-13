@@ -146,6 +146,16 @@ namespace Modular {
                             }
                             mModRuntime.setSourceValue(::Omega::Core::Voice::CompiledSignalSpace::kMidiToCvGate, 0.0f);
                         }
+                        else if (e.type == ::Omega::Core::Input::InputEventType::RawMidi) {
+                            // [ERA 5.2 GOLD] Transparent MIDI Hub Distribution
+                            // Branch messages to all modular buses for real-time bridging.
+                            for (int v = 0; v < mNumVoices; ++v) {
+                                auto& mBus = mVoiceStates[v].modularMidi;
+                                if (mBus.count < 16) {
+                                    mBus.messages[mBus.count++] = { e.data.rawMidi.status, e.data.rawMidi.d1, e.data.rawMidi.d2 };
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -193,7 +203,8 @@ namespace Modular {
                 if (s % 32 == 0) {
                     hub.pushSignal(mSlotDco, totalDcoSum);
                     hub.pushSignal(mSlotMaster, mixedL); 
-                    hub.pushSignal(mSlotActivity, std::abs(mixedL) > 0.01f ? 1.0f : 0.0f);
+                    // [ERA 5.2 GOLD] Real MIDI Activity Telemetry (Aseptic LED)
+                    hub.pushSignal(mSlotActivity, mVoiceStates[0].modularMidi.count > 0 ? 1.0f : 0.0f);
                 }
 
                 for (int c = 0; c < numChannels; ++c) buffer.setSample(c, s, (c == 0) ? mixedL : mixedR);

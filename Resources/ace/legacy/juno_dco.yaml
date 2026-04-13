@@ -1,44 +1,85 @@
-id: OSC-VA-001
+id: juno_dco
 name: JUNO DCO
-family: Oscillator
+family: osc
+version: "6.1.0"
+status: stable
 description: "Authentic digitally controlled oscillator from the Roland Juno-60 era. Features Saw, Pulse, and Sub-oscillator sections with PWM."
-icon: osc-va
-engine: VirtualAnalog
-modelId: DCO-60
-version: 1
-panelClass: juno-panel
-parameters:
-  - id: layer.a.osc.saw.on
+
+registry:
+  - id: osc.saw_on
     label: SAW
-    type: toggle
-  - id: layer.a.osc.pulse.on
+    type: bool
+    roles: ["control"]
+    presentation:
+      tab: MAIN
+      group: OSCILLATORS
+      order: 1
+      ui: { component: "toggle", variant: "juno-red" }
+
+  - id: osc.pulse_on
     label: PULSE
-    type: toggle
-  - id: layer.a.osc.sub.level
+    type: bool
+    roles: ["control"]
+    presentation:
+      tab: MAIN
+      group: OSCILLATORS
+      order: 2
+      ui: { component: "toggle", variant: "juno-red" }
+
+  - id: osc.sub_level
     label: SUB
-    min: 0
-    max: 1
-  - id: layer.a.osc.noise.level
+    type: float
+    roles: ["control", "mod_target"]
+    range: { min: 0, max: 1, default: 0 }
+    presentation:
+      tab: MAIN
+      group: MIXER
+      order: 3
+      ui: { component: "slider_v" }
+      attachments:
+        - { type: "label", position: "bottom" }
+
+  - id: osc.noise_level
     label: NOISE
-    min: 0
-    max: 1
-  - id: layer.a.osc.lfo.depth
+    type: float
+    roles: ["control", "mod_target"]
+    range: { min: 0, max: 1, default: 0 }
+    presentation:
+      tab: MAIN
+      group: MIXER
+      order: 4
+      ui: { component: "slider_v" }
+      attachments:
+        - { type: "label", position: "bottom" }
+
+  - id: osc.lfo_depth
     label: LFO
-    min: 0
-    max: 1
-  - id: layer.a.osc.pwm.amount
+    type: float
+    roles: ["control", "mod_target"]
+    range: { min: 0, max: 1, default: 0 }
+    presentation:
+      tab: MAIN
+      group: MODULATION
+      order: 5
+      ui: { component: "knob" }
+
+  - id: osc.pwm_amount
     label: PWM
-    min: 0
-    max: 1
-uiLayout:
-  columns: 2
-  gap: 12
-  items:
-    - { paramId: "layer.a.osc.saw.on",     control: "toggle",   label: "SAW",   row: 0, col: 0, variant: "juno-red" }
-    - { paramId: "layer.a.osc.pulse.on",   control: "toggle",   label: "PULSE", row: 0, col: 1, variant: "juno-red" }
-    - { paramId: "layer.a.osc.sub.level",  control: "slider-v", label: "SUB",   row: 1, col: 0 }
-    - { paramId: "layer.a.osc.noise.level",control: "slider-v", label: "NOISE", row: 1, col: 1 }
-    - { paramId: "layer.a.osc.lfo.depth",   control: "knob",     label: "LFO",   row: 2, col: 0 }
-    - { paramId: "layer.a.osc.pwm.amount",  control: "slider-v", label: "PWM",   row: 2, col: 1 }
-footer:
-  label: "DIGITALLY CONTROLLED OSC"
+    type: float
+    roles: ["control", "mod_target"]
+    range: { min: 0, max: 1, default: 0 }
+    presentation:
+      tab: MAIN
+      group: MODULATION
+      order: 6
+      ui: { component: "slider_v" }
+
+  - id: out.audio
+    label: AUDIO OUT
+    type: audio
+    roles: ["stream", "output"]
+    presentation:
+      tab: PATCHING
+      ui: { component: "port" }
+      attachments:
+        - { type: "led", position: "right", role: "activity" }

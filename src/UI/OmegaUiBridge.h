@@ -10,6 +10,7 @@
 #include "RpcMetadataController.h"
 #include "RpcInputController.h"
 #include "RpcModulationController.h"
+#include "RpcParameterController.h"
 
 namespace Omega {
     namespace Core {
@@ -25,8 +26,11 @@ namespace Omega {
          * @brief Puente de comunicación entre C++ y la WebUI (React).
          * [Protocol]: JSON-RPC v1 High-Fidelity.
          * [ThreadSafety]: Traduce mensajes de la UI al MessageThread y notifica cambios desde APVTS.
+         * [Era 6]: Nominal Command Dispatch + Subscription Telemetry.
          */
-        class OmegaUiBridge : private juce::AudioProcessorValueTreeState::Listener {
+        class OmegaUiBridge : private juce::AudioProcessorValueTreeState::Listener,
+                              private juce::Timer 
+        {
     public:
         using MessageCallback = std::function<void(const juce::String&)>;
 
@@ -42,7 +46,6 @@ namespace Omega {
          * @brief Procesa un mensaje JSON proveniente del Frontend.
          */
         juce::String handleMessageFromUi(const juce::String& jsonMessage);
-        juce::var    handleMessageFromUiAsVar(const juce::String& jsonMessage);
         juce::var    handleMessageFromUiAsVar(const juce::String& type, const juce::var& requestId, const juce::var& payload);
 
         /**
@@ -60,8 +63,12 @@ namespace Omega {
         // --- APVTS Listener ---
         void parameterChanged(const juce::String& parameterID, float newValue) override;
 
+        // --- Timer Callback (60Hz Telemetry Push) ---
+        void timerCallback() override;
+
         // --- Router Helpers ---
-        juce::String createResponse(const juce::var& type, const juce::var& requestId, const juce::var& error, const juce::var& payload = {});
+        juce::var createResponse(const juce::var& type, const juce::var& requestId, const juce::var& payload = {});
+        juce::var createError(const juce::var& errorCode, const juce::var& requestId, const juce::String& message);
         void notifyUi(const juce::var& notification);
 
         // --- Specialized Controllers ---
@@ -71,6 +78,8 @@ namespace Omega {
         std::unique_ptr<RpcMetadataController> mMetadataController;
         std::unique_ptr<RpcInputController> mInputController;
         std::unique_ptr<RpcModulationController> mModulationController;
+        std::unique_ptr<RpcParameterController> mParameterController;
+        RpcCommandDispatcher mDispatcher;
 
         Plugin::OmegaAudioProcessor* mProcessor;
         Core::Preset::OmegaPreset& mPreset;
@@ -79,6 +88,7 @@ namespace Omega {
         std::function<void(const Core::Preset::OmegaPreset&)> mOnLoadPreset;
         
         juce::var mScopeState;
+        int mTelemetryFrameCounter = 0;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OmegaUiBridge)
     };

@@ -10,11 +10,19 @@ namespace UI {
     RpcMetadataController::RpcMetadataController(Plugin::OmegaAudioProcessor* processor)
         : mProcessor(processor) {}
 
+    void RpcMetadataController::registerCommands(RpcCommandDispatcher& dispatcher) {
+        dispatcher.registerHandler("getMetadata", [this](const juce::var& rid, const juce::var& p) { return handleGetMetadata(rid, p); });
+        dispatcher.registerHandler("getSampleRate", [this](const juce::var& rid, const juce::var& p) { return handleGetSampleRate(rid, p); });
+        dispatcher.registerHandler("getTempo", [this](const juce::var& rid, const juce::var& p) { return handleGetTempo(rid, p); });
+        dispatcher.registerHandler("getInventory", [this](const juce::var& rid, const juce::var& p) { return handleGetInventory(rid, p); });
+        dispatcher.registerHandler("getUiSchemas", [this](const juce::var& rid, const juce::var& p) { return handleGetUiSchemas(rid, p); });
+    }
+
     juce::var RpcMetadataController::handleGetMetadata(const juce::var& requestId, const juce::var&) {
         auto& registry = Core::ParameterMetadataRegistry::getInstance();
         
         juce::DynamicObject::Ptr root = new juce::DynamicObject();
-        root->setProperty("version", "1.0.0");
+        root->setProperty("version", OMEGA_BUILD_VERSION); // Era 6 Sane versioning
         root->setProperty("build", OMEGA_BUILD_VERSION);
         root->setProperty("timestamp", OMEGA_BUILD_TIMESTAMP);
         root->setProperty("engine", "Omega VA (Direct Sum)");
@@ -38,20 +46,20 @@ namespace UI {
         }
         root->setProperty("groups", groupArray);
 
-        return createResponse("METADATA", requestId, {}, root.get());
+        return createResponse("METADATA", requestId, juce::var(), root.get());
     }
 
     juce::var RpcMetadataController::handleGetSampleRate(const juce::var& requestId, const juce::var&) {
         double sr = mProcessor ? mProcessor->getSampleRate() : 44100.0;
-        return createResponse("SAMPLE_RATE", requestId, {}, sr);
+        return createResponse("SAMPLE_RATE", requestId, juce::var(), sr);
     }
 
     juce::var RpcMetadataController::handleGetTempo(const juce::var& requestId, const juce::var&) {
-        return createResponse("TEMPO", requestId, {}, 120.0);
+        return createResponse("TEMPO", requestId, juce::var(), 120.0);
     }
 
-    juce::var RpcMetadataController::handleListCatalog(const juce::var& requestId, const juce::var&) {
-        if (!mProcessor) return createError("LIST_CATALOG", requestId, "Missing Processor");
+    juce::var RpcMetadataController::handleGetInventory(const juce::var& requestId, const juce::var&) {
+        if (!mProcessor) return createError("GET_INVENTORY", requestId, "Missing Processor");
         
         auto& catalog = mProcessor->getCatalog();
         juce::Array<juce::var> components;
@@ -63,20 +71,8 @@ namespace UI {
             obj->setProperty("family", juce::String(info->family));
             obj->setProperty("engine", juce::String(info->engine));
             obj->setProperty("version", info->version);
-            obj->setProperty("description", juce::String(info->description));
-            obj->setProperty("icon", juce::String(info->icon));
-            obj->setProperty("illustration", juce::String(info->illustration));
-            obj->setProperty("visible", info->visible);
-            obj->setProperty("rack", juce::String(info->rack));
             
-            juce::Array<juce::var> tags;
-            for (const auto& t : info->tags) tags.add(juce::String(t));
-            obj->setProperty("tags", tags);
-            
-            // ERA 5.2: Unified Registry Serialization
             juce::Array<juce::var> registryArray;
-            
-            // 1. Parameters as Registry Entries
             for (auto const& p : info->parameters) {
                 juce::DynamicObject::Ptr pobj = new juce::DynamicObject();
                 pobj->setProperty("id", juce::String(p.id));
@@ -101,11 +97,9 @@ namespace UI {
                     }
                     pobj->setProperty("options", opts);
                 }
-                
                 registryArray.add(juce::var(pobj.get()));
             }
 
-            // 2. Ports as Registry Entries
             for (auto const& p : info->ports) {
                 juce::DynamicObject::Ptr pobj = new juce::DynamicObject();
                 pobj->setProperty("id", juce::String(p.id));
@@ -122,20 +116,28 @@ namespace UI {
                 registryArray.add(juce::var(pobj.get()));
             }
             obj->setProperty("registry", registryArray);
-
-            // UI Layout and Style
-            if (!info->uiLayout.empty()) {
-                obj->setProperty("uiLayout", juce::JSON::parse(info->uiLayout));
-            }
-            obj->setProperty("style", juce::String(info->style));
-            
             components.add(juce::var(obj.get()));
         }
         
         juce::DynamicObject::Ptr payload = new juce::DynamicObject();
         payload->setProperty("components", components);
         
-        return createResponse("LIST_CATALOG", requestId, {}, payload.get());
+        return createResponse("INVENTORY", requestId, juce::var(), payload.get());
+    }
+
+    juce::var RpcMetadataController::handleGetUiSchemas(const juce::var& requestId, const juce::var&) {
+        juce::DynamicObject::Ptr payload = new juce::DynamicObject();
+        
+        // [Era 6] Nominal Minimal Schema to prevent UI hang
+        juce::Array<juce::var> schemas;
+        juce::DynamicObject::Ptr nominal = new juce::DynamicObject();
+        nominal->setProperty("id", "omega.nominal");
+        nominal->setProperty("schemaVersion", "1.0");
+        nominal->setProperty("target", "system");
+        schemas.add(juce::var(nominal.get()));
+
+        payload->setProperty("schemas", schemas);
+        return createResponse("UISCHEMAS", requestId, juce::var(), payload.get());
     }
 
     juce::var RpcMetadataController::descriptorToVar(const Core::ParameterDescriptor& d) {

@@ -1,12 +1,26 @@
 #include "RpcPresetController.h"
 #include "../Core/OmegaIdentifiers.h"
+#include <juce_gui_basics/juce_gui_basics.h>
 
 namespace Omega {
 namespace UI {
 
-    juce::var RpcPresetController::handleGetState(const juce::var& requestId, const juce::var&) {
-        return createResponse("STATE", requestId, {}, presetToVar(mPreset));
+    void RpcPresetController::registerCommands(RpcCommandDispatcher& dispatcher, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
+        dispatcher.registerHandler("listAce",            [this](const juce::var& rid, const juce::var& p) { return handleListAceComponents(rid, p); });
+        dispatcher.registerHandler("loadPreset",         [this, onLoad](const juce::var& rid, const juce::var& p) { return handleLoadPreset(rid, p, onLoad); });
+        dispatcher.registerHandler("savePreset",         [this](const juce::var& rid, const juce::var& p) { return handleSavePreset(rid, p); });
+        dispatcher.registerHandler("listPresets",        [this](const juce::var& rid, const juce::var& p) { return handleListPresets(rid, p); });
+        dispatcher.registerHandler("getBrowserData",     [this](const juce::var& rid, const juce::var& p) { return handleGetBrowserData(rid, p); });
+        dispatcher.registerHandler("getHistory",         [this](const juce::var& rid, const juce::var& p) { return handleGetHistory(rid, p); });
+        dispatcher.registerHandler("saveSnapshot",       [this](const juce::var& rid, const juce::var& p) { return handleSaveSnapshot(rid, p, mPreset); });
+        dispatcher.registerHandler("checkout",           [this, onLoad](const juce::var& rid, const juce::var& p) { return handleCheckout(rid, p, onLoad); });
+        dispatcher.registerHandler("createBranch",       [this](const juce::var& rid, const juce::var& p) { return handleCreateBranch(rid, p); });
+        dispatcher.registerHandler("selectLibrary",      [this](const juce::var& rid, const juce::var& p) { return handleSelectLibrary(rid, p); });
+        dispatcher.registerHandler("loadLibraryPreset",  [this, onLoad](const juce::var& rid, const juce::var& p) { return handleLoadLibraryPreset(rid, p, onLoad); });
+        dispatcher.registerHandler("setFavorite",        [this](const juce::var& rid, const juce::var& p) { return handleSetFavorite(rid, p); });
+        dispatcher.registerHandler("addModule",          [this, onLoad](const juce::var& rid, const juce::var& p) { return handleAddModule(rid, p, onLoad); });
     }
+
 
     juce::var RpcPresetController::handleListAceComponents(const juce::var& requestId, const juce::var&) {
         juce::Array<juce::var> components;
@@ -15,18 +29,9 @@ namespace UI {
             obj->setProperty("id", juce::String(comp->id));
             obj->setProperty("name", juce::String(comp->name));
             obj->setProperty("family", juce::String(comp->family));
-            
-            // Hyper-ACE UI Metadata
-            if (!comp->uiLayout.empty()) {
-                obj->setProperty("uiLayout", juce::JSON::parse(comp->uiLayout));
-            }
-            if (!comp->style.empty()) {
-                obj->setProperty("style", juce::String(comp->style));
-            }
-
             components.add(juce::var(obj.get()));
         }
-        return createResponse("ACE_LIST", requestId, {}, components);
+        return createResponse("ACE_LIST", requestId, juce::var(), components);
     }
 
     juce::var RpcPresetController::handleLoadPreset(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
@@ -42,21 +47,20 @@ namespace UI {
     }
 
     juce::var RpcPresetController::handleSavePreset(const juce::var& requestId, const juce::var& payload) {
-        return createResponse("SAVE_ACK", requestId, {});
+        return createResponse("SAVE_ACK", requestId, juce::var());
     }
 
     juce::var RpcPresetController::handleListPresets(const juce::var& requestId, const juce::var&) {
         auto presets = mRepository->listPresets();
         juce::Array<juce::var> list;
         for (const auto& p : presets) list.add(juce::String(p));
-        return createResponse("PRESET_LIST", requestId, {}, list);
+        return createResponse("PRESET_LIST", requestId, juce::var(), list);
     }
 
     juce::var RpcPresetController::handleGetBrowserData(const juce::var& requestId, const juce::var&) {
         juce::DynamicObject::Ptr root = new juce::DynamicObject();
         juce::Array<juce::var> libraries;
 
-        // 1. Factory Library (from Repository)
         juce::DynamicObject::Ptr factLib = new juce::DynamicObject();
         factLib->setProperty("name", "Factory");
         factLib->setProperty("category", "Factory");
@@ -74,7 +78,6 @@ namespace UI {
         factLib->setProperty("patches", patches);
         libraries.add(juce::var(factLib.get()));
 
-        // 2. User Library (Placeholder for now)
         juce::DynamicObject::Ptr userLib = new juce::DynamicObject();
         userLib->setProperty("name", "User");
         userLib->setProperty("category", "User");
@@ -91,15 +94,14 @@ namespace UI {
         categories.add("Pad");
         root->setProperty("categories", categories);
 
-        return createResponse("BROWSER_DATA", requestId, {}, juce::var(root.get()));
+        return createResponse("BROWSER_DATA", requestId, juce::var(), juce::var(root.get()));
     }
 
     juce::var RpcPresetController::handleSelectLibrary(const juce::var& requestId, const juce::var&) {
-        return createResponse("SELECT_LIB_ACK", requestId, {}, true);
+        return createResponse("SELECT_LIB_ACK", requestId, juce::var(), true);
     }
 
     juce::var RpcPresetController::handleLoadLibraryPreset(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
-        int libIdx = (int)payload["libIdx"];
         int prstIdx = (int)payload["prstIdx"];
         
         auto presets = mRepository->listPresets();
@@ -107,14 +109,14 @@ namespace UI {
             Core::Preset::OmegaPreset loaded;
             if (mRepository->loadPreset(presets[prstIdx], loaded)) {
                 if (onLoad) onLoad(loaded);
-                return createResponse("LOAD_ACK", requestId, {}, true);
+                return createResponse("LOAD_ACK", requestId, juce::var(), true);
             }
         }
         return createError("LOAD_ACK", requestId, "Preset not found at index");
     }
 
     juce::var RpcPresetController::handleSetFavorite(const juce::var& requestId, const juce::var&) {
-        return createResponse("FAV_ACK", requestId, {}, true);
+        return createResponse("FAV_ACK", requestId, juce::var(), true);
     }
     
     juce::var RpcPresetController::handleAddModule(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
@@ -122,25 +124,19 @@ namespace UI {
         auto info = mCatalog.getComponent(componentId.toStdString());
         if (!info) return createError("ADD_MODULE_ACK", requestId, "Component not found: " + componentId);
 
-        // Access the preset's state
         auto& state = mPreset.getState();
         using IDs = Core::Preset::OmegaPreset::IDs;
 
-        // Modules added via the browser go into the root-level 'auxiliary' node.
-        // This is where ModuleManager.ts reads from (safeState.preset?.auxiliary).
-        // DO NOT add to layers[0].voiceArch — that is for the hardwired voice chain.
         auto aux = state.getChildWithName(IDs::auxiliary);
         if (!aux.isValid()) {
             aux = juce::ValueTree(IDs::auxiliary);
             state.addChild(aux, -1, nullptr);
         }
 
-        // Create component entry
         juce::ValueTree cn(IDs::COMPONENT);
         cn.setProperty(IDs::slotName,    juce::String(info->name), nullptr);
         cn.setProperty(IDs::componentId, juce::String(info->id),   nullptr);
         
-        // Ensure unique instance ID
         int count = 0;
         for (int i = 0; i < aux.getNumChildren(); ++i) {
             if (aux.getChild(i).getProperty(IDs::componentId).toString() == juce::String(info->id))
@@ -156,10 +152,9 @@ namespace UI {
         cn.addChild(cp, -1, nullptr);
         aux.addChild(cn, -1, nullptr);
 
-        // Notify the engine that the preset structure has changed
         if (onLoad) onLoad(mPreset);
         
-        return createResponse("ADD_MODULE_ACK", requestId, {}, true);
+        return createResponse("ADD_MODULE_ACK", requestId, juce::var(), true);
     }
 
     juce::var RpcPresetController::handleGetHistory(const juce::var& requestId, const juce::var& payload) {
@@ -190,7 +185,7 @@ namespace UI {
         }
         root->setProperty("snapshots", snapshots);
 
-        return createResponse("HISTORY", requestId, {}, root.get());
+        return createResponse("HISTORY", requestId, juce::var(), root.get());
     }
 
     juce::var RpcPresetController::handleSaveSnapshot(const juce::var& requestId, const juce::var& payload, const Core::Preset::OmegaPreset& currentPreset) {
@@ -198,7 +193,7 @@ namespace UI {
         juce::String author = payload["author"].toString();
         juce::String message = payload["message"].toString();
         std::string hash = mRepository->saveSnapshot(currentPreset, author.toStdString(), message.toStdString());
-        return createResponse("SAVE_SNAPSHOT_ACK", requestId, {}, juce::String(hash));
+        return createResponse("SAVE_SNAPSHOT_ACK", requestId, juce::var(), juce::String(hash));
     }
 
     juce::var RpcPresetController::handleCheckout(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
@@ -208,7 +203,7 @@ namespace UI {
         Core::Preset::OmegaPreset loadedPreset;
         if (mRepository->checkout(presetId.toStdString(), hash.toStdString(), loadedPreset)) {
             if (onLoad) onLoad(loadedPreset);
-            return createResponse("CHECKOUT_ACK", requestId, {}, true);
+            return createResponse("CHECKOUT_ACK", requestId, juce::var(), true);
         }
         return createError("CHECKOUT_ACK", requestId, "Checkout failed");
     }
@@ -219,15 +214,13 @@ namespace UI {
         juce::String branchName = payload["name"].toString();
         juce::String fromHash = payload["from"].toString();
         bool ok = mRepository->createBranch(presetId.toStdString(), branchName.toStdString(), fromHash.toStdString());
-        return createResponse("BRANCH_ACK", requestId, {}, ok);
+        return createResponse("BRANCH_ACK", requestId, juce::var(), ok);
     }
 
-    // Recursive helper for ValueTree -> JSON map
     static juce::var valueTreeToVar(const juce::ValueTree& tree) {
         if (!tree.isValid()) return juce::var();
         auto tag = tree.getType().toString();
 
-        // Collection Flattening
         static const std::vector<juce::String> collections = {
             "layers", "oscillators", "filters", "lfos", "envelopes", 
             "amplifiers", "modulators", "fxSlots", "auxiliary", "modGraph",
@@ -245,20 +238,14 @@ namespace UI {
             auto propName = tree.getPropertyName(i);
             auto val = tree.getProperty(propName);
             
-            // [VISION 2.1.3/2.1.4]: Standard Alignment (toFixed crash fix)
-            if (propName == Core::Identifiers::amount && val.isVoid()) {
-                obj->setProperty(propName, 0.0);
-            } else if (propName == Core::Identifiers::viaAmount && val.isVoid()) {
-                obj->setProperty(propName, 1.0);
-            } else {
-                obj->setProperty(propName, val);
-            }
+            if (propName == Core::Identifiers::amount && val.isVoid()) obj->setProperty(propName, 0.0);
+            else if (propName == Core::Identifiers::viaAmount && val.isVoid()) obj->setProperty(propName, 1.0);
+            else obj->setProperty(propName, val);
         }
 
         for (int i = 0; i < tree.getNumChildren(); ++i) {
             auto child = tree.getChild(i);
-            auto childTag = child.getType();
-            obj->setProperty(childTag, valueTreeToVar(child));
+            obj->setProperty(child.getType(), valueTreeToVar(child));
         }
         return juce::var(obj.get());
     }

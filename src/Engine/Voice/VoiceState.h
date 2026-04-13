@@ -61,9 +61,17 @@ namespace Voice {
         // Modular Buses (Batch 2: 16 float accumulation slots)
         float buses[16] = { 0.0f };
 
-        // Modular MIDI Bus (VA 2.1.W WASM Bridge)
-        // [Byte0: Status, Byte1: Data1, Byte2: Data2, Byte3: Meta/Channel]
-        uint8_t modularMidi[4] = { 0, 0, 0, 0 };
+        // Modular MIDI Bus (VA 2.2 Hub)
+        // Supports up to 16 messages per block per voice for high-density sequences.
+        struct MidiMessage {
+            uint8_t status = 0;
+            uint8_t d1 = 0;
+            uint8_t d2 = 0;
+        };
+        struct {
+            MidiMessage messages[16];
+            int count = 0;
+        } modularMidi;
 
         // Modulation Signal Space (Case 401: ADSR, LFO outputs)
         float modSignals[64] = { 0.0f };
@@ -94,6 +102,7 @@ namespace Voice {
             for (auto& u : units) { u.active = false; }
             for (auto& b : buses) { b = 0.0f; }
             for (auto& m : modSignals) { m = 0.0f; }
+            modularMidi.count = 0;
         }
     };
 

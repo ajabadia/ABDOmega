@@ -74,11 +74,15 @@ export class ModuleOscilloscope {
         });
     }
     async fetchSourcesWithRetry() {
+        // Era 6: Unified dispatch through Command Dispatcher
         // @ts-ignore
-        if (window.omegaRPC) {
+        if (window.rpcCommandDispatcher) {
             try {
                 // @ts-ignore
-                const resp = await window.omegaRPC.send("getModulationMetadata", {});
+                const resp = await window.rpcCommandDispatcher.dispatch({
+                    type: 'systemQuery',
+                    target: 'getModulationMetadata'
+                });
                 if (resp && resp.sources) {
                     // Filter for ports that have a telemetryIndex (visualizable)
                     this.allSources = resp.sources.filter((s) => s.telemetryIndex !== -1);
@@ -248,14 +252,18 @@ export class ModuleOscilloscope {
         this.pollingInterval = setInterval(async () => {
             if (!this.isPowered || this.isFrozen)
                 return;
+            // Era 6: Unified dispatch through Command Dispatcher
             // @ts-ignore
-            if (window.omegaRPC) {
+            if (window.rpcCommandDispatcher) {
                 const indices = [this.sourceA];
                 if (this.isDual)
                     indices.push(this.sourceB);
                 try {
                     // @ts-ignore
-                    const data = await window.omegaRPC.send("getTelemetry", { indices });
+                    const data = await window.rpcCommandDispatcher.dispatch({
+                        type: 'getTelemetry',
+                        value: { indices }
+                    });
                     if (data) {
                         if (data[this.sourceA.toString()])
                             this.dataA = data[this.sourceA.toString()].history || [];

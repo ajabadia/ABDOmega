@@ -19,8 +19,31 @@ namespace UI {
         mMetadataController = std::make_unique<RpcMetadataController>(mProcessor);
         mInputController = std::make_unique<RpcInputController>(mProcessor);
         mModulationController = std::make_unique<RpcModulationController>(mPreset);
+        mParameterController = std::make_unique<RpcParameterController>(mProcessor, mApvts, mPreset);
 
-        // [Era 4.1] System Telemetry Registration
+        // --- CONTEXTUAL COMMAND REGISTRATION ---
+        mPresetController->registerCommands(mDispatcher, mOnLoadPreset);
+        mTelemetryController->registerCommands(mDispatcher, mScopeState);
+        mSystemController->registerCommands(mDispatcher, mProcessor);
+        mMetadataController->registerCommands(mDispatcher);
+        mInputController->registerCommands(mDispatcher);
+        mModulationController->registerCommands(mDispatcher);
+        mParameterController->setupParameterCommands(mDispatcher);
+
+        // [Era 6] Final Nominal Bootstrap Commands
+        mDispatcher.registerHandler("uiReady", [this](const juce::var& rid, const juce::var&) {
+            forceRepaint();
+            return createResponse("UI_READY_ACK", rid, juce::var());
+        });
+
+        // [Era 6] Fail-Fast: Catch legacy protocols in the dispatcher
+        mDispatcher.registerHandler("setParam", [this](const juce::var& rid, const juce::var&) {
+            return createError("CONTRACTVIOLATION", rid, "Legacy protocol 'setParam' is deprecated. Use 'setParameter' command.");
+        });
+        mDispatcher.registerHandler("menuAction", [this](const juce::var& rid, const juce::var&) {
+            return createError("CONTRACTVIOLATION", rid, "Legacy protocol 'menuAction' is deprecated. Use 'newPreset' or 'exit' directly.");
+        });
+
         auto& reg = Core::Providers::ModulationTelemetryRegistry::getInstance();
         reg.registerPin("system", "midi_monitor", Core::Providers::TelemetryType::Discrete, "MIDI Monitor");
 
@@ -30,9 +53,13 @@ namespace UI {
             if (auto* p = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
                 mApvts.addParameterListener(p->getParameterID(), this);
         }
+
+        // [Era 6] Start Telemetry Push Timer (60Hz)
+        startTimerHz(60);
     }
 
     OmegaUiBridge::~OmegaUiBridge() {
+        stopTimer();
         for (auto& param : mProcessor->getParameters()) {
             if (auto* p = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
                 mApvts.removeParameterListener(p->getParameterID(), this);
@@ -41,7 +68,7 @@ namespace UI {
 
     juce::String OmegaUiBridge::handleMessageFromUi(const juce::String& jsonMessage) {
         juce::var jsonVar = juce::JSON::parse(jsonMessage);
-        if (jsonVar.isVoid()) return createResponse("error", 0, "Invalid JSON");
+        if (jsonVar.isVoid()) return createError("INVALID_JSON", 0, "Empty or invalid message body.");
 
         juce::var type = jsonVar["type"];
         juce::var requestId = jsonVar.hasProperty("requestId") ? jsonVar["requestId"] : jsonVar["id"];
@@ -52,142 +79,49 @@ namespace UI {
     }
 
     juce::var OmegaUiBridge::handleMessageFromUiAsVar(const juce::String& type, const juce::var& requestId, const juce::var& payload) {
-        // --- ROUTER ---
-        
-        // 1. Preset & Version Control
-        if (type == "getState") return mPresetController->handleGetState(requestId, payload);
-        if (type == "listAce") return mPresetController->handleListAceComponents(requestId, payload);
-        if (type == "loadPreset") return mPresetController->handleLoadPreset(requestId, payload, mOnLoadPreset);
-        if (type == "savePreset") return mPresetController->handleSavePreset(requestId, payload);
-        if (type == "listPresets") return mPresetController->handleListPresets(requestId, payload);
-        if (type == "getHistory") return mPresetController->handleGetHistory(requestId, payload);
-        if (type == "saveSnapshot") return mPresetController->handleSaveSnapshot(requestId, payload, mPreset);
-        if (type == "checkout") return mPresetController->handleCheckout(requestId, payload, mOnLoadPreset);
-        if (type == "createBranch") return mPresetController->handleCreateBranch(requestId, payload);
-        if (type == "getBrowserData") return mPresetController->handleGetBrowserData(requestId, payload);
-        if (type == "selectLibrary") return mPresetController->handleSelectLibrary(requestId, payload);
-        if (type == "loadLibraryPreset") return mPresetController->handleLoadLibraryPreset(requestId, payload, mOnLoadPreset);
-        if (type == "setFavorite") return mPresetController->handleSetFavorite(requestId, payload);
-        if (type == "addModule") return mPresetController->handleAddModule(requestId, payload, mOnLoadPreset);
-        if (type == "saveAsNewPreset") {
-             // Redirect to saveSnapshot logic or similar
-             return mPresetController->handleSaveSnapshot(requestId, payload, mPreset);
-        }
-        
-        if (type == "setParam") {
-            juce::String paramId = payload["id"].toString();
-            float value = (float)payload["value"];
-            if (auto* param = mApvts.getParameter(paramId)) {
-                param->setValueNotifyingHost(param->getNormalisableRange().convertTo0to1(value));
-                return createResponse("PARAM_ACK", requestId, {}, payload);
-            }
-        }
-
-        // 2. Telemetry & Visuals
-        if (type == "getTelemetry") return mTelemetryController->handleGetTelemetry(requestId, payload);
-        if (type == "getTelemetrySources") return mTelemetryController->handleGetTelemetrySources(requestId, payload);
-        if (type == "getModConnections") return mTelemetryController->handleGetModConnections(requestId, payload);
-        if (type == "getScopeState") return mTelemetryController->handleGetScopeState(requestId, payload, mScopeState);
-        if (type == "setScopeState") return mTelemetryController->handleSetScopeState(requestId, payload, mScopeState);
-
-        // 3. System & Config
-        if (type == "getSystemSettings") return mSystemController->handleGetSystemSettings(requestId, payload);
-        if (type == "setSystemSetting") return mSystemController->handleSetSystemSetting(requestId, payload);
-
-        // 4. Metadata & Runtime
-        if (type == "getMetadata") return mMetadataController->handleGetMetadata(requestId, payload);
-        if (type == "getSampleRate") return mMetadataController->handleGetSampleRate(requestId, payload);
-        if (type == "getTempo") return mMetadataController->handleGetTempo(requestId, payload);
-        if (type == "listCatalog") return mMetadataController->handleListCatalog(requestId, payload);
-        if (type == "uiReady") {
-            // Proactive Push: Ensure UI is in sync with real engine state immediately
-            // We use both explicit push and forceRepaint for redundancy during boot.
-            juce::DynamicObject::Ptr push = new juce::DynamicObject();
-            push->setProperty("type", "onStateUpdate");
-            push->setProperty("payload", mPresetController->presetToVar(mPreset));
-            notifyUi(juce::var(push.get()));
-            
-            forceRepaint();
-            return createResponse("UI_READY_ACK", requestId, {});
-        }
-
-        // 5. Input
-        if (type == "triggerNote") return mInputController->handleTriggerNote(requestId, payload);
-        if (type == "sendMidi") {
-            // Translate raw MIDI from UI to handleTriggerNote
-            int status = (int)payload["status"];
-            int note = (int)payload["data1"];
-            int vel = (int)payload["data2"];
-            
-            juce::DynamicObject::Ptr triggerPayload = new juce::DynamicObject();
-            triggerPayload->setProperty("note", note);
-            triggerPayload->setProperty("velocity", vel);
-            triggerPayload->setProperty("on", (status & 0xF0) == 0x90 && vel > 0);
-            
-            return mInputController->handleTriggerNote(requestId, juce::var(triggerPayload.get()));
-        }
-
-        // 6. Patchbay-Matrix (Hyper-ACE)
-        if (type == "getModulationMetadata") return mModulationController->handleGetModulationMetadata(requestId, payload);
-        if (type == "updatePatchbayMatrixSlot") {
-            juce::var result = mModulationController->handleUpdatePatchbayMatrixSlot(requestId, payload);
-            
-            // Vision Alignment: Broadcast change to ALL UI components immediately
-            // We use 'onPatchbayMatrixUpdate' instead of 'onStateUpdate' to avoid heavy rack rebuilds.
-            juce::DynamicObject::Ptr push = new juce::DynamicObject();
-            push->setProperty("type", "onPatchbayMatrixUpdate");
-            push->setProperty("payload", mPresetController->presetToVar(mPreset));
-            notifyUi(juce::var(push.get()));
-
-            // Ensure Patchbay changes propagate to the Audio Engine correctly
-            juce::MessageManager::callAsync([this]() {
-                mProcessor->loadPreset(mPreset);
-            });
-            
-            return result;
-        }
-
-        // 7. Menu Actions & System
-        if (type == "menuAction") {
-            juce::String action = payload["action"].toString();
-            DBG("[OMEGA BRIDGE] menuAction received: " << action);
-            
-            if (action == "new_preset") {
-                DBG("[OMEGA BRIDGE] Loading Minimal Preset (Auto-Heal / New)");
-                
-                juce::String presetName = "Init Preset";
-                if (payload.hasProperty("args") && payload["args"].isArray()) {
-                    auto* arr = payload["args"].getArray();
-                    if (arr->size() > 0) presetName = (*arr)[0].toString();
-                }
-
-                // Force an application-level reload so audio engine updates completely 
-                juce::MessageManager::callAsync([this, presetName]() {
-                    auto p = Core::Preset::OmegaPreset::createMinimal();
-                    p.setName(presetName);
-                    mProcessor->loadPreset(p);
-                });
-                return createResponse("NEW_PRESET_ACK", requestId, {});
-            }
-            
-            if (action == "exit") {
-                DBG("[OMEGA BRIDGE] Executing System Quit");
-                juce::JUCEApplication::getInstance()->systemRequestedQuit();
-                return createResponse("EXIT_ACK", requestId, {});
-            }
-            // Add other system actions here
-        }
-
-        return createResponse("error", requestId, "Unknown method: " + type);
+        DBG("[RPC] RECV: " << type << " [ID: " << requestId.toString() << "]");
+        // [Era 6 Absolute] Universal Routing via Dispatcher
+        return mDispatcher.dispatch(type, requestId, payload);
     }
 
-    juce::String OmegaUiBridge::createResponse(const juce::var& type, const juce::var& requestId, const juce::var& error, const juce::var& payload) {
+    void OmegaUiBridge::timerCallback() {
+        // [Era 6] Multi-Tier Telemetry Push (Phased)
+        // Phase 1: Discrete (PK/V) - Always collected at 60Hz (Ultra-Cheap)
+        // Phase 2: Streaming (H)   - Collected every 4 frames at 15Hz (Expensive serialization)
+        
+        mTelemetryFrameCounter++;
+        bool includeStreaming = (mTelemetryFrameCounter % 4 == 0);
+        
+        juce::var data = mTelemetryController->collectTelemetry(includeStreaming);
+        
+        if (!data.isVoid()) {
+            juce::DynamicObject::Ptr push = new juce::DynamicObject();
+            push->setProperty("type", "telemetryUpdate");
+            push->setProperty("payload", data);
+            
+            // Add tier meta-info if streaming was included
+            if (includeStreaming) push->setProperty("tier", "streaming");
+            else push->setProperty("tier", "discrete");
+
+            notifyUi(juce::var(push.get()));
+        }
+    }
+
+    juce::var OmegaUiBridge::createResponse(const juce::var& type, const juce::var& requestId, const juce::var& payload) {
         juce::DynamicObject::Ptr obj = new juce::DynamicObject();
         obj->setProperty("type", type);
         obj->setProperty("requestId", requestId);
-        obj->setProperty("error", error);
         obj->setProperty("payload", payload);
-        return juce::JSON::toString(juce::var(obj.get()));
+        return juce::var(obj.get());
+    }
+    
+    juce::var OmegaUiBridge::createError(const juce::var& errorCode, const juce::var& requestId, const juce::String& message) {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty("type", "rpcError");
+        obj->setProperty("requestId", requestId);
+        obj->setProperty("errorCode", errorCode);
+        obj->setProperty("message", message);
+        return juce::var(obj.get());
     }
 
     void OmegaUiBridge::notifyUi(const juce::var& notification) {
@@ -197,7 +131,7 @@ namespace UI {
     void OmegaUiBridge::parameterChanged(const juce::String& parameterID, float newValue) {
         juce::DynamicObject::Ptr n = new juce::DynamicObject();
         n->setProperty("type", "PARAM_CHANGE");
-        n->setProperty("id", parameterID);
+        n->setProperty("target", parameterID);
         n->setProperty("value", newValue);
         notifyUi(juce::var(n.get()));
     }
@@ -208,13 +142,16 @@ namespace UI {
     void OmegaUiBridge::forceRepaint() {
         juce::DynamicObject::Ptr push = new juce::DynamicObject();
         push->setProperty("type", "onStateUpdate");
+        
         juce::var payload = mPresetController->presetToVar(mPreset);
+        // Ensure schemaVersion is present in the payload (if presetToVar doesn't add it)
+        if (!payload.hasProperty("schemaVersion")) {
+            if (auto* obj = payload.getDynamicObject()) {
+                obj->setProperty("schemaVersion", "1.0");
+            }
+        }
+        
         push->setProperty("payload", payload);
-        juce::String jsonStr = juce::JSON::toString(juce::var(push.get()));
-        
-        juce::File dumpFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("OMEGA_PAYLOAD_DUMP.json");
-        dumpFile.replaceWithText(jsonStr);
-        
         notifyUi(juce::var(push.get()));
     }
 

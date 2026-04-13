@@ -1,27 +1,31 @@
 id: "midi_in"
-name: "MIDI Input"
-family: "Utility"
-engine: "Modular"
 modelId: "ACE-UTIL-MIDI-IN"
+theme: "industrial"
+name: "MIDI IN"
 implementationId: 501
-version: 1
-status: "active"
-description: "Aseptic MIDI bridge (Era 5.2 Certified). Passes all host MIDI data to the engine."
+version: "5.2.0"
+family: "Utility"
+description: "Canonical MIDI Input Bridge for the OMEGA Rack (Era 5.2 Gold)."
 
 layout:
-  hp: 6
+  hp: 4
+  rack: "upper"
   columns: 1
 
 registry:
-  - id: "midi_data"
-    label: "MIDI OUT"
-    roles: ["output", "stream"]
-    direction: "output"
-    type: "midi"
-    presentation: { tab: "PATCHING", group: "SOURCES", order: 1 }
-
   - id: "activity"
     label: "ACTIVITY"
-    roles: ["telemetry"]
-    direction: "internal"
-    presentation: { tab: "MAIN", group: "STATUS", order: 2, ui: { component: "led" } }
+    roles: [telemetry]
+    direction: internal
+    presentation: 
+      tab: "MAIN"
+      group: "STATUS"
+      order: 1
+      ui: { component: "led", variant: "A" }
+
+  - id: "midi_data"
+    label: "MIDI DATA"
+    type: midi
+    direction: output
+    roles: [stream, output]
+    presentation: { tab: "PATCHING", group: "OUTPUTS", order: 1 }

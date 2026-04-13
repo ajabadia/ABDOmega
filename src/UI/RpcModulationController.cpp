@@ -5,6 +5,11 @@
 namespace Omega {
 namespace UI {
 
+    void RpcModulationController::registerCommands(RpcCommandDispatcher& dispatcher) {
+        dispatcher.registerHandler("getModulationMetadata", [this](const juce::var& rid, const juce::var& p) { return handleGetModulationMetadata(rid, p); });
+        dispatcher.registerHandler("updatePatchbayMatrixSlot", [this](const juce::var& rid, const juce::var& p) { return handleUpdatePatchbayMatrixSlot(rid, p); });
+    }
+
     juce::var RpcModulationController::handleGetModulationMetadata(const juce::var& requestId, const juce::var& payload) {
         juce::DynamicObject::Ptr resp = new juce::DynamicObject();
         
@@ -37,18 +42,9 @@ namespace UI {
             mObj->setProperty("category", juce::var(juce::String(manifest.category)));
             mObj->setProperty("status", juce::var(juce::String(manifest.status)));
             
-            // Hyper-ACE UI Metadata
-            if (!manifest.uiLayout.empty()) {
-                mObj->setProperty("uiLayout", juce::JSON::parse(manifest.uiLayout));
-            }
-            if (!manifest.style.empty()) {
-                mObj->setProperty("style", juce::String(manifest.style));
-            }
-
             juce::Array<juce::var> portsArr;
             for (const auto& port : manifest.ports) {
                 juce::DynamicObject::Ptr portObj = new juce::DynamicObject();
-                // For the global matrix (flattened)
                 portObj->setProperty("id", juce::var(juce::String(manifest.instanceId + "." + port.id)));
                 portObj->setProperty("name", juce::var(juce::String(manifest.instanceId + " " + port.label)));
                 portObj->setProperty("type", typeToStr(port.type));
@@ -78,7 +74,6 @@ namespace UI {
                 }
                 portsArr.add(juce::var(nestPort.get()));
 
-                // Solamente añadir al listado general de patchbay (sources/targets) si está instanciado ("active")
                 if (manifest.status == "active") {
                     if (port.isInput) targets.add(juce::var(portObj.get()));
                     else sources.add(juce::var(portObj.get()));
@@ -92,7 +87,7 @@ namespace UI {
         resp->setProperty("targets", targets);
         resp->setProperty("inventory", inventoryArr);
 
-        return createResponse("MOD_METADATA_ACK", requestId, {}, juce::var(resp.get()));
+        return createResponse("MOD_METADATA_ACK", requestId, juce::var(), juce::var(resp.get()));
     }
 
     juce::var RpcModulationController::handleUpdatePatchbayMatrixSlot(const juce::var& requestId, const juce::var& payload) {
@@ -111,14 +106,13 @@ namespace UI {
         else if (key == "viaAmount") slot.viaAmount = (float)value;
         else if (key == "active") slot.active = (bool)value;
         
-        // Auto-activate logic if modifying source or target
         if (key == "source" || key == "target") {
             slot.active = !slot.source.empty() && !slot.target.empty();
         }
 
         mPreset.setPatchbaySlot(slotIdx, slot);
 
-        return createResponse("PATCHBAY_UPDATE_ACK", requestId, {});
+        return createResponse("PATCHBAY_UPDATE_ACK", requestId, juce::var());
     }
 
 } // namespace UI

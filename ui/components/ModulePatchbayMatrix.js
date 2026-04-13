@@ -1,4 +1,5 @@
 import {} from '../omega_types.js';
+import { OmegaLog } from '../omega_log.js';
 export class ModulePatchbayMatrix {
     el = null;
     content = null;
@@ -9,12 +10,12 @@ export class ModulePatchbayMatrix {
     viewMode = 'compose';
     manualChangeTimer = null;
     selectedSlot = 0;
-    maxSlots = 32; // [Hyper-ACE] Dynamic limit
+    maxSlots = 32;
+    structureBuilt = false;
     constructor(options = {}) {
         this.options = options;
         this.loadMetadata();
         this.syncMaxSlots();
-        this.setupSelectionListeners();
     }
     ensureElements() {
         if (this.el)
@@ -24,31 +25,28 @@ export class ModulePatchbayMatrix {
         return !!(this.el && this.content);
     }
     async syncMaxSlots() {
+        // [Era 6 Aseptic] Use RpcCommandDispatcher for system queries if possible, 
+        // but for read-only we use the established bridge pattern.
         const rpc = window.omegaRPC;
         if (rpc) {
             try {
                 const settings = await rpc.getSystemSettings();
-                if (!settings || !Array.isArray(settings)) {
-                    console.warn("[PatchbayMatrix] Settings missing or invalid, skipping sync.");
+                if (!settings || !Array.isArray(settings))
                     return;
-                }
                 const maxSlotsSetting = settings.find((s) => s && s.id === "maxPatchbaySlots");
                 if (maxSlotsSetting) {
                     const newValue = Math.floor(maxSlotsSetting.currentValue || 32);
                     if (this.maxSlots !== newValue) {
-                        console.log(`[PatchbayMatrix] Max Slots updated: ${this.maxSlots} -> ${newValue}`);
+                        OmegaLog.info("MATRIX", `Capacity updated: ${newValue}`);
                         this.maxSlots = newValue;
-                        if (this.isWorkspaceOpen()) {
+                        this.structureBuilt = false; // Trigger rebuild
+                        if (this.isWorkspaceOpen())
                             this.renderWorkspace();
-                        }
-                    }
-                    else {
-                        console.log(`[PatchbayMatrix] Max Slots verified: ${this.maxSlots}`);
                     }
                 }
             }
             catch (e) {
-                console.warn("[PatchbayMatrix] Failed to sync maxPatchbaySlots:", e);
+                OmegaLog.warn("MATRIX", "Max slots sync failed", e);
             }
         }
     }
@@ -56,18 +54,22 @@ export class ModulePatchbayMatrix {
         const rpc = window.omegaRPC;
         if (rpc) {
             try {
-                const resp = await rpc.send("getModulationMetadata", {});
-                if (resp && (resp.sources || resp.targets)) {
-                    this.sources = resp.sources || [];
-                    this.targets = resp.targets || [];
-                    console.log("[PatchbayMatrix] Metadata loaded:", this.sources.length, "sources,", this.targets.length, "targets");
-                    if (this.isWorkspaceOpen()) {
+                // [Era 6.1] Canonical Metadata Handshake
+                const resp = await rpc.send("getMetadata", {});
+                const params = resp?.parameters || resp;
+                if (params && Array.isArray(params)) {
+                    // Map parameters to source/target if they have appropriate roles (Legacy Shims)
+                    this.sources = params.map((p) => ({ id: p.id || p.target, name: p.name || p.label, instance: p.groupId || p.instance }));
+                    this.targets = params.map((p) => ({ id: p.id || p.target, name: p.name || p.label, instance: p.groupId || p.instance }));
+                    if (this.isWorkspaceOpen())
                         this.renderWorkspace();
-                    }
+                }
+                else {
+                    OmegaLog.warn("MATRIX", "Received malformed metadata", resp);
                 }
             }
             catch (e) {
-                console.error("[ModMatrix] Failed to load modulation metadata:", e);
+                OmegaLog.error("MATRIX", "Metadata load failed", e);
             }
         }
     }
@@ -89,15 +91,16 @@ export class ModulePatchbayMatrix {
     }
     onStateUpdate(state) {
         this.state = state;
-        const matrix = state?.preset?.patchbayMatrix || [];
+        const matrixData = state?.preset?.patchbayMatrix || [];
+        const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
+        // Update global counter
         const activeCount = matrix.filter((s) => s.active).length;
         const countEl = document.getElementById('matrix-active-count');
         if (countEl)
             countEl.innerText = activeCount.toString().padStart(2, '0');
-        // General Activity Pulse (Simulated for now, would be driven by telemetry)
         this.triggerActivity('general');
         if (this.isWorkspaceOpen()) {
-            this.renderWorkspace();
+            this.syncSlotsFromState(matrix);
         }
     }
     triggerActivity(type) {
@@ -116,7 +119,6 @@ export class ModulePatchbayMatrix {
         }
         else if (!this.manualChangeTimer) {
             led.classList.add('activity-general');
-            // Quick pulse pulse
             setTimeout(() => led.classList.remove('activity-general'), 100);
         }
     }
@@ -124,10 +126,23 @@ export class ModulePatchbayMatrix {
         if (!this.ensureElements())
             return;
         const grid = document.getElementById('matrix-grid-container');
-        const inspector = document.getElementById('matrix-inspector-container');
-        if (!grid || !inspector)
+        if (!grid)
             return;
-        // Header Update (Add Toggles)
+        // One-time header setup
+        this.setupHeaderToggles();
+        // 1. Structural Rendering (Base cards)
+        if (!this.structureBuilt || this.viewMode === 'compose') {
+            this.renderStructure(grid);
+            this.structureBuilt = (this.viewMode === 'overview');
+        }
+        // 2. Data Sync
+        const matrixData = this.state?.preset?.patchbayMatrix || [];
+        const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
+        this.syncSlotsFromState(matrix);
+        // 3. Inspector
+        this.renderInspector();
+    }
+    setupHeaderToggles() {
         const modalHeader = document.querySelector('.modulation-modal-content .modal-title');
         if (modalHeader && !document.getElementById('matrix-view-toggles')) {
             const toggles = document.createElement('div');
@@ -138,160 +153,138 @@ export class ModulePatchbayMatrix {
                 <button class="juno-btn ${this.viewMode === 'overview' ? 'active juno-orange' : ''}" id="btn-view-overview">OVERVIEW</button>
             `;
             modalHeader.parentElement?.insertBefore(toggles, modalHeader.nextSibling);
-            document.getElementById('btn-view-compose')?.addEventListener('click', () => { this.viewMode = 'compose'; this.renderWorkspace(); });
-            document.getElementById('btn-view-overview')?.addEventListener('click', () => { this.viewMode = 'overview'; this.renderWorkspace(); });
+            document.getElementById('btn-view-compose')?.addEventListener('click', () => {
+                this.viewMode = 'compose';
+                this.structureBuilt = false;
+                this.renderWorkspace();
+            });
+            document.getElementById('btn-view-overview')?.addEventListener('click', () => {
+                this.viewMode = 'overview';
+                this.structureBuilt = false;
+                this.renderWorkspace();
+            });
         }
-        const matrixData = this.state?.preset?.patchbayMatrix || [];
-        const matrix = Array.isArray(matrixData) ? matrixData :
-            (typeof matrixData === 'object' ? Object.values(matrixData) : []);
-        // --- Era 4 Robustness ---
-        // We no longer bail if matrix.length === 0. Instead, we allow the board 
-        // to render so the user can ADD the first slot dynamically.
-        // 1. Detect Duplicates
-        const seenRoutings = new Set();
-        const duplicates = new Set();
-        matrix.forEach((s, i) => {
-            if (s.active && s.source && s.target) {
-                const key = `${s.source}->${s.target}`;
-                if (seenRoutings.has(key))
-                    duplicates.add(i);
-                else
-                    seenRoutings.add(key);
-            }
-        });
-        let gridHtml = '';
+    }
+    renderStructure(grid) {
+        let html = '';
+        const matrix = this.state?.preset?.patchbayMatrix || [];
         if (this.viewMode === 'compose') {
             const activeSlots = matrix.map((s, i) => ({ ...s, i }))
                 .filter((s) => s.active || (s.source !== '' && s.source !== undefined));
-            for (const slot of activeSlots) {
-                gridHtml += this.renderCard(slot, slot.i, duplicates.has(slot.i));
-            }
-            // Always show ADD card if we have space, even if matrix is empty
+            activeSlots.forEach((slot) => {
+                html += this.getSlotSkeleton(slot.i);
+            });
             if (activeSlots.length < this.maxSlots) {
-                gridHtml += `
+                html += `
                     <div class="matrix-card add-card" id="btn-add-modulation">
                         <div class="add-icon">＋</div>
                         <div class="card-label" style="text-align:center">ADD MODULATION</div>
                     </div>
                 `;
             }
-            if (activeSlots.length === 0 && this.sources.length === 0 && !this.state?.preset?.auxiliary) {
-                gridHtml = `
-                    <div class="empty-state-info">
-                        <div class="info-title">MODULAR RACK EMPTY</div>
-                        <p>The synthesizer rack is currently empty. Use the <b>Edit > Add Module</b> menu to begin building your signal path.</p>
-                        <div class="matrix-card add-card" id="btn-add-module-shortcut" style="width:200px; margin: 20px auto;">
-                            <div class="add-icon">＋</div>
-                            <div class="card-label">ADD MODULE</div>
-                        </div>
-                    </div>
-                `;
-            }
         }
         else {
-            // Full dynamic Overview
             for (let i = 0; i < this.maxSlots; i++) {
-                const slot = matrix[i] || { active: false, source: '', target: '', amount: 0, via: '', viaAmount: 0 };
-                gridHtml += this.renderCard(slot, i, duplicates.has(i));
+                html += this.getSlotSkeleton(i);
             }
         }
-        grid.innerHTML = gridHtml;
-        this.renderInspector();
-        this.attachWorkspaceListeners();
+        grid.innerHTML = html;
+        this.attachGridListeners(grid);
         document.getElementById('btn-add-modulation')?.addEventListener('click', () => this.addModulation());
     }
-    renderCard(slot, i, isDuplicate) {
-        const isSelected = this.selectedSlot === i;
-        const amountColor = this.getAmountColor(slot.amount);
+    getSlotSkeleton(i) {
         return `
-            <div class="matrix-card ${slot.active ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isDuplicate ? 'duplicate-error' : ''}" data-index="${i}">
+            <div class="matrix-card aseptic-card" id="matrix-slot-${i}" data-index="${i}">
                 <div class="card-header">
                     <span class="card-index">${(i + 1).toString().padStart(2, '0')}</span>
-                    <div class="card-status ${slot.active ? 'active' : ''}"></div>
-                    ${isDuplicate ? '<div class="error-badge">DUP</div>' : ''}
+                    <div class="card-status"></div>
                 </div>
                 <div class="card-routing">
-                    <div class="card-label">${this.getNameForId(this.sources, slot.source) || 'EMPTY'}</div>
+                    <div class="card-source-label card-label">...</div>
                     <div class="card-arrow">↓</div>
-                    <div class="card-label">${this.getNameForId(this.targets, slot.target) || '---'}</div>
+                    <div class="card-target-label card-label">...</div>
                 </div>
                 <div class="bipolar-container">
                     <div class="bipolar-slider-bg">
-                        <div class="bipolar-slider-fill gain-mode" style="width: ${Math.min(slot.amount, 2.0) * 50}%; background-color: ${amountColor}"></div>
+                        <div class="bipolar-slider-fill gain-mode"></div>
                     </div>
-                    <div class="bipolar-value" style="color: ${amountColor}">${slot.amount.toFixed(2)}x</div>
+                    <div class="bipolar-value">0.00x</div>
                 </div>
-                ${slot.via ? `<div class="card-label-tiny" style="font-size:7px; color:#555; margin-top:2px;">VIA: ${this.getNameForId(this.sources, slot.via)}</div>` : ''}
+                <div class="card-via-label card-label-tiny"></div>
             </div>
         `;
     }
+    syncSlotsFromState(matrix) {
+        // Delta Update Engine
+        matrix.forEach((slot, i) => {
+            const el = document.getElementById(`matrix-slot-${i}`);
+            if (!el)
+                return;
+            const isSelected = this.selectedSlot === i;
+            el.classList.toggle('active', slot.active);
+            el.classList.toggle('selected', isSelected);
+            const sourceLabel = el.querySelector('.card-source-label');
+            const targetLabel = el.querySelector('.card-target-label');
+            if (sourceLabel)
+                sourceLabel.textContent = this.getNameForId(this.sources, slot.source) || 'EMPTY';
+            if (targetLabel)
+                targetLabel.textContent = this.getNameForId(this.targets, slot.target) || '---';
+            const fill = el.querySelector('.bipolar-slider-fill');
+            const valueDisp = el.querySelector('.bipolar-value');
+            if (fill && valueDisp) {
+                const amount = slot.amount || 0;
+                const color = this.getAmountColor(amount);
+                fill.style.width = `${Math.min(amount, 2.0) * 50}%`;
+                fill.style.backgroundColor = color;
+                valueDisp.textContent = `${amount.toFixed(2)}x`;
+                valueDisp.style.color = color;
+            }
+            const viaLabel = el.querySelector('.card-via-label');
+            if (viaLabel) {
+                viaLabel.textContent = slot.via ? `VIA: ${this.getNameForId(this.sources, slot.via)}` : '';
+            }
+        });
+    }
     getAmountColor(val) {
         if (val <= 0.01)
-            return '#ffffff'; // White
+            return '#ffffff';
         if (val <= 1.0) {
-            // White to Cyan (0 to 1)
-            const factor = val;
-            const r = Math.round(255 - factor * 255);
-            const g = Math.round(255 - factor * 13); // 242 is G of Cyan
-            const b = 255;
-            return `rgb(${r},${g},${b})`;
+            const f = val;
+            return `rgb(${Math.round(255 - f * 255)},${Math.round(255 - f * 13)},255)`;
         }
         else {
-            // Cyan to Orange (1 to 2)
-            const factor = Math.min(val - 1.0, 1.0);
-            const r = Math.round(0 + factor * 255);
-            const g = Math.round(242 - factor * 85); // 157 is G of Orange
-            const b = Math.round(255 - factor * 255);
-            return `rgb(${r},${g},${b})`;
+            const f = Math.min(val - 1.0, 1.0);
+            return `rgb(${Math.round(f * 255)},${Math.round(242 - f * 85)},${Math.round(255 - f * 255)})`;
         }
     }
     addModulation() {
-        const matrix = (this.state?.preset?.patchbayMatrix || []);
-        // First, check if there's an existing inactive/empty slot
-        let targetSlot = matrix.findIndex((s, idx) => idx < this.maxSlots && !s.active && (s.source === '' || s.source === undefined));
-        // If no slot found but we are below capacity, target the end of the array
-        if (targetSlot === -1 && matrix.length < this.maxSlots) {
+        const matrix = this.state?.preset?.patchbayMatrix || [];
+        let targetSlot = matrix.findIndex((s, idx) => idx < this.maxSlots && !s.active && !s.source);
+        if (targetSlot === -1 && matrix.length < this.maxSlots)
             targetSlot = matrix.length;
-        }
         if (targetSlot !== -1 && targetSlot < this.maxSlots) {
             this.selectedSlot = targetSlot;
+            this.structureBuilt = false; // Force rebuild to show new card if in compose mode
             this.renderWorkspace();
-            // Auto-focus the source select in the inspector for immediate use
             setTimeout(() => {
-                const sourceSelect = document.querySelector('select[data-key="source"]');
-                if (sourceSelect)
-                    sourceSelect.focus();
+                const sel = document.querySelector('select[data-key="source"]');
+                if (sel)
+                    sel.focus();
             }, 100);
-        }
-        else {
-            alert(`Patchbay Matrix is FULL (${matrix.length}/${this.maxSlots}). Please remove a slot first.`);
         }
     }
     renderInspector() {
         const container = document.getElementById('matrix-inspector-container');
         if (!container)
             return;
-        const matrixData = this.state?.preset?.patchbayMatrix || [];
-        const matrix = Array.isArray(matrixData) ? matrixData :
-            (typeof matrixData === 'object' ? Object.values(matrixData) : []);
-        const slotIndex = isNaN(this.selectedSlot) ? 0 : this.selectedSlot;
-        const slot = matrix[slotIndex] || { active: false, source: '', target: '', amount: 0, via: '', viaAmount: 0 };
-        let sourceInstance = "";
-        let targetInstance = "";
-        if (slot.source)
-            sourceInstance = slot.source.split('.')[0];
-        if (slot.target)
-            targetInstance = slot.target.split('.')[0];
-        // The target options exclude the source's instance. The source options exclude the target's instance.
+        const matrix = this.state?.preset?.patchbayMatrix || [];
+        const slotIdx = this.selectedSlot;
+        const slot = matrix[slotIdx] || { active: false, source: '', target: '', amount: 0, via: '', viaAmount: 0 };
+        const targetInstance = slot.target?.split('.')[0] || "";
+        const sourceInstance = slot.source?.split('.')[0] || "";
         container.innerHTML = `
-            <div class="inspector-title">SLOT ${(slotIndex + 1).toString().padStart(2, '0')} DETAILS</div>
+            <div class="inspector-title">SLOT ${(slotIdx + 1).toString().padStart(2, '0')} DETAILS</div>
             
-            ${this.sources.length === 0 ? `
-                <div class="metadata-warning">
-                    ⚠️ NO ROUTING NODES FOUND<br>
-                    <span style="font-size:9px; opacity:0.6; text-transform:none;">Add oscillators, filters or envelopes to populate sources and targets.</span>
-                </div>
-            ` : ''}
             <div class="control-group">
                 <label>SOURCE</label>
                 <select class="inspector-select" data-key="source">
@@ -329,126 +322,80 @@ export class ModulePatchbayMatrix {
                 <button class="juno-btn" id="btn-init-matrix" style="flex:1">INIT ALL</button>
             </div>
         `;
-        // Add inspector specific styles
-        if (!document.getElementById('matrix-inspector-style')) {
-            const style = document.createElement('style');
-            style.id = 'matrix-inspector-style';
-            style.innerHTML = `
-                .inspector-select {
-                    width: 100%;
-                    background: #111;
-                    color: var(--neon-cyan);
-                    border: 1px solid #333;
-                    padding: 8px;
-                    font-size: 11px;
-                    border-radius: 4px;
-                }
-                .inspector-range {
-                    width: 100%;
-                    accent-color: var(--neon-cyan);
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        this.attachInspectorListeners();
-    }
-    getBipolarStyle(val) {
-        const width = Math.abs(val) * 50; // Max 50%
-        const left = val >= 0 ? 50 : 50 - width;
-        return `left: ${left}%; width: ${width}%;`;
+        this.attachInspectorListeners(container);
     }
     getNameForId(list, id) {
         const item = list.find(s => s.id === id);
         return item ? item.name : '';
     }
-    generateOptions(list, current, excludeInstance) {
+    generateOptions(list, current, exclude) {
         let html = '<option value="">- NONE -</option>';
-        // Group by instance
         const groups = {};
         for (const opt of list) {
             const groupName = opt.instance || 'Global';
-            if (excludeInstance && groupName === excludeInstance)
-                continue; // Filtro de auto-ruteo
+            if (exclude && groupName === exclude)
+                continue;
             if (!groups[groupName])
                 groups[groupName] = [];
             groups[groupName].push(opt);
         }
         for (const [group, items] of Object.entries(groups)) {
             html += `<optgroup label="${group.toUpperCase()}">`;
-            for (const item of items) {
-                // Strip instance from name for cleaner display within group
-                const displayName = item.name.replace(group, '').trim() || item.name;
-                html += `<option value="${item.id}" ${item.id === current ? 'selected' : ''}>${displayName}</option>`;
-            }
+            items.forEach(item => {
+                const disp = item.name.replace(group, '').trim() || item.name;
+                html += `<option value="${item.id}" ${item.id === current ? 'selected' : ''}>${disp}</option>`;
+            });
             html += `</optgroup>`;
         }
         return html;
     }
-    setupSelectionListeners() {
-        // Handle slot selection by clicking cards
-        document.addEventListener('click', (e) => {
-            const card = e.target.closest('.matrix-card');
-            if (card) {
-                this.selectedSlot = parseInt(card.dataset.index);
+    attachGridListeners(grid) {
+        grid.querySelectorAll('.matrix-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.selectedSlot = parseInt(card.dataset.index || "0");
                 this.renderWorkspace();
-            }
-        });
-    }
-    attachWorkspaceListeners() {
-        const cards = document.querySelectorAll('.matrix-card');
-        cards.forEach(card => {
-            // Horizontal drag logic for bipolar slider
-            const sliderArea = card.querySelector('.bipolar-slider-bg');
-            if (sliderArea) {
+            });
+            const slider = card.querySelector('.bipolar-slider-bg');
+            if (slider) {
                 let isDragging = false;
-                sliderArea.addEventListener('mousedown', (e) => {
+                const update = (e) => {
+                    const rect = slider.getBoundingClientRect();
+                    const val = Math.max(0, Math.min(2, ((e.clientX - rect.left) / rect.width) * 2));
+                    this.sendUpdate(parseInt(card.dataset.index || "0"), 'amount', val);
+                };
+                slider.addEventListener('pointerdown', (e) => {
                     isDragging = true;
-                    this.updateFromMouse(e, sliderArea, card);
+                    e.target.setPointerCapture(e.pointerId);
+                    update(e);
                 });
-                window.addEventListener('mousemove', (e) => {
-                    if (isDragging)
-                        this.updateFromMouse(e, sliderArea, card);
-                });
-                window.addEventListener('mouseup', () => isDragging = false);
+                slider.addEventListener('pointermove', (e) => { if (isDragging)
+                    update(e); });
+                slider.addEventListener('pointerup', () => isDragging = false);
             }
         });
     }
-    updateFromMouse(e, area, card) {
-        const rect = area.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const percent = Math.max(0, Math.min(1, x / rect.width));
-        const val = percent * 2.0; // Map 0..1 to 0..2 Gain
-        const slotIdx = parseInt(card.dataset.index || "0");
-        this.triggerActivity('manual');
-        this.sendUpdate(slotIdx, 'amount', val);
-    }
-    attachInspectorListeners() {
-        const container = document.getElementById('matrix-inspector-container');
-        if (!container)
-            return;
-        container.querySelectorAll('select, input').forEach(ctrl => {
-            const eventType = ctrl.tagName === 'SELECT' ? 'change' : 'input';
-            ctrl.addEventListener(eventType, (e) => {
-                const key = e.target.dataset.key;
-                const value = e.target.type === 'range' ? parseFloat(e.target.value) : e.target.value;
-                this.triggerActivity('manual');
-                this.sendUpdate(this.selectedSlot, key, value);
+    attachInspectorListeners(container) {
+        container.querySelectorAll('.inspector-select, .inspector-range').forEach(ctrl => {
+            ctrl.addEventListener(ctrl.tagName === 'SELECT' ? 'change' : 'input', (e) => {
+                const val = e.target.type === 'range' ? parseFloat(e.target.value) : e.target.value;
+                this.sendUpdate(this.selectedSlot, e.target.dataset.key, val);
             });
         });
-        const clearBtn = document.getElementById('btn-clear-slot');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                this.sendUpdate(this.selectedSlot, 'source', '');
-                this.sendUpdate(this.selectedSlot, 'target', '');
-                this.sendUpdate(this.selectedSlot, 'amount', 0);
-                this.triggerActivity('manual');
-            });
-        }
+        document.getElementById('btn-clear-slot')?.addEventListener('click', () => {
+            this.sendUpdate(this.selectedSlot, 'source', '');
+            this.sendUpdate(this.selectedSlot, 'target', '');
+            this.sendUpdate(this.selectedSlot, 'amount', 0);
+        });
     }
     sendUpdate(slot, key, value) {
-        const rpc = window.omegaRPC;
-        if (rpc) {
-            rpc.call("updatePatchbayMatrixSlot", { slot, key, value });
+        this.triggerActivity('manual');
+        // [Era 6] Unified Dispatch via RpcCommandDispatcher
+        const dispatcher = window.rpcCommandDispatcher;
+        if (dispatcher) {
+            dispatcher.dispatch({
+                type: 'patchbayMatrixAction',
+                value: { slot, key, value }
+            });
         }
     }
 }

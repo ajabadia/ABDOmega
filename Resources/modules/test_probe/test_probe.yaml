@@ -5,7 +5,7 @@ engine: "Modular"
 implementationId: 505
 status: "active"
 version: 1
-description: "Minimal verification probe (Era 5.2 Certified)."
+description: "Minimal verification probe (Era 6 Aseptic)."
 
 layout:
   hp: 6
@@ -28,7 +28,8 @@ registry:
 
   - id: "sig_out"
     label: "OUT"
-    roles: ["output", "stream"]
+    roles: ["output", "stream", "telemetry"]
     direction: "output"
     type: "audio"
+    stream: true
     presentation: { tab: "PATCHING", group: "OUTPUTS", order: 2 }

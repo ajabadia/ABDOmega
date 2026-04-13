@@ -72,6 +72,20 @@ body, html {
     transform: scale(0.9);
 }
 
+.copy-success {
+    background: #008800 !important;
+    color: #fff !important;
+    border-color: #00ff00 !important;
+    box-shadow: 0 0 10px #00ff00;
+}
+
+.copy-fail {
+    background: #880000 !important;
+    color: #fff !important;
+    border-color: #ff0000 !important;
+    box-shadow: 0 0 10px #ff0000;
+}
+
 #debug-console-content {
     flex: 1;
     overflow-y: auto;
@@ -638,25 +652,31 @@ button.sq.active.juno-red {
 }
 
 .knob {
-    width: 46px;
-    height: 46px;
+    width: var(--knob-size, 38px);
+    height: var(--knob-size, 38px);
     border-radius: 50%;
-    background: radial-gradient(circle, #444 0%, #222 100%);
-    border: 3px solid #666;
+    background: var(--module-knob-bg, radial-gradient(circle, #444 0%, #222 100%));
+    border: 2px solid var(--module-knob-border, #666);
     position: relative;
     cursor: ns-resize;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    transition: transform 0.1s ease;
+}
+
+.knob:active {
+    transform: scale(1.05);
 }
 
 .knob-marker {
     position: absolute;
-    top: 4px;
+    top: 3px;
     left: 50%;
-    width: 4px;
-    height: 12px;
-    background: #fff;
+    width: 3px;
+    height: 10px;
+    background: var(--module-accent, #fff);
     border-radius: 2px;
-    transform-origin: 50% 19px;
+    transform-origin: 50% 16px;
+    box-shadow: 0 0 5px var(--module-glow, transparent);
 }
 
 .echo-tape-area {
@@ -1666,254 +1686,47 @@ label.silver {
     letter-spacing: 1px;
 }
 
-/* Placeholder Modules */
-.module.placeholder {
+/* --- ASEPTIC CONTRACT ERRORS --- */
+.contract-error-full {
     background: rgba(255, 0, 0, 0.05);
     border: 1px dashed rgba(255, 255, 255, 0.1);
     min-width: 120px;
     display: flex;
     flex-direction: column;
+    padding: 20px;
 }
 
-.placeholder-msg {
+.error-msg {
     color: #f66;
-    font-size: 10px;
-    font-weight: bold;
+    font-size: 11px;
+    font-weight: 900;
     text-align: center;
-    padding: 20px 10px;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
 }
 
-/* --- POCKET PATCH BAY (MODULE MODAL) --- */
+.error-detail {
+    color: #666;
+    font-size: 9px;
+    text-align: center;
+}
+
+/* --- POCKET PATCH MODAL (ASEPTIC) --- */
 .module-patch-content {
     max-width: 900px !important;
     width: 90%;
-    background: linear-gradient(135deg, #0a0a0a 0%, #111 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,229,255,0.1) !important;
+    background: linear-gradient(135deg, #0a0a0a 0%, #111 60%) !important;
+    border: 1px solid rgba(0, 229, 255, 0.1) !important;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.9), 0 0 40px rgba(0,229,255,0.05) !important;
 }
 
 .patch-modal-subtitle {
     margin-top: -15px;
     margin-bottom: 25px;
     font-size: 11px;
-    color: #666;
+    color: #555;
     letter-spacing: 2px;
     text-transform: uppercase;
-}
-
-.patch-bay-layout {
-    display: flex;
-    gap: 30px;
-    margin-bottom: 30px;
-    min-height: 400px;
-}
-
-.patch-column {
-    flex: 1;
-    background: rgba(0,0,0,0.3);
-    border-radius: 4px;
-    padding: 15px;
-    border: 1px solid rgba(255,255,255,0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    overflow-y: auto;
-    max-height: 60vh;
-}
-
-.patch-section-title {
-    margin-top: 0;
-    margin-bottom: 5px;
-    font-size: 14px;
-    color: #666;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.patch-port-group {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.patch-port-header {
-    display: flex;
-    align-items: center;
-    background: rgba(255,255,255,0.05);
-    padding: 8px 12px;
-    gap: 12px;
-}
-
-.patch-port-id {
-    flex: 1;
-    font-family: 'SevenSegment', monospace;
-    font-size: 12px;
-    color: #00e5ff;
-}
-
-.patch-add-btn {
-    background: rgba(0,229,255,0.1);
-    border: 1px solid rgba(0,229,255,0.3);
-    color: #00e5ff;
-    border-radius: 3px;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.patch-add-btn:hover {
-    background: #00e5ff;
-    color: #000;
-}
-
-.patch-slot-row {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    gap: 15px;
-    border-top: 1px solid rgba(255,255,255,0.03);
-    animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.patch-selector-container {
-    flex: 1.5;
-}
-
-.patch-selector {
-    background: #000;
-    color: #fff;
-    border: 1px solid #333;
-    padding: 4px 8px;
-    font-size: 11px;
-    border-radius: 2px;
-    width: 100%;
-}
-
-.patch-amount-container {
-    flex: 2;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.patch-amount-slider {
-    flex: 1;
-    -webkit-appearance: none;
-    height: 4px;
-    background: #222;
-    border-radius: 2px;
-    outline: none;
-}
-
-.patch-amount-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    background: #00e5ff;
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 0 10px rgba(0,229,255,0.5);
-}
-
-.patch-amount-value {
-    font-family: 'Consolas', monospace;
-    font-size: 10px;
-    color: #888;
-    min-width: 40px;
-    text-align: right;
-}
-
-.patch-remove-btn {
-    background: none;
-    border: none;
-    color: #444;
-    cursor: pointer;
-    font-size: 18px;
-    padding: 0 5px;
-    transition: color 0.2s;
-}
-
-.patch-remove-btn:hover {
-    color: #ff5555;
-}
-
-.patch-empty-msg {
-    padding: 10px;
-    font-size: 9px;
-    color: #333;
-    text-align: center;
-    letter-spacing: 1px;
-}
-
-.patch-type-badge {
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 9px;
-    font-weight: bold;
-    text-transform: uppercase;
-    min-width: 40px;
-    text-align: center;
-}
-
-/* Signal Types */
-.type-audio { background: #00e5ff; color: #000; }
-.type-cv    { background: #ffff00; color: #000; }
-.type-midi  { background: #ff8c00; color: #000; }
-.type-gate  { background: #ff00ff; color: #000; }
-
-.patch-modal-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 20px;
-    border-top: 1px solid rgba(255,255,255,0.1);
-}
-
-.matrix-usage-container {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex: 1;
-}
-
-.matrix-usage-container label {
-    font-size: 10px;
-    color: #555;
-    font-weight: bold;
-}
-
-.matrix-usage-bar {
-    width: 200px;
-    height: 6px;
-    background: #111;
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.usage-fill {
-    height: 100%;
-    background: var(--juno-cyan);
-    transition: width 0.3s ease-out;
-}
-
-#matrix-usage-text {
-    font-size: 10px;
-    color: #666;
-    min-width: 80px;
 }
 
 /* Module Gear Icon */
@@ -1942,6 +1755,112 @@ label.silver {
     border-color: #00e5ff;
 }
 
+/* ERA 6 CONTROL CELLS */
+.control-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: var(--cell-padding, 6px);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+    font-family: var(--module-font-main);
+}
+
+/* Era 6 Aseptic: Label Suppression for Variant-A */
+.control-cell.variant-A .cell-info {
+    display: none;
+}
+
+.control-cell:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cell-attachment-top, .cell-attachment-bottom {
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cell-main {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cell-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.cell-label {
+    font-size: 8px;
+    color: var(--module-label-color);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+    width: 100%;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cell-display {
+    background: var(--module-display-bg);
+    color: var(--module-display-color);
+    font-family: var(--module-font-mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 30px;
+    text-align: center;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+/* LED DECAY EFFECT (Era 6 Premium) */
+.led {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #333;
+    box-shadow: 0 0 2px #000;
+    transition: background 0.05s ease, box-shadow 0.05s ease;
+}
+
+.led.led-orange.active {
+    background: #ff9900;
+    box-shadow: 0 0 8px #ff9900, 0 0 12px #ff9900;
+}
+
+/* Visual Decay (Simulating Filament) */
+.led:not(.active) {
+    transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.led-orange:not(.active) {
+    background: #2a1a00;
+}
+
+/* Era 6 Aseptic: Large Central LEDs */
+.cell-main .led {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 0 5px #000, 0 0 2px rgba(0,0,0,0.8);
+}
+
+.cell-main .led.active {
+    box-shadow: 0 0 15px var(--module-accent), 0 0 30px var(--module-accent), inset 0 0 5px rgba(255,255,255,0.2);
+}
+
 /* --- Premium General Tab Styles --- */
 #patch-params-form {
     display: flex;
@@ -1963,7 +1882,8 @@ label.silver {
 
 .patch-param-row:hover {
     background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(0, 242, 255, 0.2);
+    border-color: var(--module-accent);
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.1);
 }
 
 .patch-param-label {
@@ -1989,16 +1909,50 @@ label.silver {
     max-width: 140px;
 }
 
-.patch-param-row.pair {
-    border-left: 3px solid var(--neon-cyan);
+.aseptic-params-row.pair {
+    border-left: 3px solid var(--module-accent);
     background: rgba(0, 242, 255, 0.03);
+}
+
+.aseptic-params-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 10px;
+}
+
+.aseptic-group-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    color: var(--neon-cyan);
+    letter-spacing: 2px;
+    margin-top: 10px;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.2);
+    padding-bottom: 4px;
+}
+
+.aseptic-tab-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #888;
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+}
+
+.aseptic-tab-btn.active {
+    background: rgba(0, 242, 255, 0.1);
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
 }
 
 .patch-param-control select,
 .patch-param-control input {
     background: #000;
     border: 1px solid #333;
-    color: var(--neon-cyan);
+    color: var(--module-display-color);
     padding: 4px 8px;
     font-family: 'Consolas', monospace;
     font-size: 12px;
@@ -2010,8 +1964,8 @@ label.silver {
 
 .patch-param-control select:focus,
 .patch-param-control input:focus {
-    border-color: var(--neon-cyan);
-    box-shadow: 0 0 8px rgba(0, 242, 255, 0.3);
+    border-color: var(--module-accent);
+    box-shadow: 0 0 8px var(--module-glow);
 }
 
 .patch-param-control .label-tiny {

@@ -22,7 +22,8 @@ namespace Input {
         NoteOn,
         NoteOff,
         PerNoteExpression,
-        ChannelExpression
+        ChannelExpression,
+        RawMidi
     };
 
     /**
@@ -55,6 +56,12 @@ namespace Input {
                 ModSource source;
                 float value;
             } channel;
+
+            struct {
+                uint8_t status;
+                uint8_t d1;
+                uint8_t d2;
+            } rawMidi;
         } data;
 
         InputEvent() { std::memset(&data, 0, sizeof(data)); }

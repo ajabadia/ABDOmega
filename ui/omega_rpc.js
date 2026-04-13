@@ -1,34 +1,84 @@
-/**
- * OMEGA JSON-RPC v2 Bridge (TypeScript Implementation)
- * Phase 15.1 - Structural Maturity
- */
 import { OmegaLog } from './omega_log.js';
+import { normalizeIncomingEvent } from './omega_types.js';
 export class OmegaRPC {
     requestId = 1000;
     pendingRequests = new Map();
+    isConnected = false;
+    lastActivity = Date.now();
+    healthTimer = null;
     constructor() {
-        OmegaLog.info("OMEGA TS", "RPC Controller Initialized");
+        OmegaLog.info("RPC", "Aseptic Bridge Initialized");
         // Listener for messages from C++
         window.handleOmegaMessage = (json) => {
+            this.lastActivity = Date.now();
+            this.isConnected = true;
+            this.updateHealthUI();
             try {
                 const msg = typeof json === 'string' ? JSON.parse(json) : json;
                 if (msg.requestId && this.pendingRequests.has(msg.requestId)) {
                     const req = this.pendingRequests.get(msg.requestId);
+                    clearTimeout(req.timer);
                     this.pendingRequests.delete(msg.requestId);
-                    if (msg.type === "error")
-                        req.reject(msg.payload);
-                    else
-                        req.resolve(msg.payload);
+                    if (msg.type === "rpcError" || msg.type === "error") {
+                        req.reject(msg.payload || msg);
+                    }
+                    else {
+                        // Era 6.1: Precision Unwrapping
+                        // Only unwrap if payload exists and is the primary data carrier
+                        const data = (msg.payload !== undefined && msg.payload !== null) ? msg.payload : msg;
+                        req.resolve(data);
+                    }
                 }
                 else {
-                    // Dispatch as browser event
-                    window.dispatchEvent(new CustomEvent(`omega:${msg.type}`, { detail: msg.payload }));
+                    // Era 6.1 Normalization Shunt
+                    const norm = normalizeIncomingEvent(msg);
+                    if (norm) {
+                        const payload = norm.payload || norm;
+                        window.dispatchEvent(new CustomEvent(`omega:${norm.type}`, { detail: payload }));
+                    }
                 }
             }
             catch (e) {
-                OmegaLog.error("RPC TS", "Error handling message", e, json);
+                OmegaLog.error("RPC", "Message parsing failed", e, json);
             }
         };
+        this.startHealthMonitor();
+    }
+    handleNativeResponse(id, payload) {
+        if (this.pendingRequests.has(id)) {
+            const req = this.pendingRequests.get(id);
+            clearTimeout(req.timer);
+            this.pendingRequests.delete(id);
+            // Era 6.1: Unwrapping for direct native returns
+            if (payload && typeof payload === 'object' && 'payload' in payload && 'type' in payload) {
+                req.resolve(payload.payload);
+            }
+            else {
+                req.resolve(payload);
+            }
+        }
+    }
+    startHealthMonitor() {
+        if (this.healthTimer)
+            clearInterval(this.healthTimer);
+        this.healthTimer = setInterval(() => {
+            const idleTime = Date.now() - this.lastActivity;
+            if (idleTime > 5000) {
+                if (this.isConnected) {
+                    OmegaLog.warn("RPC", "Connection idle or lost (5s)");
+                    this.isConnected = false;
+                    this.updateHealthUI();
+                }
+            }
+        }, 2000);
+    }
+    updateHealthUI() {
+        const led = document.getElementById('bridge-health-led');
+        if (led) {
+            led.classList.toggle('active', this.isConnected);
+            led.style.backgroundColor = this.isConnected ? 'var(--neon-cyan)' : '#331111';
+            led.style.boxShadow = this.isConnected ? '0 0 10px var(--neon-cyan)' : 'none';
+        }
     }
     async _waitForBackend(timeout = 5000) {
         const start = Date.now();
@@ -43,90 +93,63 @@ export class OmegaRPC {
         }
         return null;
     }
+    /**
+     * Centralized Send Method with Timeout Protection
+     */
     async send(type, payload = {}) {
         const id = this.requestId++;
         const message = { type, requestId: id, payload };
         const backend = await this._waitForBackend();
         if (!backend) {
-            OmegaLog.warn("RPC TS", `No backend for ${type}, mocking.`);
-            return this._getMock(type);
+            OmegaLog.error("RPC", `Backend UNREACHABLE for ${type}`);
+            this.isConnected = false;
+            this.updateHealthUI();
+            return null;
         }
-        try {
-            let rawResponse;
-            if (typeof backend.omegaNativeCall === 'function') {
-                rawResponse = await backend.omegaNativeCall(type, id, payload);
+        // [Era 6.1] Direct Native Function Lookups
+        const nativeFn = window.omegaNativeCall;
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                if (this.pendingRequests.has(id)) {
+                    this.pendingRequests.delete(id);
+                    OmegaLog.error("RPC", `Request TIMEOUT [${id}] for ${type}`);
+                    reject(new Error(`RPC Timeout: ${type}`));
+                }
+            }, 10000);
+            this.pendingRequests.set(id, { resolve, reject, timer });
+            try {
+                if (typeof nativeFn === 'function') {
+                    nativeFn(type, id, payload).then((res) => {
+                        // Note: resolve is handled via handleOmegaMessage, but some bridges might return directly
+                        if (res !== undefined && res !== null) {
+                            // if result arrived here, we can resolve immediately
+                            this.handleNativeResponse(id, res);
+                        }
+                    });
+                }
+                else if (backend.emitEvent) {
+                    backend.emitEvent("omegaMessage", message);
+                }
+                else {
+                    throw new Error("No valid native invoke found");
+                }
             }
-            else if (backend.emitEvent) {
-                rawResponse = await backend.emitEvent("omegaMessage", message);
+            catch (e) {
+                clearTimeout(timer);
+                this.pendingRequests.delete(id);
+                OmegaLog.error("RPC", `Native call failed for ${type}`, e);
+                reject(e);
             }
-            const msg = typeof rawResponse === 'string' ? JSON.parse(rawResponse) : rawResponse;
-            return msg?.payload !== undefined ? msg.payload : msg;
-        }
-        catch (e) {
-            OmegaLog.error("RPC TS", `Call ${type} failed`, e);
-            return this._getMock(type);
-        }
+        });
     }
-    async call(type, payload = {}) {
-        return this.send(type, payload);
-    }
-    _getMock(type) {
-        // Reduced mock for TS baseline
-        if (type === "getState")
-            return { preset: { name: "TS MOCK PATCH" }, params: {} };
-        return null;
-    }
-    // API methods
+    call(type, payload = {}) { return this.send(type, payload); }
     getState() { return this.send("getState"); }
-    async getMetadata() { return this.send("getMetadata"); }
-    async getSystemSettings() { return this.send("getSystemSettings"); }
-    async setSystemSetting(id, value) { return this.send("setSystemSetting", { id, value }); }
-    async getBrowserData() { return this.send("getBrowserData"); }
-    async selectLibrary(libIdx) { return this.send("selectLibrary", { libIdx }); }
-    async loadLibraryPreset(libIdx, prstIdx) { return this.send("loadLibraryPreset", { libIdx, prstIdx }); }
-    async setFavorite(libIdx, prstIdx, fav) { return this.send("setFavorite", { libIdx, prstIdx, fav }); }
-    async savePresetDetailed(libIdx, prstIdx) { return this.send("savePreset", { libIdx, prstIdx }); }
-    async saveAsNewPresetDetailed(name, category, author, tags, notes) {
-        return this.send("saveAsNewPreset", { name, category, author, tags, notes });
-    }
-    setParam(id, value) { return this.send("setParam", { id, value }); }
+    getUiSchemas() { return this.send("getUiSchemas"); }
+    getSystemSettings() { return this.send("getSystemSettings"); }
     uiReady() { return this.send("uiReady"); }
-    sendMidi(status, data1, data2) {
-        return this.send("sendMidi", { status, data1, data2 });
-    }
 }
 export const rpc = new OmegaRPC();
-/**
- * Compatibility Shim: maps legacy window.juce calls to RPC sends.
- */
-export function setupJuceShim() {
-    if (!window.juce) {
-        window.juce = {
-            getMetadata: () => rpc.getMetadata(),
-            getSystemSettings: () => rpc.getSystemSettings(),
-            setSystemSetting: (id, val) => rpc.setSystemSetting(id, val),
-            getBrowserData: () => rpc.getBrowserData(),
-            selectLibrary: (idx) => rpc.selectLibrary(idx),
-            loadLibraryPreset: (lIdx, pIdx) => rpc.loadLibraryPreset(lIdx, pIdx),
-            setFavorite: (lIdx, pIdx, fav) => rpc.setFavorite(lIdx, pIdx, fav),
-            savePresetDetailed: (lIdx, pIdx) => rpc.savePresetDetailed(lIdx, pIdx),
-            saveAsNewPresetDetailed: (n, c, a, t, ns) => rpc.saveAsNewPresetDetailed(n, c, a, t, ns),
-            menuAction: (action, ...args) => {
-                OmegaLog.info("BRIDGE SHIM", "juce.menuAction -> RPC send", action);
-                rpc.send("menuAction", { action, args });
-            },
-            setParameter: (id, value) => {
-                rpc.setParam(id, value);
-            },
-            uiReady: () => {
-                rpc.uiReady();
-            },
-            sendMidi: (status, data1, data2) => {
-                rpc.sendMidi(status, data1, data2);
-            }
-        };
-        OmegaLog.info("BRIDGE SHIM", "window.juce initialized via RPC");
-    }
-}
+// Era 6 Aseptic: Direct window.juce access is ILLEGAL. 
+// Use window.rpcCommandDispatcher.dispatch instead.
 window.omegaRPC = rpc;
 //# sourceMappingURL=omega_rpc.js.map

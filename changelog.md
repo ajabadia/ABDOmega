@@ -2,6 +2,20 @@
 
 Este archivo registra todos los cambios significativos, mejoras y correcciones del sintetizador OMEGA.
 
+## [Build #421] - 2026-04-11
+### OMEGA Era 5.2 - Radical Aseptic Consolidation
+
+**Added:**
+- **Control Cells Architecture**: Vertical stacking of attachments (LEDs, Displays) and main components across Rack and Modal.
+- **Premium Telemetry**: High-fidelity 60Hz UI updates with filament-like LED decay effect for organic visual feedback.
+- **Living YAML**: Persistence of dynamic HP scaling via `updateManifestHP` RPC call, allowing manifests to self-regulate.
+- **Hybrid Displays**: Automatic context-based label/value formatting (e.g., "OMNI", "CH 01") in cell displays.
+
+**Fixed:**
+- **The Great Purge**: Removed all legacy Era 4 routing, jack fallbacks, and hardcoded logic from the UI engine.
+- **Modal Sync**: Unified the visual and technical standard between the Front Rack and the Configuration Modal.
+- **Hardcode Purge**: Eliminated remaining hardcoded system references in favor of the role-based YAML registry.
+
 ## [2.8.0] - 2026-04-11 (Build 420) - "Aseptic Essence Restoration"
 ### Added
 - **OMEGA Essence Restoration (Phase 32)**:

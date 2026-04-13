@@ -52,8 +52,6 @@ namespace Service {
                 auto const* info = this->mCatalog->getComponent(modelId);
                 if (info) {
                     m.category = info->family;
-                    m.uiLayout = info->uiLayout;
-                    m.style = info->style;
                     for (auto const& p : info->parameters) {
                         if (!p.modulable) continue;
                         // Proper PortDescriptor initialization: {id, label, type, isInput, telemetryIndex, defaultValue, options}
@@ -85,8 +83,6 @@ namespace Service {
                 auto const* info = this->mCatalog->getComponent(modelId);
                 if (info) {
                     m.category = info->family;
-                    m.uiLayout = info->uiLayout;
-                    m.style = info->style;
                     for (auto const& p : info->parameters) {
                         if (!p.modulable) continue;
                         m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options });
@@ -107,8 +103,6 @@ namespace Service {
                 m.modelId = info->id;
                 m.category = info->family;
                 m.status = "template";
-                m.uiLayout = info->uiLayout;
-                m.style = info->style;
                 for (auto const& p : info->parameters) {
                     if (!p.modulable) continue;
                     m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options });

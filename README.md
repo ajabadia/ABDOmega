@@ -1,44 +1,39 @@
-# OMEGA Synthesizer: Hyper-ACE Edition
+# OMEGA: Era 6 — Aseptic Contract Runtime
 
-OMEGA is a state-of-the-art hybrid synthesizer platform designed by **ABD-IA**. It combines high-performance C++ DSP engines with a premium Web-based UI.
+**OMEGA** es una plataforma de síntesis modular híper-modular y agnóstica de host, diseñada para la máxima flexibilidad y fidelidad sónica. 
 
-## 🚀 Overview
-The project follows a **Hyper-ACE (Aseptic Component Engine)** architecture, focusing on dynamic modularity, visual expressivity, and systemic consistency.
+En su **Era 6**, OMEGA ha alcanzado su **Absolute Certification**. El sistema opera ahora bajo un **Runtime Contractual Aséptico** puro, donde un Dispatcher Universal de comandos orquesta la comunicación entre la WebUI y los controladores de dominio, garantizando un desacoplamiento total y una integridad operacional absoluta.
 
-### Tech Stack
-- **Agnostic Core**: C++20, `yaml-cpp`, `std::filesystem`.
-- **DSP/Plugin Layer**: JUCE Framework (v8 compatible).
-- **Frontend**: High-fidelity WebUI (manifest-driven rendering).
-- **Communication**: JSON-RPC over Webview2 Bridge.
+## 🚀 Vision: Contract-Driven Synthesis
 
-## 🏗️ Architecture: OMEGA Hyper-ACE (Phase 24)
-OMEGA has transitioned to a fully **Dynamic, Manifesto-Driven Architecture**. No module or parameter is hardcoded; the system operates on the **ACE-Spec 1.0**:
+- **Schema Authority**: El comportamiento y la identidad de cada módulo se definen mediante esquemas JSON/YAML que el backend publica dinámicamente.
+- **Aseptic UI**: Una interfaz declarativa que consume contratos del motor. El rack, el patchbay y el inspector son simplemente vistas de un único grafo operacional.
+- **Zero-Coupling Architecture**: Separación estricta entre el núcleo DSP (C++), el motor de voz (Engine) y la superficie de control (WebUI).
 
-- **Aseptic Identity**: Every module, parameter, and port uses a unique technical ID (e.g., `osc.1.detune`). This ensures persistent connections even during refactorings.
-- **Dynamic Discovery**: The engine scans `Resources/ace/` for YAML manifests. The `AceCatalog` (Header-only) maps these to the live engine.
-- **Patchbay-Matrix**: A centralized, high-fidelity routing hub that replaces the old modulation matrix. It supports dynamic slot counts and bipolar depth.
-- **UI Governance**: Layouts (`uiLayout`) and styles (`style`) are defined in YAML manifests, allowing the rack to render new modules without C++ recompilation.
-- **Aseptic Paths**: Unified resource resolution via `Environment::getResourcesDir()`.
+## 🏗️ Arquitectura de 4 Capas
 
-## 📂 Repository Structure
-- `/src/DSP`: Core DSP algorithms (VA, Physical Models).
-- `/src/Core`: Agnostic library (Ace, Modulation, Patchbay).
-- `/src/Plugin`: JUCE Processor and Bridge/Adapter layers.
-- `/Resources/ace`: YAML manifests for all active components.
+1.  **Core**: Orquestación y servicios fundamentales (Registry, Patchbay Hub).
+2.  **Engine**: Arquitectura de voz y grafo de procesamiento dinámico.
+3.  **DSP**: Librería atómica de osciladores, filtros y efectos (C++ Nativo).
+4.  **Plugin/Bridge (Stateless Gateway)**: Pasarela aséptica que delega el control al **Universal Command Dispatcher**.
 
-## 🛠 Active Features
-- **Hyper-ACE Engine**:
-    - **Dynamic Rendering**: Automatic rack generation from YAML metadata.
-    - **Aseptic Hub**: Centralized parameter and ruteo management.
-- **Flagship Synthesis Layer**:
-    - **Juno High-Fidelity**: 8MHz timer quantization, 3-level analog drift, and BBD chorus.
-    - **JP-8080 Elite**: Supersaw, Feedback oscillators, and JP-Formant filters.
-    - **MS-20 Aggressive**: Korg-35 filter modeling and nonlinear saturation.
-- **Patchbay-Matrix**:
-    - **Dynamic Slots**: User-configurable routing grid (Edit > Preferences > Engine).
-    - **Aseptic Mapping**: 100% ID-based resolution for sources and targets.
-- **Smart Focus Diagnostic**: Universal "Eye" icons for instant oscilloscope routing.
-- **Build System**: Stabilized via `build_auto.bat` (CMake/Ninja) with automatic build tracking.
+## 🛠️ Características Principales
+
+- **Hyper-ACE Manifests**: Módulos definidos por semántica, no por código de UI.
+- **Patchbay Matrix 2.0**: Ruteado lógico de precisión con visualización de telemetría integrada.
+- **AceCatalog**: Descubrimiento y carga dinámica de paquetes `.acepack`.
+- **Real-Time Safe**: Motor diseñado para latencia cero y estabilidad profesional.
+
+## 📂 Estructura del Proyecto
+
+- `/src`: Código fuente del motor C++ (Core, Engine, DSP).
+- `/ui`: Aplicación WebUI de Era 6 (TypeScript).
+- `/Resources/modules`: Inventario de módulos y manifiestos ACE.
+- `/DOCUMENTACION`: Especificaciones técnicas, Roadmap y reglas de la Era 6.
+
+## 🏁 Comenzando
+
+Consulta la [Guía de Desarrollo](file:///D:/desarrollos/ABDOmega/DEVELOPMENT_RULES_ERA_6.md) y el [Roadmap de la Era 6](file:///D:/desarrollos/ABDOmega/DOCUMENTACION/ROADMAP_ERA_6.md) para entender el nuevo paradigma contractual.
 
 ---
-*Built by ABD-IA*
+*OMEGA — The Infinite Synthesis Platform*

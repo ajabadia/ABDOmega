@@ -37,7 +37,7 @@ $specificFiles = @(
 )
 
 # Folders to explicitly INCLUDE (relative to root)
-$foldersToProcess = @("src", "ui", "docs")
+$foldersToProcess = @("src", "ui", "docs", "Resources/modules")
 
 # Directories to exclude (always ignore these)
 $excludeDirsBase = @(

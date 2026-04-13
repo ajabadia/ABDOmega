@@ -1,12 +1,12 @@
 /**
  * preferences.ts - OMEGA Premium Preferences Logic (TypeScript Implementation)
- * Phase 15.1 - Structural Maturity
+ * Era 6 - Managed Dispatch Edition
  */
 export class OMEGA_Preferences {
     settings = [];
     currentCategory = 'GENERAL';
     constructor() {
-        console.log("[Preferences TS] Initialized");
+        console.log("[Preferences] Initialized (Aseptic)");
     }
     async init() {
         await this.refresh();
@@ -20,30 +20,38 @@ export class OMEGA_Preferences {
                 const htmlTab = tab;
                 tabs.forEach(t => t.classList.remove('active'));
                 htmlTab.classList.add('active');
-                this.currentCategory = htmlTab.innerText.toUpperCase();
+                this.currentCategory = htmlTab.textContent?.trim().toUpperCase() || 'GENERAL';
                 this.render();
             };
         });
     }
     async refresh() {
         try {
-            // @ts-ignore
-            if (window.juce && window.juce.getSystemSettings) {
-                // @ts-ignore
-                const data = await window.juce.getSystemSettings();
+            // [Era 6] Request data via hardened RPC
+            const rpc = window.omegaRPC;
+            if (rpc) {
+                const data = await rpc.getSystemSettings();
                 this.settings = Array.isArray(data) ? data : [];
             }
         }
         catch (e) {
-            console.error("[Preferences TS] Refresh failed:", e);
+            console.error("[Preferences] Refresh failed:", e);
         }
     }
     render() {
         const container = document.getElementById('preferences-body');
         if (!container)
             return;
+        if (this.settings.length === 0) {
+            container.innerHTML = `
+                <div class="pref-loading">
+                    <div class="spinner"></div>
+                    <span>Communicating with OMEGA Engine...</span>
+                </div>`;
+            return;
+        }
         container.innerHTML = '';
-        const catSettings = this.settings.filter(s => s.category === this.currentCategory);
+        const catSettings = this.settings.filter(s => s.category.toUpperCase() === this.currentCategory.toUpperCase());
         if (catSettings.length === 0) {
             container.innerHTML = `<div class="pref-empty">No settings found for ${this.currentCategory}.</div>`;
             return;
@@ -51,7 +59,6 @@ export class OMEGA_Preferences {
         catSettings.forEach(s => {
             const row = document.createElement('div');
             row.className = 'pref-row';
-            // Build control HTML (Typed)
             let controlHtml = '';
             if (s.options) {
                 const sortedKeys = Object.keys(s.options).sort((a, b) => parseFloat(a) - parseFloat(b));
@@ -74,36 +81,26 @@ export class OMEGA_Preferences {
                 </div>
             `;
             container.appendChild(row);
-            // Bind events
             const ctrl = row.querySelector(`[data-pref-id="${s.id}"]`);
             ctrl.onchange = (e) => this.update(s.id, e.target.value);
             const resetBtn = row.querySelector(`[data-reset-id="${s.id}"]`);
             resetBtn.onclick = () => this.reset(s.id);
         });
     }
-    async setSetting(id, value) {
-        try {
-            // @ts-ignore
-            if (window.juce && window.juce.setSystemSetting) {
-                // @ts-ignore
-                await window.juce.setSystemSetting(id, value);
-            }
-        }
-        catch (e) {
-            console.error("[Preferences TS] Save failed:", e);
-        }
-    }
     async update(id, value) {
         const val = parseFloat(value);
-        await this.setSetting(id, val);
+        const rpc = window.omegaRPC;
+        if (rpc) {
+            await rpc.send("setSystemSetting", { id, value: val });
+        }
         const s = this.settings.find(x => x.id === id);
         if (s)
             s.currentValue = val;
     }
-    async reset(id) {
+    reset(id) {
         const s = this.settings.find(x => x.id === id);
         if (s) {
-            await this.update(id, s.defaultValue);
+            this.update(id, s.defaultValue);
             this.render();
         }
     }

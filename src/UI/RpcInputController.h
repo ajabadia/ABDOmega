@@ -16,6 +16,8 @@ namespace UI {
 
         juce::var handleTriggerNote(const juce::var& requestId, const juce::var& payload);
 
+        void registerCommands(RpcCommandDispatcher& dispatcher);
+
     private:
         Plugin::OmegaAudioProcessor* mProcessor;
     };

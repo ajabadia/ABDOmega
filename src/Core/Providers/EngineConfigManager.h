@@ -94,30 +94,19 @@ namespace Service {
          */
         void updateParameter(const std::string& paramId, float value) {
             auto* current = mCurrentSnapshot.load();
-            
-            // 1. Global Parameters (Direct Access)
-            if (paramId == "LAYERAMAINVCAGAIN") {
+            juce::String pid = paramId;
+
+            // 1. Direct Engine Hooks (High Priority)
+            if (pid == "LAYERAMAINVCAGAIN") {
                 mEngine.setVcaGain(value);
-            } else if (paramId == "global.chorus.mode") {
-                current->chorusMode = (int)value;
-            } else if (paramId == "global.chorus.mix") {
-                current->chorusMix = value;
-            } else if (paramId == "layer.a.fx.space.enable") {
-                current->spaceEchoEnabled = (value > 0.5f);
-            } else if (paramId == "layer.a.fx.space.speed") {
-                current->spaceEchoSpeed = value;
-            } else if (paramId == "layer.a.fx.space.intensity") {
-                current->spaceEchoIntensity = value;
-            } else if (paramId == "layer.a.fx.space.echo.vol") {
-                current->spaceEchoEchoVol = value;
-            } else if (paramId == "layer.a.fx.space.rev.vol") {
-                current->spaceEchoReverbVol = value;
-            } else if (paramId == "layer.a.fx.space.mode") {
-                current->spaceEchoMode = (int)value;
-            } else {
-                // 2. Per-Voice Parameters (Registry)
+            } 
+            else {
+                // 2. Global Registry (Era 6 Aseptic)
+                ParamBindingRegistry::getInstance().applyGlobal(pid, value, *current);
+
+                // 3. Per-Voice Parameters (Registry)
                 for (int i = 0; i < 16; ++i) {
-                    ParamBindingRegistry::getInstance().apply(paramId, value, current->voices[i]);
+                    ParamBindingRegistry::getInstance().apply(pid, value, current->voices[i]);
                 }
             }
 

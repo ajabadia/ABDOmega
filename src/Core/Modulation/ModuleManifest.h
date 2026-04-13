@@ -51,11 +51,6 @@ namespace Modulation {
         
         std::vector<PortDescriptor> ports;
 
-        
-        // Hyper-ACE UI Metadata
-        std::string uiLayout;     // Grid configuration (JSON)
-        std::string style;        // Theme class
-
         // Helpers to filter ports
         std::vector<PortDescriptor> getInputs() const {
             std::vector<PortDescriptor> results;

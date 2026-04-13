@@ -1,0 +1,28 @@
+:root {
+    /* SYSTEM-WIDE MODULE VARIABLES (Fallback Layer) */
+    --module-bg: rgba(0, 10, 20, 0.95);
+    --module-header-bg: rgba(0, 40, 80, 0.2);
+    --module-border: 1px solid rgba(0, 242, 255, 0.2);
+    --module-label-color: #00f2ff;
+    --module-display-bg: #000;
+    --module-display-color: #00f2ff;
+    --module-accent: #00f2ff;
+    --module-font-main: "Outfit", sans-serif;
+    --module-font-mono: "Consolas", monospace;
+    --module-glow: 0 0 10px rgba(0, 242, 255, 0.3);
+    
+    /* Layout & Components */
+    --knob-size: 38px;
+    --cell-padding: 6px;
+    --module-knob-bg: radial-gradient(circle, #333 0%, #111 100%);
+    --module-knob-border: rgba(255, 255, 255, 0.1);
+}
+
+/* SEMANTIC VARIANTS (Asepsis Default) */
+.led.variant-A { width: 16px; height: 16px; background: var(--module-accent); }
+.led.variant-B { width: 8px; height: 8px; background: var(--module-accent); opacity: 0.8; }
+.led.variant-C { width: 6px; height: 6px; background: #666; }
+
+.theme-default .led.variant-A {
+    box-shadow: 0 0 15px var(--module-accent);
+}

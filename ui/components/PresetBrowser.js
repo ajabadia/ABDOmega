@@ -1,6 +1,7 @@
 /**
  * PresetBrowser.ts - OMEGA Advanced Preset Management
  * Handles the 3-column browser (Category > Library > Patch)
+ * Era 6 - Managed Dispatch Edition
  */
 export class OMEGA_PresetBrowser {
     data = { libraries: [] };
@@ -9,7 +10,7 @@ export class OMEGA_PresetBrowser {
     currentCategory = 'All';
     searchQuery = '';
     constructor() {
-        console.log("[PresetBrowser] Initialized");
+        console.log("[PresetBrowser] Initialized (Aseptic)");
     }
     async init() {
         this.setupListeners();
@@ -23,7 +24,6 @@ export class OMEGA_PresetBrowser {
                 this.renderPresets();
             };
         }
-        // Action buttons
         const attach = (id, fn) => {
             const el = document.getElementById(id);
             if (el)
@@ -33,10 +33,10 @@ export class OMEGA_PresetBrowser {
     }
     async refresh() {
         try {
-            // @ts-ignore
-            if (window.juce && window.juce.getBrowserData) {
-                // @ts-ignore
-                const response = await window.juce.getBrowserData();
+            // [Era 6] Request data via hardened RPC
+            const rpc = window.omegaRPC;
+            if (rpc) {
+                const response = await rpc.send("getBrowserData");
                 if (response) {
                     this.data = response;
                     this.render();
@@ -44,7 +44,7 @@ export class OMEGA_PresetBrowser {
             }
         }
         catch (e) {
-            console.error("[PresetBrowser] Failed to refresh data:", e);
+            console.error("[PresetBrowser] Refresh failed:", e);
         }
     }
     render() {
@@ -65,7 +65,7 @@ export class OMEGA_PresetBrowser {
                 return;
             seen.add(cat);
             const li = document.createElement('li');
-            li.innerText = cat;
+            li.textContent = cat;
             if (this.currentCategory === cat)
                 li.classList.add('active');
             li.onclick = () => this.selectCategory(cat);
@@ -106,9 +106,11 @@ export class OMEGA_PresetBrowser {
     async selectLib(idx) {
         this.selectedLibIdx = idx;
         this.selectedPresetIdx = -1;
-        // @ts-ignore
-        if (window.juce && window.juce.selectLibrary)
-            await window.juce.selectLibrary(idx);
+        // [Era 6] Unified Dispatch
+        const dispatcher = window.rpcCommandDispatcher;
+        if (dispatcher) {
+            await dispatcher.dispatch({ type: 'selectLibrary', value: idx });
+        }
         this.render();
     }
     renderPresets() {
@@ -136,10 +138,13 @@ export class OMEGA_PresetBrowser {
     }
     async selectPreset(idx) {
         this.selectedPresetIdx = idx;
-        // @ts-ignore
-        if (window.juce && window.juce.loadLibraryPreset) {
-            // @ts-ignore
-            await window.juce.loadLibraryPreset(this.selectedLibIdx, idx);
+        // [Era 6] Unified Dispatch
+        const dispatcher = window.rpcCommandDispatcher;
+        if (dispatcher) {
+            await dispatcher.dispatch({
+                type: 'loadPreset',
+                value: { libIdx: this.selectedLibIdx, prstIdx: idx }
+            });
         }
         this.renderPresets();
         this.updateInfoPane();

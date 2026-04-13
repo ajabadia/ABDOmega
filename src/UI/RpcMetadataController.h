@@ -18,7 +18,10 @@ namespace UI {
         juce::var handleGetMetadata(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetSampleRate(const juce::var& requestId, const juce::var& payload);
         juce::var handleGetTempo(const juce::var& requestId, const juce::var& payload);
-        juce::var handleListCatalog(const juce::var& requestId, const juce::var& payload);
+        juce::var handleGetInventory(const juce::var& requestId, const juce::var& payload);
+        juce::var handleGetUiSchemas(const juce::var& requestId, const juce::var& payload);
+        
+        void registerCommands(RpcCommandDispatcher& dispatcher);
 
     private:
         Plugin::OmegaAudioProcessor* mProcessor;

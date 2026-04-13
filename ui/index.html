@@ -75,6 +75,9 @@
     <link rel="stylesheet" href="css/preferences.css">
     <link rel="stylesheet" href="css/matrix_overlay.css">
     <link rel="stylesheet" href="css/module_browser.css">
+    <!-- OMEGA Themes (Module Skills) -->
+    <link rel="stylesheet" href="css/themes/default.css">
+    <link rel="stylesheet" href="css/themes/industrial.css">
 </head>
 <body class="rack-bg">
     <nav class="top-menu">
@@ -109,7 +112,11 @@
                 <a id="menu-console" data-action="toggle_console">Console</a>
             </div>
         </div>
-        <div class="top-bar-version" id="top-bar-version">OMEGA v1.0.0 (DISCONNECTED)</div>
+        <div class="menu-status-tray" style="margin-left: auto; display: flex; align-items: center; padding: 0 15px; gap: 8px;">
+            <div id="bridge-health-led" class="led led-cyan" style="width: 8px; height: 8px; margin: 0; background-color: #331111; cursor: help;" title="Aseptic Bridge Status"></div>
+            <span style="font-size: 9px; font-weight: 900; letter-spacing: 1px; color: #555; text-transform: uppercase;">ASEPTIC LINK</span>
+            <div class="top-bar-version" id="top-bar-version" style="margin-left: 10px; opacity: 0.4;">OMEGA Era 6</div>
+        </div>
     </nav>
 
     <div id="splash-screen">
@@ -270,7 +277,7 @@
             <div class="era5-modal-header">
                 <div class="header-left">
                     <h2 class="modal-title" id="patch-modal-title">MODULE CONFIG</h2>
-                    <p class="era5-modal-subtitle" id="patch-modal-subtitle">Meta-Engine v5.2 | Dynamic Registry</p>
+                    <p class="era5-modal-subtitle" id="patch-modal-subtitle">OMEGA Core | Absolute Aseptic Contract</p>
                 </div>
                 <div id="patch-tabs-container" class="era5-modal-tabs">
                     <!-- Dynamic tabs (GENERAL, etc.) + fixed PATCHING sanctuary injected here -->
@@ -339,7 +346,7 @@
         </div>
         <div id="debug-console-content"></div>
     </div>
-    <!-- OMEGA Unified Entry Point (Bundled with Esbuild) -->
-    <script src="bundle_v52.js" type="module"></script>
+    <!-- OMEGA Unified Entry Point (Aseptic Runtime) -->
+    <script src="index.js" type="module"></script>
 </body>
 </html>

@@ -18,7 +18,6 @@ namespace UI {
                             Core::Preset::PresetRepository* repository)
             : mPreset(preset), mCatalog(catalog), mRepository(repository) {}
 
-        juce::var handleGetState(const juce::var& requestId, const juce::var& payload);
         juce::var handleListAceComponents(const juce::var& requestId, const juce::var& payload);
         juce::var handleLoadPreset(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad);
         juce::var handleSavePreset(const juce::var& requestId, const juce::var& payload);
@@ -34,6 +33,8 @@ namespace UI {
         juce::var handleSaveSnapshot(const juce::var& requestId, const juce::var& payload, const Core::Preset::OmegaPreset& currentPreset);
         juce::var handleCheckout(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad);
         juce::var handleCreateBranch(const juce::var& requestId, const juce::var& payload);
+
+        void registerCommands(RpcCommandDispatcher& dispatcher, std::function<void(const Core::Preset::OmegaPreset&)> onLoad);
 
         // Utility to convert preset to var (moved from Bridge)
         static juce::var presetToVar(const Core::Preset::OmegaPreset& p);

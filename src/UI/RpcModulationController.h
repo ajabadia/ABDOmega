@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RpcBaseController.h"
+#include "RpcCommandDispatcher.h"
 #include "../Core/Modulation/ModulationMetadata.h"
 #include "../Core/Preset/OmegaPreset.h"
 
@@ -16,6 +17,8 @@ namespace UI {
 
         juce::var handleGetModulationMetadata(const juce::var& requestId, const juce::var& payload);
         juce::var handleUpdatePatchbayMatrixSlot(const juce::var& requestId, const juce::var& payload);
+
+        void registerCommands(RpcCommandDispatcher& dispatcher);
 
     private:
         Core::Preset::OmegaPreset& mPreset;

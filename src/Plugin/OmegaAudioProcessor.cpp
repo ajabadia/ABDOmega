@@ -77,13 +77,14 @@ namespace Plugin {
     void OmegaAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
         juce::ScopedNoDenormals noDenormals;
         
-        // 1. Convert JUCE MIDI to OMEGA Input Events (Aseptic 2.0 Refit)
+        // 1. Convert JUCE MIDI to OMEGA Input Events (Era 5.2 Gold Transparency)
         mInput.clear();
         for (const auto metadata : midiMessages) {
             auto msg = metadata.getMessage();
             ::Omega::Core::Input::InputEvent ev;
             ev.sampleOffset = metadata.samplePosition;
             
+            // Note-On/Off Handling (Legacy compatibility for Engine Internal)
             if (msg.isNoteOn()) {
                 ev.type = ::Omega::Core::Input::InputEventType::NoteOn;
                 ev.data.noteOn.noteId = msg.getNoteNumber();
@@ -96,9 +97,20 @@ namespace Plugin {
                 ev.data.noteOff.releaseVelocity = msg.getFloatVelocity();
                 mInput.addEvent(ev);
             }
+
+            // Universal MIDI Injection (VA 2.2 Gold Hub)
+            // We generate a RawMidi event for EVERY message to ensure transparency.
+            ::Omega::Core::Input::InputEvent rawEv;
+            rawEv.sampleOffset = metadata.samplePosition;
+            rawEv.type = ::Omega::Core::Input::InputEventType::RawMidi;
+            rawEv.data.rawMidi.status = msg.getRawData()[0];
+            rawEv.data.rawMidi.d1 = msg.getRawDataSize() > 1 ? msg.getRawData()[1] : 0;
+            rawEv.data.rawMidi.d2 = msg.getRawDataSize() > 2 ? msg.getRawData()[2] : 0;
+            mInput.addEvent(rawEv);
+
             ::Omega::Core::Input::MidiMonitor::getInstance().pushEvent(msg);
         }
-        midiMessages.clear();
+        // midiMessages.clear(); // Keep for Post-processing if needed
 
         // 2. Render Engine (Absolute Interface Fulfillment)
         mEngine.renderNextBlock(buffer, mInput);

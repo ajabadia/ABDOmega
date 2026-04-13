@@ -15,6 +15,7 @@ namespace Service {
     class ParamBindingRegistry {
     public:
         using BindingAction = std::function<void(VoiceConfig&, float)>;
+        using GlobalBindingAction = std::function<void(EngineConfig&, float)>;
 
         static ParamBindingRegistry& getInstance() {
             static ParamBindingRegistry instance;
@@ -24,6 +25,12 @@ namespace Service {
         void apply(const juce::String& paramId, float value, VoiceConfig& cfg) {
             if (mBindings.count(paramId)) {
                 mBindings[paramId](cfg, value);
+            }
+        }
+
+        void applyGlobal(const juce::String& paramId, float value, EngineConfig& cfg) {
+            if (mGlobalBindings.count(paramId)) {
+                mGlobalBindings[paramId](cfg, value);
             }
         }
 
@@ -74,9 +81,24 @@ namespace Service {
             reg("layer.a.jp.detune",        [](VoiceConfig& c, float v) { c.jpDetune = v; });
             reg("layer.a.jp.spread",        [](VoiceConfig& c, float v) { c.jpSpread = v; });
             reg("layer.a.jp.filter.mode",   [](VoiceConfig& c, float v) { c.jpFilterMode = (int)v; });
+
+            // --- Global Components (Era 6 Aseptic) ---
+            auto regGlobal = [&](const juce::String& id, auto action) {
+                mGlobalBindings[id] = [action](EngineConfig& c, float v) { action(c, v); };
+            };
+
+            regGlobal("global.chorus.mode",         [](EngineConfig& c, float v) { c.chorusMode = (int)v; });
+            regGlobal("global.chorus.mix",          [](EngineConfig& c, float v) { c.chorusMix = v; });
+            regGlobal("layer.a.fx.space.enable",    [](EngineConfig& c, float v) { c.spaceEchoEnabled = (v > 0.5f); });
+            regGlobal("layer.a.fx.space.speed",     [](EngineConfig& c, float v) { c.spaceEchoSpeed = v; });
+            regGlobal("layer.a.fx.space.intensity", [](EngineConfig& c, float v) { c.spaceEchoIntensity = v; });
+            regGlobal("layer.a.fx.space.echo.vol",  [](EngineConfig& c, float v) { c.spaceEchoEchoVol = v; });
+            regGlobal("layer.a.fx.space.rev.vol",   [](EngineConfig& c, float v) { c.spaceEchoReverbVol = v; });
+            regGlobal("layer.a.fx.space.mode",      [](EngineConfig& c, float v) { c.spaceEchoMode = (int)v; });
         }
 
         std::map<juce::String, BindingAction> mBindings;
+        std::map<juce::String, GlobalBindingAction> mGlobalBindings;
     };
 
 } // namespace Service

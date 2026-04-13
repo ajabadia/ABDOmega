@@ -11,6 +11,9 @@ file(GLOB_RECURSE OMEGA_CORE_SOURCES
     *.cpp *.h
 )
 
+# Exclude tool source from main library to avoid duplicate main()
+list(REMOVE_ITEM OMEGA_CORE_SOURCES "Ace/omega-schema-tool.cpp")
+
 
 # ------------------------------------------------------------------------------
 # Library Definition
@@ -49,3 +52,10 @@ target_link_libraries(omega_core
         juce::juce_data_structures
         juce::juce_audio_basics
 )
+
+# ------------------------------------------------------------------------------
+# Schema Tool Executable (VEM-169)
+# ------------------------------------------------------------------------------
+add_executable(omega-schema-tool Ace/omega-schema-tool.cpp)
+target_link_libraries(omega-schema-tool PRIVATE omega_core juce::juce_core juce::juce_events)
+target_compile_definitions(omega-schema-tool PRIVATE JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1)

@@ -1,20 +1,18 @@
-import { Era5ManifestParser } from '../logic/era5/Era5ManifestParser.js';
 /**
  * OMEGA Unified Module Patch Modal
- * Standardized for Era 5.2 Aseptic Meta-Engine.
+ * Standardized for Era 6 Aseptic Contract Runtime.
  */
 export class ModulePatchModal {
     el = null;
     tabsContainer = null;
     viewport = null;
     currentInstanceId = "";
-    activeTab = "GENERAL";
-    currentTabs = [];
-    currentManifest = null;
+    activeTab = "";
+    currentSchema = null;
     patchbayMatrix = [];
     maxSlots = 32;
     constructor() {
-        console.log("[ModulePatchModal] Initializing Unified Era 5.2 UI...");
+        console.log("[ModulePatchModal] Initializing Unified Era 6 UI...");
         this.init();
     }
     init() {
@@ -28,256 +26,258 @@ export class ModulePatchModal {
         });
         // Tab Switching Listener (Delegated)
         this.tabsContainer?.addEventListener('click', (e) => {
-            const btn = e.target.closest('.era5-tab-btn');
+            const btn = e.target.closest('.aseptic-tab-btn');
             if (btn) {
                 const tabId = btn.getAttribute('data-tab');
                 if (tabId)
                     this.switchTab(tabId);
             }
         });
+        // Era 6 Aseptic: Real-time subscription
+        // @ts-ignore
+        if (window.runtimeStateStore) {
+            // @ts-ignore
+            window.runtimeStateStore.subscribe(() => {
+                this.updateRealtimeUI();
+            });
+        }
     }
-    async open(instanceId, manifest) {
+    async open(instanceId, schema) {
         if (!this.el)
             return;
         this.currentInstanceId = instanceId;
-        this.currentManifest = manifest;
+        this.currentSchema = schema;
         this.el.style.display = 'flex';
-        this.currentTabs = Era5ManifestParser.parse(manifest);
-        this.renderTabs(this.currentTabs);
-        // Default to GENERAL or first tab
-        const defaultTab = this.currentTabs.find(t => t.id === 'GENERAL') ? 'GENERAL' : (this.currentTabs[0]?.id || 'GENERAL');
-        this.switchTab(defaultTab);
+        if (!schema || !schema.items) {
+            this.renderError("INVALID_CONTRACT");
+            return;
+        }
+        this.renderTabs(schema);
+        // Default to first tab
+        const tabs = this.getTabsFromSchema(schema);
+        const defaultTab = tabs[0] || "";
+        if (defaultTab)
+            this.switchTab(defaultTab);
     }
     close() {
         if (this.el)
             this.el.style.display = 'none';
     }
-    renderTabs(tabs) {
+    renderTabs(schema) {
         if (!this.tabsContainer)
             return;
         this.tabsContainer.innerHTML = '';
-        tabs.filter(t => t.id !== 'PATCHING').forEach(tab => {
+        const tabs = this.getTabsFromSchema(schema);
+        tabs.forEach(tabTitle => {
             const btn = document.createElement('button');
-            btn.className = 'era5-tab-btn';
-            btn.innerText = tab.id.toUpperCase();
-            btn.setAttribute('data-tab', tab.id);
+            btn.className = 'aseptic-tab-btn';
+            btn.innerText = tabTitle.toUpperCase();
+            btn.setAttribute('data-tab', tabTitle);
             this.tabsContainer.appendChild(btn);
         });
-        // Add Persistent PATCHING Sanctuary (if entities exist or always)
-        const patchBtn = document.createElement('button');
-        patchBtn.className = 'era5-tab-btn sanctuary';
-        patchBtn.innerText = 'PATCHING';
-        patchBtn.setAttribute('data-tab', 'PATCHING');
-        this.tabsContainer.appendChild(patchBtn);
+    }
+    getTabsFromSchema(schema) {
+        if (!schema || !schema.items)
+            return [];
+        const tabs = new Set();
+        schema.items.forEach((item) => {
+            if (item.tab)
+                tabs.add(item.tab);
+        });
+        return Array.from(tabs);
     }
     switchTab(tabId) {
         this.activeTab = tabId;
         // Update UI states
-        this.tabsContainer?.querySelectorAll('.era5-tab-btn').forEach(btn => {
+        this.tabsContainer?.querySelectorAll('.aseptic-tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
         });
-        if (tabId === 'PATCHING') {
-            this.renderPatchingSanctuary();
-        }
-        else {
-            const tabData = this.currentTabs.find(t => t.id === tabId);
-            if (tabData)
-                this.renderGroups(tabData);
-        }
+        this.renderTabContent(tabId);
     }
-    renderGroups(tab) {
-        if (!this.viewport)
+    renderTabContent(tabId) {
+        if (!this.viewport || !this.currentSchema)
             return;
         this.viewport.innerHTML = '';
+        const items = this.currentSchema.items.filter((i) => i.tab === tabId);
         const form = document.createElement('div');
         form.id = 'patch-params-form';
-        form.className = 'era5-params-container';
+        form.className = 'aseptic-params-container';
         this.viewport.appendChild(form);
-        tab.groups.forEach((entities, groupName) => {
+        // Group items by 'group' field
+        const groups = new Map();
+        items.forEach((item) => {
+            const g = item.group || "PARAMETERS";
+            if (!groups.has(g))
+                groups.set(g, []);
+            groups.get(g).push(item);
+        });
+        groups.forEach((groupItems, groupName) => {
             const groupHeader = document.createElement('div');
-            groupHeader.className = 'era5-group-title';
+            groupHeader.className = 'aseptic-group-title';
             groupHeader.innerText = groupName.toUpperCase();
             form.appendChild(groupHeader);
-            // ERA 5.1/5.2 Pair-Detection & Technical Rendering
-            for (let i = 0; i < entities.length; i++) {
-                const entity = entities[i];
-                if (!entity)
-                    continue;
-                const nextEntity = entities[i + 1];
-                if (nextEntity && this.isPair(entity, nextEntity)) {
-                    this.renderParameterRow(form, [entity, nextEntity]);
-                    i++; // Skip next
-                }
-                else {
-                    this.renderParameterRow(form, [entity]);
-                }
-            }
+            groupItems.forEach(item => {
+                this.renderParameterRow(form, [item]);
+            });
         });
-        if (tab.groups.size === 0) {
-            form.innerHTML = `<div class="patch-empty-msg">NO CONFIGURATION PARAMETERS AVAILABLE</div>`;
-        }
+        this.setupListeners();
     }
-    isPair(a, b) {
-        const nameA = a.id.toLowerCase();
-        const nameB = b.id.toLowerCase();
-        const suffixes = [['min', 'max'], ['low', 'high'], ['lo', 'hi'], ['start', 'end']];
-        return suffixes.some(([s1, s2]) => {
-            if (nameA.endsWith(s1) && nameB.endsWith(s2)) {
-                return nameA.substring(0, nameA.length - s1.length) === nameB.substring(0, nameB.length - s2.length);
-            }
-            return false;
+    setupListeners() {
+        if (!this.viewport)
+            return;
+        // 1. Selector listeners
+        this.viewport.querySelectorAll('select.selector-control').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const id = select.getAttribute('data-param');
+                const val = parseFloat(e.target.value);
+                const paramId = `${this.currentInstanceId}.${id}`;
+                // @ts-ignore
+                window.rpcCommandDispatcher.dispatch({ type: 'setParameter', target: paramId, value: val });
+            });
+        });
+        // 2. Knob listeners (Aseptic drag)
+        this.viewport.querySelectorAll('.knob-ring').forEach(ring => {
+            const id = ring.getAttribute('data-param');
+            const move = (e) => {
+                const rect = ring.getBoundingClientRect();
+                let val = 1.0 - (e.clientY - rect.top) / rect.height;
+                val = Math.max(0, Math.min(1, val));
+                const paramId = `${this.currentInstanceId}.${id}`;
+                // @ts-ignore
+                window.rpcCommandDispatcher.dispatch({ type: 'setParameter', target: paramId, value: val });
+                // Real-time UI update (Feedback)
+                const knob = ring.querySelector('.knob');
+                if (knob)
+                    knob.style.transform = `translateX(-50%) rotate(${(val * 270) - 135}deg)`;
+            };
+            ring.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                ring.setPointerCapture(e.pointerId);
+                move(e);
+                const onMove = (ev) => move(ev);
+                const onUp = () => {
+                    ring.removeEventListener('pointermove', onMove);
+                    ring.removeEventListener('pointerup', onUp);
+                };
+                ring.addEventListener('pointermove', onMove);
+                ring.addEventListener('pointerup', onUp);
+            });
         });
     }
-    renderParameterRow(container, entities) {
+    renderParameterRow(container, items) {
         const row = document.createElement('div');
-        row.className = 'patch-param-row' + (entities.length > 1 ? ' pair' : '');
-        let labelStr = entities[0]?.label || 'UNKNOWN';
-        if (entities.length > 1) {
-            labelStr = labelStr.replace(/(_min|min|_low|low|_lo|lo|_start|start)$/i, ' RANGE');
-        }
-        const label = document.createElement('div');
-        label.className = 'patch-param-label';
-        label.innerText = labelStr.toUpperCase();
-        row.appendChild(label);
-        const controlsWrapper = document.createElement('div');
-        controlsWrapper.className = 'patch-param-controls-wrapper';
-        entities.forEach(entity => {
-            const ctrl = document.createElement('div');
-            ctrl.className = 'patch-param-control';
-            if (entity.presentation.control === 'list' && entity.options) {
-                const select = document.createElement('select');
-                entity.options.forEach(opt => {
-                    const o = document.createElement('option');
-                    o.value = opt.value.toString();
-                    o.innerText = opt.label;
-                    select.appendChild(o);
-                });
-                ctrl.appendChild(select);
-            }
-            else {
-                const input = document.createElement('input');
-                input.type = 'number';
-                input.value = entity.range?.default?.toString() || '0';
-                ctrl.appendChild(input);
-            }
-            controlsWrapper.appendChild(ctrl);
+        row.className = 'aseptic-params-row';
+        items.forEach(item => {
+            const cell = this.buildControlCell(item);
+            row.appendChild(cell);
         });
-        row.appendChild(controlsWrapper);
         container.appendChild(row);
     }
     /**
-     * ERA 5.2 STANDARD: Control Cell Generator
+     * ERA 6 STANDARD: Unified Control Cell Generator
      */
-    buildControlCell(entity) {
+    buildControlCell(item) {
         const cell = document.createElement('div');
+        const id = item.paramId || item.id;
         cell.className = 'control-cell';
-        cell.id = `cell-${this.currentInstanceId}-${entity.id}`;
-        // 1. Attachments (TOP - LEDs etc)
-        entity.attachments?.forEach(att => {
-            const attEl = document.createElement('div');
-            attEl.className = `control-cell-attachment attachment-${att.type}`;
-            attEl.innerText = '●';
-            cell.appendChild(attEl);
-        });
-        // 2. Primary Component
-        const comp = document.createElement('div');
-        comp.className = `entity-control control-${entity.presentation.control}`;
-        comp.innerHTML = `<div class="knob-placeholder"></div>`;
-        cell.appendChild(comp);
-        // 3. Label
-        const label = document.createElement('div');
-        label.className = 'control-cell-label';
-        label.innerText = entity.label;
-        cell.appendChild(label);
-        // 4. Display (BOTTOM)
-        const disp = document.createElement('div');
-        disp.className = 'control-cell-display';
-        disp.innerText = entity.range?.default?.toString() || '0';
-        cell.appendChild(disp);
-        return cell;
-    }
-    renderPatchingSanctuary() {
-        const viewport = this.viewport;
-        if (!viewport)
-            return;
-        viewport.innerHTML = `
-            <div class="era5-group-container aseptic-panel">
-                <div class="era5-group-title">PATCHING SANCTUARY</div>
-                <div class="patch-bay-layout" style="display: flex; gap: 40px;">
-                    <div class="patch-column" style="flex: 1;">
-                        <h3 class="patch-section-title" style="font-size: 10px; color: var(--neon-cyan); letter-spacing: 2px;">INPUTS / TARGETS</h3>
-                        <div id="era5-patch-inputs" class="patch-list"></div>
-                    </div>
-                    <div class="patch-column" style="flex: 1;">
-                        <h3 class="patch-section-title" style="font-size: 10px; color: var(--signal-audio); letter-spacing: 2px;">OUTPUTS / SOURCES</h3>
-                        <div id="era5-patch-outputs" class="patch-list"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-        const inputsEl = document.getElementById('era5-patch-inputs');
-        const outputsEl = document.getElementById('era5-patch-outputs');
-        const patchingTabData = this.currentTabs.find(t => t.id === 'PATCHING');
-        if (!patchingTabData) {
-            if (inputsEl)
-                inputsEl.innerHTML = '<div class="patch-empty">NO INPUTS DEFINED</div>';
-            if (outputsEl)
-                outputsEl.innerHTML = '<div class="patch-empty">NO OUTPUTS DEFINED</div>';
-            return;
+        cell.id = `cell-${this.currentInstanceId}-${id}`;
+        cell.setAttribute('data-bind', id);
+        // 1. Attachment Superior (LED/Telemetry)
+        const top = document.createElement('div');
+        top.className = 'cell-attachment-top';
+        if (item.roles?.includes('stream')) {
+            const led = document.createElement('div');
+            led.className = 'led led-orange';
+            led.setAttribute('data-source', id);
+            top.appendChild(led);
         }
-        // Collect all entities from patching tab groups
-        const allPatchEntities = [];
-        patchingTabData.groups.forEach(entities => allPatchEntities.push(...entities));
-        allPatchEntities.forEach(entity => {
-            const portGroup = document.createElement('div');
-            portGroup.className = 'patch-port-group';
-            portGroup.style.marginBottom = '8px';
-            const typeClass = `type-${entity.presentation.control.toLowerCase() || 'cv'}`;
-            const isOutput = entity.direction === 'output';
-            portGroup.innerHTML = `
-                <div class="patch-port-header">
-                    <div class="patch-port-id">${entity.label.toUpperCase()}</div>
-                    <div class="patch-type-badge ${typeClass}">${entity.presentation.control.toUpperCase()}</div>
-                    <button class="patch-add-btn" title="Add Slot">＋</button>
+        cell.appendChild(top);
+        // 2. Primary Component
+        const main = document.createElement('div');
+        main.className = 'cell-main';
+        if (item.look === 'list' && item.options) {
+            const select = document.createElement('select');
+            select.className = 'selector-control';
+            select.setAttribute('data-param', id);
+            item.options.forEach((opt) => {
+                const o = document.createElement('option');
+                o.value = opt.value.toString();
+                o.innerText = opt.label;
+                select.appendChild(o);
+            });
+            main.appendChild(select);
+        }
+        else {
+            // Default to Knob for aseptic look
+            main.innerHTML = `
+                <div class="knob-ring" data-param="${id}">
+                    <div class="knob"><div class="knob-marker white"></div></div>
                 </div>
             `;
-            // Connection Discovery (Era 5 mapping)
-            const fullId = `${this.currentInstanceId}.${entity.id}`;
-            const activeSlots = this.patchbayMatrix.filter(s => s.active && (isOutput ? s.source === fullId : s.target === fullId));
-            if (activeSlots.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = 'patch-empty-msg';
-                empty.innerText = "NO CONNECTIONS";
-                portGroup.appendChild(empty);
+        }
+        cell.appendChild(main);
+        // 3. Info Layer (Label & Display)
+        const info = document.createElement('div');
+        info.className = 'cell-info';
+        const label = document.createElement('label');
+        label.className = 'cell-label';
+        label.innerText = (item.label || id).toUpperCase();
+        info.appendChild(label);
+        const display = document.createElement('div');
+        display.className = 'cell-display';
+        display.setAttribute('data-precision', (item.ui_precision ?? 2).toString());
+        // @ts-ignore
+        const currentVal = window.runtimeStateStore?.getValue(`${this.currentInstanceId}.${id}`, item.default || 0);
+        display.innerText = currentVal.toString();
+        info.appendChild(display);
+        cell.appendChild(info);
+        return cell;
+    }
+    /**
+     * ERA 6: Real-time UI refresh from Aseptic Store
+     */
+    updateRealtimeUI() {
+        if (!this.el || this.el.style.display !== 'flex' || !this.viewport)
+            return;
+        // 1. Update Knobs and Displays
+        this.viewport.querySelectorAll('.control-cell').forEach(cell => {
+            const id = cell.getAttribute('data-bind');
+            if (!id)
+                return;
+            // @ts-ignore
+            const val = window.runtimeStateStore.getValue(`${this.currentInstanceId}.${id}`);
+            // Knob
+            const knob = cell.querySelector('.knob');
+            if (knob)
+                knob.style.transform = `translateX(-50%) rotate(${(val * 270) - 135}deg)`;
+            // Display
+            const display = cell.querySelector('.cell-display');
+            if (display) {
+                const precision = parseInt(display.getAttribute('data-precision') || '2');
+                display.innerText = val.toFixed(precision);
             }
-            else {
-                activeSlots.forEach(slot => {
-                    const slotRow = document.createElement('div');
-                    slotRow.className = 'patch-slot-row';
-                    const remote = isOutput ? slot.target : slot.source;
-                    slotRow.innerHTML = `
-                        <div class="patch-selector-container">
-                            <span class="patch-label" style="font-size:10px; color:var(--neon-cyan)">${remote || 'AUTO'}</span>
-                        </div>
-                        <div class="patch-amount-container">
-                            <span class="patch-amount-value" style="font-family:monospace">${Math.round(slot.amount * 100)}%</span>
-                        </div>
-                    `;
-                    portGroup.appendChild(slotRow);
-                });
+            // Selector
+            const select = cell.querySelector('select');
+            if (select)
+                select.value = val.toString();
+            // LED (Telemetry)
+            const led = cell.querySelector('.led');
+            if (led) {
+                // @ts-ignore
+                const tVal = window.runtimeStateStore.getTelemetry(`${this.currentInstanceId}.${id}`);
+                led.classList.toggle('active', tVal > 0.05);
             }
-            if (isOutput)
-                outputsEl?.appendChild(portGroup);
-            else
-                inputsEl?.appendChild(portGroup);
         });
     }
-    onStateUpdate(state) {
-        const matrix = state?.preset?.patchbayMatrix || [];
-        this.patchbayMatrix = Array.isArray(matrix) ? matrix : Object.values(matrix);
-        if (this.el?.style.display === 'flex') {
-            this.switchTab(this.activeTab); // Re-render current view
-        }
+    renderError(reason) {
+        if (!this.viewport)
+            return;
+        this.viewport.innerHTML = `
+            <div class="contract-error-full">
+                <div class="error-msg">CONTRACT VIOLATION</div>
+                <div class="error-detail">${reason}</div>
+            </div>
+        `;
     }
 }
 //# sourceMappingURL=ModulePatchModal.js.map

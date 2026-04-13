@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+#include "RpcCommandDispatcher.h"
 
 namespace Omega {
 namespace UI {

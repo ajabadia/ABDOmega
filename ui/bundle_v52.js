@@ -28,156 +28,176 @@
     }
   };
 
+  // omega_types.js
+  function isRpcEnvelope(value) {
+    return !!value && typeof value === "object" && "type" in value;
+  }
+  function normalizeIncomingEvent(value) {
+    if (!isRpcEnvelope(value))
+      return null;
+    if (value.type === "PARAM_CHANGE") {
+      const raw = value;
+      return {
+        type: "PARAMCHANGE",
+        id: String(raw.target ?? raw.id ?? ""),
+        value: Number(raw.value ?? 0)
+      };
+    }
+    return value;
+  }
+
   // omega_rpc.js
   var OmegaRPC = class {
     constructor() {
       __publicField(this, "requestId", 1e3);
       __publicField(this, "pendingRequests", /* @__PURE__ */ new Map());
-      OmegaLog.info("OMEGA TS", "RPC Controller Initialized");
+      __publicField(this, "isConnected", false);
+      __publicField(this, "lastActivity", Date.now());
+      __publicField(this, "healthTimer", null);
+      OmegaLog.info("RPC", "Aseptic Bridge Initialized");
       window.handleOmegaMessage = (json) => {
+        this.lastActivity = Date.now();
+        this.isConnected = true;
+        this.updateHealthUI();
         try {
           const msg = typeof json === "string" ? JSON.parse(json) : json;
           if (msg.requestId && this.pendingRequests.has(msg.requestId)) {
             const req = this.pendingRequests.get(msg.requestId);
+            clearTimeout(req.timer);
             this.pendingRequests.delete(msg.requestId);
-            if (msg.type === "error")
-              req.reject(msg.payload);
-            else
-              req.resolve(msg.payload);
+            if (msg.type === "rpcError" || msg.type === "error") {
+              req.reject(msg.payload || msg);
+            } else {
+              const data = msg.payload !== void 0 && msg.payload !== null ? msg.payload : msg;
+              req.resolve(data);
+            }
           } else {
-            window.dispatchEvent(new CustomEvent(`omega:${msg.type}`, { detail: msg.payload }));
+            const norm = normalizeIncomingEvent(msg);
+            if (norm) {
+              const payload = norm.payload || norm;
+              window.dispatchEvent(new CustomEvent(`omega:${norm.type}`, { detail: payload }));
+            }
           }
         } catch (e) {
-          OmegaLog.error("RPC TS", "Error handling message", e, json);
+          OmegaLog.error("RPC", "Message parsing failed", e, json);
         }
       };
+      this.startHealthMonitor();
+    }
+    handleNativeResponse(id, payload) {
+      if (this.pendingRequests.has(id)) {
+        const req = this.pendingRequests.get(id);
+        clearTimeout(req.timer);
+        this.pendingRequests.delete(id);
+        if (payload && typeof payload === "object" && "payload" in payload && "type" in payload) {
+          req.resolve(payload.payload);
+        } else {
+          req.resolve(payload);
+        }
+      }
+    }
+    startHealthMonitor() {
+      if (this.healthTimer)
+        clearInterval(this.healthTimer);
+      this.healthTimer = setInterval(() => {
+        const idleTime = Date.now() - this.lastActivity;
+        if (idleTime > 5e3) {
+          if (this.isConnected) {
+            OmegaLog.warn("RPC", "Connection idle or lost (5s)");
+            this.isConnected = false;
+            this.updateHealthUI();
+          }
+        }
+      }, 2e3);
+    }
+    updateHealthUI() {
+      const led = document.getElementById("bridge-health-led");
+      if (led) {
+        led.classList.toggle("active", this.isConnected);
+        led.style.backgroundColor = this.isConnected ? "var(--neon-cyan)" : "#331111";
+        led.style.boxShadow = this.isConnected ? "0 0 10px var(--neon-cyan)" : "none";
+      }
     }
     async _waitForBackend(timeout = 5e3) {
       const start = Date.now();
       while (Date.now() - start < timeout) {
-        const win = window;
-        const bridge = win.omegaNativeCall || win.__JUCE__?.backend?.omegaNativeCall;
+        const win2 = window;
+        const bridge = win2.omegaNativeCall || win2.__JUCE__?.backend?.omegaNativeCall;
         if (typeof bridge === "function")
           return { omegaNativeCall: bridge };
-        if (win.__JUCE__?.backend?.emitEvent)
-          return win.__JUCE__.backend;
+        if (win2.__JUCE__?.backend?.emitEvent)
+          return win2.__JUCE__.backend;
         await new Promise((r) => setTimeout(r, 100));
       }
       return null;
     }
+    /**
+     * Centralized Send Method with Timeout Protection
+     */
     async send(type, payload = {}) {
       const id = this.requestId++;
       const message = { type, requestId: id, payload };
       const backend = await this._waitForBackend();
       if (!backend) {
-        OmegaLog.warn("RPC TS", `No backend for ${type}, mocking.`);
-        return this._getMock(type);
+        OmegaLog.error("RPC", `Backend UNREACHABLE for ${type}`);
+        this.isConnected = false;
+        this.updateHealthUI();
+        return null;
       }
-      try {
-        let rawResponse;
-        if (typeof backend.omegaNativeCall === "function") {
-          rawResponse = await backend.omegaNativeCall(type, id, payload);
-        } else if (backend.emitEvent) {
-          rawResponse = await backend.emitEvent("omegaMessage", message);
+      const nativeFn = window.omegaNativeCall;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          if (this.pendingRequests.has(id)) {
+            this.pendingRequests.delete(id);
+            OmegaLog.error("RPC", `Request TIMEOUT [${id}] for ${type}`);
+            reject(new Error(`RPC Timeout: ${type}`));
+          }
+        }, 1e4);
+        this.pendingRequests.set(id, { resolve, reject, timer });
+        try {
+          if (typeof nativeFn === "function") {
+            nativeFn(type, id, payload).then((res) => {
+              if (res !== void 0 && res !== null) {
+                this.handleNativeResponse(id, res);
+              }
+            });
+          } else if (backend.emitEvent) {
+            backend.emitEvent("omegaMessage", message);
+          } else {
+            throw new Error("No valid native invoke found");
+          }
+        } catch (e) {
+          clearTimeout(timer);
+          this.pendingRequests.delete(id);
+          OmegaLog.error("RPC", `Native call failed for ${type}`, e);
+          reject(e);
         }
-        const msg = typeof rawResponse === "string" ? JSON.parse(rawResponse) : rawResponse;
-        return msg?.payload !== void 0 ? msg.payload : msg;
-      } catch (e) {
-        OmegaLog.error("RPC TS", `Call ${type} failed`, e);
-        return this._getMock(type);
-      }
+      });
     }
-    async call(type, payload = {}) {
+    call(type, payload = {}) {
       return this.send(type, payload);
     }
-    _getMock(type) {
-      if (type === "getState")
-        return { preset: { name: "TS MOCK PATCH" }, params: {} };
-      return null;
-    }
-    // API methods
     getState() {
       return this.send("getState");
     }
-    async getMetadata() {
-      return this.send("getMetadata");
+    getUiSchemas() {
+      return this.send("getUiSchemas");
     }
-    async getSystemSettings() {
+    getSystemSettings() {
       return this.send("getSystemSettings");
-    }
-    async setSystemSetting(id, value) {
-      return this.send("setSystemSetting", { id, value });
-    }
-    async getBrowserData() {
-      return this.send("getBrowserData");
-    }
-    async selectLibrary(libIdx) {
-      return this.send("selectLibrary", { libIdx });
-    }
-    async loadLibraryPreset(libIdx, prstIdx) {
-      return this.send("loadLibraryPreset", { libIdx, prstIdx });
-    }
-    async setFavorite(libIdx, prstIdx, fav) {
-      return this.send("setFavorite", { libIdx, prstIdx, fav });
-    }
-    async savePresetDetailed(libIdx, prstIdx) {
-      return this.send("savePreset", { libIdx, prstIdx });
-    }
-    async saveAsNewPresetDetailed(name, category, author, tags, notes) {
-      return this.send("saveAsNewPreset", { name, category, author, tags, notes });
-    }
-    setParam(id, value) {
-      return this.send("setParam", { id, value });
     }
     uiReady() {
       return this.send("uiReady");
     }
-    sendMidi(status, data1, data2) {
-      return this.send("sendMidi", { status, data1, data2 });
-    }
   };
   var rpc = new OmegaRPC();
-  function setupJuceShim() {
-    if (!window.juce) {
-      window.juce = {
-        getMetadata: () => rpc.getMetadata(),
-        getSystemSettings: () => rpc.getSystemSettings(),
-        setSystemSetting: (id, val) => rpc.setSystemSetting(id, val),
-        getBrowserData: () => rpc.getBrowserData(),
-        selectLibrary: (idx) => rpc.selectLibrary(idx),
-        loadLibraryPreset: (lIdx, pIdx) => rpc.loadLibraryPreset(lIdx, pIdx),
-        setFavorite: (lIdx, pIdx, fav) => rpc.setFavorite(lIdx, pIdx, fav),
-        savePresetDetailed: (lIdx, pIdx) => rpc.savePresetDetailed(lIdx, pIdx),
-        saveAsNewPresetDetailed: (n, c, a, t, ns) => rpc.saveAsNewPresetDetailed(n, c, a, t, ns),
-        menuAction: (action, ...args) => {
-          OmegaLog.info("BRIDGE SHIM", "juce.menuAction -> RPC send", action);
-          rpc.send("menuAction", { action, args });
-        },
-        setParameter: (id, value) => {
-          rpc.setParam(id, value);
-        },
-        uiReady: () => {
-          rpc.uiReady();
-        },
-        sendMidi: (status, data1, data2) => {
-          rpc.sendMidi(status, data1, data2);
-        }
-      };
-      OmegaLog.info("BRIDGE SHIM", "window.juce initialized via RPC");
-    }
-  }
   window.omegaRPC = rpc;
 
-  // metadata_store.js
-  var MetadataStore = class {
+  // SchemaStore.js
+  var SchemaStore = class {
     constructor() {
-      __publicField(this, "parameters", /* @__PURE__ */ new Map());
-      __publicField(this, "groups", /* @__PURE__ */ new Map());
-      __publicField(this, "inventory", []);
+      __publicField(this, "schemas", /* @__PURE__ */ new Map());
       __publicField(this, "isLoaded", false);
-      __publicField(this, "version", "5.2.0-ALPHA");
-      __publicField(this, "build", "397");
-      __publicField(this, "timestamp", (/* @__PURE__ */ new Date()).toISOString());
     }
     async ensureLoaded() {
       if (this.isLoaded)
@@ -186,383 +206,280 @@
         const rpc2 = window.omegaRPC;
         if (!rpc2)
           return false;
-        const response = await rpc2.getMetadata();
-        if (response && response.parameters) {
-          this.parameters.clear();
-          response.parameters.forEach((p) => {
-            this.parameters.set(p.id, p);
+        const response = await rpc2.send("getUiSchemas", {});
+        if (response && response.schemas) {
+          response.schemas.forEach((s) => {
+            this.schemas.set(s.id, s);
           });
-          if (response.groups) {
-            this.groups.clear();
-            response.groups.forEach((g) => {
-              this.groups.set(g.id, g);
-            });
-          }
-          if (response.version)
-            this.version = response.version;
-          if (response.build)
-            this.build = response.build;
-          if (response.timestamp)
-            this.timestamp = response.timestamp;
           this.isLoaded = true;
           return true;
         }
       } catch (e) {
-        console.error("[MetadataStore] Load error:", e);
+        console.error("[SchemaStore] Load error:", e);
       }
       return false;
     }
-    async getModulationMetadata() {
-      const rpc2 = window.omegaRPC;
-      try {
-        const res = rpc2 ? await rpc2.send("getModulationMetadata", {}) : null;
-        if (res && res.inventory && res.inventory.length > 0) {
-          this.inventory = res.inventory;
-        }
-        return { inventory: this.inventory, sources: res?.sources || [], targets: res?.targets || [] };
-      } catch (e) {
-        return { inventory: this.inventory, sources: [], targets: [] };
-      }
+    getSchema(id) {
+      return this.schemas.get(id);
     }
-    getInventoryItem(id) {
-      return this.inventory.find((m) => m.instanceId === id || m.id === id);
-    }
-    getParam(id) {
-      const p = this.parameters.get(id);
-      if (!p) {
-      }
-      return p;
-    }
-    getInventory() {
-      return this.inventory;
-    }
-    isInitialized() {
-      return this.isLoaded;
-    }
-    getVersion() {
-      return this.version;
-    }
-    getBuild() {
-      return this.build;
-    }
-    getTimestamp() {
-      return this.timestamp;
+    getAllSchemas() {
+      return Array.from(this.schemas.values());
     }
   };
-  window.metadataStore = new MetadataStore();
+  window.schemaStore = new SchemaStore();
 
-  // module_descriptors.js
-  var ModuleDescriptors = {
-    // Juno DCO (OSC-VA-001)
-    "OSC-VA-001": {
-      id: "juno-dco",
-      title: "JUNO DCO",
-      panelClass: "juno-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.osc.saw.on", control: "toggle", label: "SAW", row: 0, col: 0, variant: "juno-red" },
-        { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1, variant: "juno-red" },
-        { paramId: "layer.a.osc.sub.level", control: "slider-v", label: "SUB", row: 1, col: 0 },
-        { paramId: "layer.a.osc.noise.level", control: "slider-v", label: "NOISE", row: 1, col: 1 },
-        { paramId: "layer.a.osc.lfo.depth", control: "knob", label: "LFO", row: 2, col: 0 },
-        { paramId: "layer.a.osc.pwm.amount", control: "slider-v", label: "PWM", row: 2, col: 1 }
-      ],
-      footer: { label: "DIGITALLY CONTROLLED OSC" }
-    },
-    // Juno VCF (FLT-VA-001)
-    "FLT-VA-001": {
-      id: "juno-vcf",
-      title: "IR3109 VCF",
-      panelClass: "juno-panel",
-      uiLayout: { columns: 3, gap: 12 },
-      items: [
-        { paramId: "layer.a.cutoff", control: "knob", label: "FREQ", row: 0, col: 0 },
-        { paramId: "layer.a.resonance", control: "knob", label: "RES", row: 0, col: 1 },
-        { paramId: "layer.a.vcf.keytrack", control: "knob", label: "KEY", row: 0, col: 2 },
-        { paramId: "layer.a.vcf.env.depth", control: "knob", label: "ENV", row: 1, col: 0 },
-        { paramId: "layer.a.vcf.lfo.depth", control: "knob", label: "LFO", row: 1, col: 1 },
-        { paramId: "layer.a.vcf.env.inv", control: "toggle", label: "POL", row: 1, col: 2, variant: "juno-orange" },
-        { paramId: "layer.a.hpf.pos", control: "select", label: "HPF", row: 2, col: 0, colSpan: 3 }
-      ],
-      footer: { label: "ANALOG LOW PASS FILTER" }
-    },
-    // Space Echo (FX-DL-002)
-    "FX-DL-002": {
-      id: "space-echo",
-      title: "SPACE ECHO",
-      panelClass: "space-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.fx.space.speed", control: "knob", label: "RATE", row: 0, col: 0 },
-        { paramId: "layer.a.fx.space.intensity", control: "knob", label: "INTEN", row: 0, col: 1 },
-        { paramId: "layer.a.fx.space.echo.vol", control: "knob", label: "ECHO", row: 1, col: 0 },
-        { paramId: "layer.a.fx.space.rev.vol", control: "knob", label: "REV", row: 1, col: 1 },
-        { paramId: "layer.a.fx.space.mode", control: "select", label: "MODE", row: 2, col: 0, colSpan: 2 },
-        { paramId: "layer.a.fx.space.wow", control: "knob", label: "WOW", row: 3, col: 0 },
-        { paramId: "layer.a.fx.space.drive", control: "knob", label: "DRIVE", row: 3, col: 1 }
-      ],
-      footer: {
-        paramId: "layer.a.fx.space.enable",
-        label: "RE-201 TAPE ECHO"
-      }
-    },
-    // Master Delay
-    "FX-DL-001": {
-      id: "master-delay",
-      title: "MASTER DELAY",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "global.delay.time", control: "knob", label: "TIME", row: 0, col: 0 },
-        { paramId: "global.delay.feedback", control: "knob", label: "FDBK", row: 0, col: 1 },
-        { paramId: "global.delay.mix", control: "slider-v", label: "MIX", row: 1, col: 0, colSpan: 2 }
-      ],
-      footer: {
-        paramId: "global.delay.enable",
-        label: "DIGITAL FX CORE"
-      }
-    },
-    // Universal ADSR (EG-STANDARD-001 / ENV-ADSR-GEN)
-    "EG-STANDARD-001": {
-      id: "adsr",
-      title: "EG-ADSR",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.env.attack", control: "knob", label: "A", row: 0, col: 0 },
-        { paramId: "layer.a.env.decay", control: "knob", label: "D", row: 0, col: 1 },
-        { paramId: "layer.a.env.sustain", control: "knob", label: "S", row: 1, col: 0 },
-        { paramId: "layer.a.env.release", control: "knob", label: "R", row: 1, col: 1 }
-      ],
-      footer: { label: "ENV GENERATOR" }
-    },
-    "ENV-ADSR-GEN": {
-      id: "adsr",
-      title: "EG-ADSR",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.env.attack", control: "knob", label: "A", row: 0, col: 0 },
-        { paramId: "layer.a.env.decay", control: "knob", label: "D", row: 0, col: 1 },
-        { paramId: "layer.a.env.sustain", control: "knob", label: "S", row: 1, col: 0 },
-        { paramId: "layer.a.env.release", control: "knob", label: "R", row: 1, col: 1 }
-      ],
-      footer: { label: "ENV GENERATOR" }
-    },
-    // Universal VCA (VCA-STANDARD-001)
-    "VCA-STANDARD-001": {
-      id: "vca",
-      title: "AMP-VCA",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 1, gap: 12 },
-      items: [
-        { paramId: "layer.a.vca.gain", control: "slider-v", label: "GAIN", row: 0, col: 0 },
-        { paramId: "layer.a.vca.mode", control: "toggle", label: "GATE", row: 1, col: 0 }
-      ],
-      footer: { label: "AMPLIFIER" }
-    },
-    // Universal LFO (LFO-STANDARD-001)
-    "LFO-STANDARD-001": {
-      id: "lfo",
-      title: "LFO-MOD",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 1, gap: 12 },
-      items: [
-        { paramId: "layer.a.lfo.rate", control: "knob", label: "RATE", row: 0, col: 0 },
-        { paramId: "layer.a.lfo.wave", control: "select", label: "WAVE", row: 1, col: 0 }
-      ],
-      footer: { label: "MODULATOR" }
-    },
-    // Korg/Prophecy Oscillator (OSC-KORG-P)
-    "OSC-KORG-P": {
-      id: "korg-osc",
-      title: "KORG DCO",
-      panelClass: "korg-prophecy-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.osc.saw.on", control: "toggle", label: "SAW", row: 0, col: 0 },
-        { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1 }
-      ],
-      footer: { label: "MOSS ENGINE" }
-    },
-    // Korg MS-20 Filter (FLT-VA-003)
-    "FLT-VA-003": {
-      id: "korg-vcf",
-      title: "KORG-35 VCF",
-      panelClass: "korg-ms20-panel",
-      uiLayout: { columns: 3, gap: 12 },
-      items: [
-        { paramId: "layer.a.cutoff", control: "knob", label: "LPF", row: 0, col: 0 },
-        { paramId: "layer.a.korg.hpf.cutoff", control: "knob", label: "HPF", row: 0, col: 1 },
-        { paramId: "layer.a.korg.grit", control: "knob", label: "DRIVE", row: 0, col: 2 }
-      ],
-      footer: { label: "VCF (ANALOG)" }
-    },
-    // JP Supersaw (OSC-VA-004)
-    "OSC-VA-004": {
-      id: "jp-supersaw",
-      title: "JP SUPERSAW",
-      panelClass: "jp-panel",
-      uiLayout: { columns: 3, gap: 12 },
-      items: [
-        { paramId: "layer.a.jp.detune", control: "knob", label: "DETUNE", row: 0, col: 0 },
-        { paramId: "layer.a.jp.spread", control: "knob", label: "SPREAD", row: 0, col: 1 },
-        { paramId: "layer.a.drift", control: "knob", label: "DRIFT", row: 0, col: 2 }
-      ],
-      footer: { label: "ROLAND SUPERSAW" }
-    },
-    // Juno Chorus (FX-CH-001)
-    "FX-CH-001": {
-      id: "juno-chorus",
-      title: "JUNO CHORUS",
-      panelClass: "juno-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "global.chorus.mode", control: "select", label: "MODE", row: 0, col: 0 },
-        { paramId: "global.chorus.mix", control: "knob", label: "MIX", row: 0, col: 1 }
-      ],
-      footer: { label: "BBD EFFECT" }
-    },
-    // --- Semantic Generics for Build #158 (Aseptic Upgrade) ---
-    "lfo": {
-      id: "lfo",
-      title: "LFO-MOD",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.lfo.rate", control: "knob", label: "RATE", row: 0, col: 0 },
-        { paramId: "layer.a.lfo.wave", control: "select", label: "WAVE", row: 0, col: 1 }
-      ],
-      footer: { label: "MODULATOR" }
-    },
-    "eg": {
-      id: "adsr",
-      title: "EG-ADSR",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.env.attack", control: "knob", label: "A", row: 0, col: 0 },
-        { paramId: "layer.a.env.decay", control: "knob", label: "D", row: 0, col: 1 },
-        { paramId: "layer.a.env.sustain", control: "knob", label: "S", row: 1, col: 0 },
-        { paramId: "layer.a.env.release", control: "knob", label: "R", row: 1, col: 1 }
-      ],
-      footer: { label: "ENV GENERATOR" }
-    },
-    "filter": {
-      id: "vcf",
-      title: "VCF-CORE",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.cutoff", control: "knob", label: "FREQ", row: 0, col: 0 },
-        { paramId: "layer.a.resonance", control: "knob", label: "RES", row: 0, col: 1 }
-      ],
-      footer: { label: "FILTER" }
-    },
-    "osc": {
-      id: "osc",
-      title: "OSC-CORE",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 2, gap: 12 },
-      items: [
-        { paramId: "layer.a.osc.saw.on", control: "toggle", label: "SAW", row: 0, col: 0 },
-        { paramId: "layer.a.osc.pulse.on", control: "toggle", label: "PULSE", row: 0, col: 1 }
-      ],
-      footer: { label: "OSCILLATOR" }
-    },
-    "amp": {
-      id: "vca",
-      title: "AMP-VCA",
-      panelClass: "universal-panel",
-      uiLayout: { columns: 1, gap: 12 },
-      items: [
-        { paramId: "layer.a.vca.gain", control: "slider-v", label: "GAIN", row: 0, col: 0 }
-      ],
-      footer: { label: "AMPLIFIER" }
-    },
-    "matrix": {
-      id: "patchbay-matrix",
-      title: "PATCHBAY MATRIX",
-      panelClass: "matrix-panel",
-      uiLayout: { columns: 1, gap: 0 },
-      items: [
-        { paramId: "global.patchbay.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
-      ],
-      footer: { label: "MODULATION HUB" }
-    },
-    "patchbay": {
-      id: "patchbay-matrix",
-      title: "PATCHBAY MATRIX",
-      panelClass: "matrix-panel",
-      uiLayout: { columns: 1, gap: 0 },
-      items: [
-        { paramId: "global.patchbay.active", control: "knob", label: "ROUTES", row: 0, col: 0 }
-      ],
-      footer: { label: "MODULATION HUB" }
-    },
-    "trig": {
-      id: "trig",
-      title: "MIDI TRIGGER",
-      panelClass: "utility-panel",
-      uiLayout: { columns: 1, gap: 0 },
-      items: [
-        { paramId: "global.midi.trig", control: "knob", label: "GATE", row: 0, col: 0 }
-      ],
-      footer: { label: "MIDI INPUT" }
-    },
-    // Aseptic Technical IDs (Build 286+)
-    "MIDI-IN-001": {
-      id: "midi-in",
-      title: "MIDI INPUT",
-      panelClass: "utility-panel",
-      uiLayout: { columns: 1, gap: 10 },
-      items: [
-        { paramId: "global.midi.activity", control: "telemetry", label: "ACTIVITY", row: 0, col: 0 }
-      ],
-      footer: { label: "WASM MIDI CORE" }
-    },
-    "MIDI-MON-001": {
-      id: "midi-mon",
-      title: "MIDI MONITOR",
-      panelClass: "utility-panel",
-      uiLayout: { columns: 1, gap: 0 },
-      items: [
-        { paramId: "global.midi.mon", control: "telemetry", label: "TRAFFIC", row: 0, col: 0 }
-      ],
-      footer: { label: "RE-TIME ANALYZER" }
-    },
-    "mon": {
-      id: "mon",
-      title: "MIDI MONITOR",
-      panelClass: "utility-panel",
-      uiLayout: { columns: 1, gap: 0 },
-      items: [
-        { paramId: "global.midi.mon", control: "telemetry", label: "TRAFFIC", row: 0, col: 0 }
-      ],
-      footer: { label: "RE-TIME ANALYZER" }
-    },
-    // --- Era 5.2 Aseptic Constants ---
-    "ACE-MIDI-ADAPTER-ULTIMATE": {
-      id: "midi_2_cv",
-      title: "MIDI TO CV",
-      panelClass: "aseptic-utility-panel",
-      uiLayout: { columns: 1, gap: 10 },
-      items: [],
-      // Dynamic Registry will override this
-      footer: { label: "ASEPTIC META-ENGINE" }
-    },
-    "osci": {
-      id: "osci",
-      title: "OSCILLOSCOPE",
-      panelClass: "utility-panel",
-      uiLayout: { columns: 1, gap: 0 },
-      items: [
-        { paramId: "global.scope", control: "telemetry", label: "WAVE", row: 0, col: 0 }
-      ],
-      footer: { label: "GLOBAL WAVE" }
+  // runtimeStores.js
+  var BaseStore = class {
+    constructor() {
+      __publicField(this, "listeners", /* @__PURE__ */ new Set());
+    }
+    subscribe(callback) {
+      this.listeners.add(callback);
+      return () => this.listeners.delete(callback);
+    }
+    notify() {
+      this.listeners.forEach((cb) => cb());
     }
   };
-  window.ModuleDescriptors = ModuleDescriptors;
+  var RuntimeStore = class extends BaseStore {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "state", {
+        preset: null,
+        params: {},
+        telemetry: {},
+        modulation: null,
+        schemaVersion: null
+      });
+    }
+    getSnapshot() {
+      return this.state;
+    }
+    applyState(payload) {
+      if (!payload)
+        return;
+      this.state = {
+        ...this.state,
+        schemaVersion: payload.schemaVersion || this.state.schemaVersion,
+        preset: payload.preset || this.state.preset,
+        params: payload.params ? { ...payload.params } : this.state.params
+      };
+      this.notify();
+    }
+    applyParamChange(event) {
+      this.state = {
+        ...this.state,
+        params: {
+          ...this.state.params,
+          [event.id]: event.value
+        }
+      };
+      this.notify();
+    }
+    applyTelemetryFrame(payload) {
+      if (!payload)
+        return;
+      const nextTelemetry = { ...this.state.telemetry };
+      for (const [key, value] of Object.entries(payload)) {
+        if (key === "schemaVersion")
+          continue;
+        if (value && typeof value === "object") {
+          nextTelemetry[key] = value;
+        }
+      }
+      this.state = {
+        ...this.state,
+        schemaVersion: payload.schemaVersion || this.state.schemaVersion,
+        telemetry: nextTelemetry
+      };
+      this.notify();
+    }
+    applyModulation(payload) {
+      this.state = {
+        ...this.state,
+        modulation: payload
+      };
+      this.notify();
+    }
+    reduceEvent(event) {
+      switch (event.type) {
+        case "PARAMCHANGE":
+          this.applyParamChange(event);
+          return;
+        case "onStateUpdate":
+          this.applyState(event.payload);
+          return;
+        case "telemetryUpdate":
+          this.applyTelemetryFrame(event.payload);
+          return;
+      }
+    }
+  };
+  var SchemaStore2 = class extends BaseStore {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "state", {
+        schemaVersion: null,
+        uiSchema: null
+      });
+      __publicField(this, "loadPromise", null);
+    }
+    getSnapshot() {
+      return this.state;
+    }
+    async ensureLoaded() {
+      if (this.state.uiSchema)
+        return true;
+      if (this.loadPromise)
+        return this.loadPromise;
+      this.loadPromise = (async () => {
+        try {
+          const rpc2 = window.omegaRPC;
+          if (!rpc2)
+            return false;
+          const response = await rpc2.getUiSchemas();
+          if (response) {
+            this.setSchema(response.schemas || response, response.schemaVersion || "1.0");
+            return true;
+          }
+        } catch (e) {
+          console.error("[SchemaStore] Load error:", e);
+        } finally {
+          this.loadPromise = null;
+        }
+        return false;
+      })();
+      return this.loadPromise;
+    }
+    setSchema(uiSchema, schemaVersion) {
+      this.state = {
+        schemaVersion: schemaVersion ?? this.state.schemaVersion,
+        uiSchema
+      };
+      this.notify();
+    }
+    getSchemaForComponent(componentId) {
+      if (!this.state.uiSchema)
+        return null;
+      return this.state.uiSchema[componentId] || null;
+    }
+  };
+  var GraphStore = class extends BaseStore {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "state", {
+        schemaVersion: null,
+        graph: null
+      });
+    }
+    getSnapshot() {
+      return this.state;
+    }
+    setGraph(graph, schemaVersion) {
+      this.state = {
+        schemaVersion: schemaVersion ?? this.state.schemaVersion,
+        graph
+      };
+      this.notify();
+    }
+  };
+  var SessionStore = class extends BaseStore {
+    constructor() {
+      super();
+      __publicField(this, "state", {
+        selectedModuleId: null,
+        focusedBinding: null,
+        activeWorkspace: null,
+        openPanels: []
+      });
+      this.loadFromStorage();
+    }
+    loadFromStorage() {
+      const saved = localStorage.getItem("omega_session");
+      if (saved) {
+        try {
+          this.state = { ...this.state, ...JSON.parse(saved) };
+        } catch (e) {
+        }
+      }
+    }
+    persist() {
+      localStorage.setItem("omega_session", JSON.stringify(this.state));
+      this.notify();
+    }
+    getSnapshot() {
+      return this.state;
+    }
+    setSelectedModule(moduleId) {
+      this.state = { ...this.state, selectedModuleId: moduleId };
+      this.persist();
+    }
+    setFocusedBinding(binding) {
+      this.state = { ...this.state, focusedBinding: binding };
+      this.persist();
+    }
+    setActiveWorkspace(workspace) {
+      this.state = { ...this.state, activeWorkspace: workspace };
+      this.persist();
+    }
+    openPanel(panelId) {
+      if (this.state.openPanels.includes(panelId))
+        return;
+      this.state = { ...this.state, openPanels: [...this.state.openPanels, panelId] };
+      this.persist();
+    }
+    closePanel(panelId) {
+      this.state = { ...this.state, openPanels: this.state.openPanels.filter((id) => id !== panelId) };
+      this.persist();
+    }
+  };
+
+  // InventoryStore.js
+  var InventoryStore = class extends BaseStore {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "items", /* @__PURE__ */ new Map());
+      __publicField(this, "isLoaded", false);
+      __publicField(this, "loadPromise", null);
+    }
+    async ensureLoaded() {
+      if (this.isLoaded)
+        return true;
+      if (this.loadPromise)
+        return this.loadPromise;
+      this.loadPromise = (async () => {
+        try {
+          const rpc2 = window.omegaRPC;
+          if (!rpc2)
+            return false;
+          const response = await rpc2.send("getInventory", {});
+          const components = response.components || response.items || response;
+          if (components && Array.isArray(components)) {
+            this.items.clear();
+            components.forEach((item) => {
+              this.items.set(item.id, item);
+            });
+            this.isLoaded = true;
+            this.notify();
+            return true;
+          }
+        } catch (e) {
+          console.error("[InventoryStore] Load error:", e);
+        } finally {
+          this.loadPromise = null;
+        }
+        return false;
+      })();
+      return this.loadPromise;
+    }
+    getItem(id) {
+      return this.items.get(id);
+    }
+    getAllItems() {
+      return Array.from(this.items.values());
+    }
+  };
+  window.inventoryStore = new InventoryStore();
 
   // module_manager.js
   var ModuleManager = class {
@@ -595,8 +512,8 @@
         console.log("[ModuleManager] updateRack checking stability...");
         const safeState = state || {};
         this.lastState = safeState;
-        await window.metadataStore.ensureLoaded();
-        await window.metadataStore.getModulationMetadata();
+        await window.schemaStore.ensureLoaded();
+        await window.inventoryStore.ensureLoaded();
         const upper = document.getElementById("upper-rack");
         const lower = document.getElementById("lower-rack");
         const layerList = this.normalizeList(state.preset && state.preset.layers);
@@ -623,46 +540,29 @@
         const layerData = layerList.length > 0 ? layerList[0] : null;
         const aux = auxList;
         if (aux.length === 0 && (!layerList || layerList.length === 0) && mainChain.length === 0) {
-          console.log("[ModuleManager] No modules found. Injecting emergency module.");
-          await this.injectEmergencyModule();
+          console.log("[ModuleManager] No modules found. Awaiting legitimate preset data.");
           return;
         }
         for (const item of aux) {
           const id = item.instanceId || item.nodeId || item.id || item.slotName || "AUX";
           const label = item.label || item.name || item.slotName || id;
           const componentId = item.componentId || item.id || "";
-          const descriptor = this.resolveDescriptor(item);
-          const stateRack = item.rack !== void 0 ? item.rack : item.params && item.params.rack;
-          const manifestRack = descriptor?.rack;
-          let rackValue = stateRack !== void 0 ? stateRack : manifestRack;
-          const source = stateRack !== void 0 ? "State" : manifestRack !== void 0 ? "Manifest" : "Default";
-          if (rackValue === void 0) {
-            rackValue = "upper";
-          }
-          console.log(`[ModuleManager] Routing ${id} [${componentId}]: value=${rackValue} (Source: ${source}), panelClass=${descriptor?.panelClass}`);
-          let targetRack = upper;
-          let rackType = "aux";
-          const isLower = typeof rackValue === "string" && rackValue.toLowerCase() === "lower" || typeof rackValue === "string" && rackValue.toLowerCase() === "main" || rackValue === 1 || rackValue === 1;
-          if (isLower) {
-            targetRack = lower;
-            rackType = "main";
-          }
-          if (componentId === "patchbay_matrix") {
-            console.log(`[ModuleManager] Skipping system component in rack: ${componentId}`);
+          const schema = window.schemaStore.getSchema(componentId);
+          const rackValue = item.rack?.toString().toLowerCase();
+          const targetRack = rackValue === "upper" ? upper : lower;
+          const rackType = rackValue === "upper" ? "aux" : "main";
+          if (componentId === "patchbay_matrix" || componentId === "system.matrix") {
             continue;
           }
-          if (descriptor) {
-            let className = componentId === "ACE-MIDI-ADAPTER-ULTIMATE" || componentId === "midi_2_cv" ? "ModuleMidiToCv" : "ModuleRenderer";
-            const manifest = window.metadataStore?.getInventoryItem(id) || window.metadataStore?.getInventoryItem(componentId);
+          if (schema) {
+            const className = componentId === "midi_2_cv" || componentId === "midi_adapter" ? "ModuleMidiToCv" : "ModuleRenderer";
             await this.addModule(id, className, rackType, targetRack, {
               label,
-              descriptor,
               componentId,
-              manifest
-              // Essential for Aseptic Dynamic Rendering
+              manifest: schema
             });
           } else {
-            await this.addPlaceholder(id, rackType, targetRack, componentId);
+            await this.renderContractError(id, rackType, targetRack, componentId, "MISSING_CONTRACT");
           }
         }
         if (layerData) {
@@ -673,7 +573,7 @@
             const nodes = this.normalizeList(chain.nodes);
             for (const node of nodes) {
               const componentId = node.componentId || node.id;
-              const descriptor = ModuleDescriptors[componentId];
+              const descriptor = null;
               let type = "core";
               const role = (node.role || "").toLowerCase();
               if (role === "source" || role === "oscillator")
@@ -698,7 +598,7 @@
                   group: "MAIN"
                 });
               } else if (lower) {
-                await this.addPlaceholder(node.nodeId || node.id || componentId, type, lower, componentId);
+                await this.renderContractError(node.nodeId || node.id || componentId, type, lower, componentId, "UNRESOLVED_GRAPH_NODE");
               }
             }
           } else if (arch) {
@@ -715,17 +615,17 @@
                 continue;
               for (const item of cat.list) {
                 const componentId = item.componentId || item.id || item.type;
-                const descriptor = this.resolveDescriptor(item);
+                const schema = window.schemaStore.getSchema(componentId);
                 const layer2 = "A";
-                if (descriptor && lower) {
+                if (schema && lower) {
                   await this.addModule(item.slotName || componentId, "ModuleRenderer", cat.type, lower, {
-                    descriptor,
                     componentId,
                     layer: layer2,
-                    group: "MAIN"
+                    group: "MAIN",
+                    manifest: schema
                   });
                 } else if (lower) {
-                  await this.addPlaceholder(item.slotName || componentId, cat.type, lower, componentId);
+                  await this.renderContractError(item.slotName || componentId, cat.type, lower, componentId, "ASEPTIC_SCHEMA_MISSING");
                 }
               }
             }
@@ -743,37 +643,21 @@
         this.isRendering = false;
       }
     }
-    async addPlaceholder(id, type, container, componentId) {
+    async renderContractError(id, type, container, componentId, reason) {
       if (!container)
         return;
       const el = document.createElement("div");
-      el.className = `module module-${type} placeholder`;
+      el.className = `module module-${type} contract-error`;
       el.innerHTML = `
-            <div class="module-header">${id} <div class="led amber-pulsing" style="display:inline-block; margin-left:8px;" title="Module Power: ON"></div></div>
+            <div class="module-header error">${id}</div>
             <div class="module-content">
-                <div class="placeholder-msg">GENERIC PANEL</div>
+                <div class="contract-error-icon">\u26A0\uFE0F</div>
+                <div class="contract-error-msg">CONTRACT ERROR</div>
+                <div class="contract-error-reason">${reason}</div>
                 <div class="label-tiny">${componentId}</div>
             </div>
         `;
       container.appendChild(el);
-    }
-    async injectEmergencyModule() {
-      console.log("[ModuleManager] Injecting Emergency Mirror Alert...");
-      const upper = document.getElementById("upper-rack");
-      const lower = document.getElementById("lower-rack");
-      if (upper)
-        upper.innerHTML = "";
-      if (lower)
-        lower.innerHTML = "";
-      const descriptor = ModuleDescriptors["ERR-EMPTY-001"];
-      await this.addModule("EMERGENCY_SYSTEM_UPPER", "ModuleEmergency", "aux", upper, {
-        label: "SYSTEM MONITOR",
-        descriptor
-      });
-      await this.addModule("EMERGENCY_SYSTEM_LOWER", "ModuleEmergency", "main", lower, {
-        label: "ENGINE GUARD",
-        descriptor
-      });
     }
     async addModule(id, className, type, container, options = {}) {
       if (!container)
@@ -783,32 +667,13 @@
       el.className = `module module-${type} ${className} ${options.descriptor?.panelClass || ""}`;
       const header = document.createElement("div");
       header.className = "module-header";
-      header.innerText = options.label || options.descriptor?.title || id;
-      const patchIcon = document.createElement("div");
-      patchIcon.className = "module-patch-icon";
-      patchIcon.innerHTML = "\u2699\uFE0F";
-      patchIcon.title = "Patch Module";
-      patchIcon.onclick = (e) => {
-        e.stopPropagation();
-        document.dispatchEvent(new CustomEvent("patch-request", {
-          detail: {
-            instanceId: id,
-            componentId: options.componentId
-          }
-        }));
-      };
-      header.appendChild(patchIcon);
-      const led = document.createElement("div");
-      led.className = "led status-indicator";
-      led.title = "Module Active";
-      header.appendChild(led);
       el.appendChild(header);
       const content = document.createElement("div");
       content.className = "module-content";
       el.appendChild(content);
       container.appendChild(el);
       if (window[className]) {
-        const instance = new window[className](el, content, options.manifest ? options : options.descriptor || options);
+        const instance = new window[className](el, content, options.manifest);
         this.activeModules.set(id, instance);
         if (instance.init)
           await instance.init();
@@ -829,68 +694,6 @@
       }
       return id;
     }
-    resolveDescriptor(item) {
-      if (!item)
-        return null;
-      const id = item.componentId || item.id;
-      if (!id)
-        return null;
-      const canonicalId = this.getCanonicalId(id);
-      const catalog = window.omegaCatalog || {};
-      const catItem = catalog[id] || catalog[canonicalId];
-      if (catItem) {
-        if (catItem.uiLayout) {
-          let layoutObj = catItem.uiLayout;
-          if (typeof layoutObj === "string") {
-            try {
-              layoutObj = JSON.parse(layoutObj);
-            } catch (e) {
-              console.error("Parse err: ", e);
-            }
-          }
-          const desc = JSON.parse(JSON.stringify(layoutObj));
-          desc.id = id;
-          desc.title = catItem.name || id;
-          desc.panelClass = catItem.panelClass || desc.panelClass || "utility-panel";
-          desc.rack = catItem.rack || desc.rack;
-          return desc;
-        }
-        return {
-          id,
-          title: catItem.name || id,
-          panelClass: catItem.panelClass || "utility-panel",
-          rack: catItem.rack,
-          items: [],
-          grid: { columns: 2, gap: 12 }
-        };
-      }
-      const store2 = window.metadataStore;
-      if (store2 && store2.inventory) {
-        const invItem = store2.inventory.find((m) => m.id === id || m.id === canonicalId || m.instanceId === id);
-        if (invItem && invItem.uiLayout) {
-          let layoutObj = invItem.uiLayout;
-          if (typeof layoutObj === "string") {
-            try {
-              layoutObj = JSON.parse(layoutObj);
-            } catch (e) {
-              console.error("Parse err: ", e);
-            }
-          }
-          const desc = JSON.parse(JSON.stringify(layoutObj));
-          desc.id = id;
-          desc.title = invItem.name || id;
-          desc.panelClass = invItem.style || desc.panelClass || "universal-panel";
-          return desc;
-        }
-      }
-      return ModuleDescriptors[id] || ModuleDescriptors[canonicalId] || {
-        id,
-        title: id.toUpperCase(),
-        items: [],
-        grid: { columns: 1, gap: 10 },
-        panelClass: "universal-panel"
-      };
-    }
   };
   if (typeof window !== "undefined") {
     window.moduleManager = new ModuleManager();
@@ -901,95 +704,51 @@
     constructor() {
       __publicField(this, "lastPresetName", "INITIAL PATCH");
       __publicField(this, "lcdTimer", null);
-      __publicField(this, "promiseId", 0);
-      __publicField(this, "octaveShift", 0);
-      __publicField(this, "lastSysExHex", "");
-      __publicField(this, "currentBankGlobal", 1);
-      __publicField(this, "currentPatchGlobal", 1);
-      __publicField(this, "sysexMirror", new Array(23).fill(0));
-      __publicField(this, "store", null);
       __publicField(this, "initialized", false);
-      __publicField(this, "keyboard");
-      this.sysexMirror[0] = 240;
-      this.sysexMirror[1] = 65;
-      this.sysexMirror[2] = 48;
-      this.sysexMirror[22] = 247;
+      OmegaLog.info("APP", "OmegaApp Constructor (Aseptic)");
     }
-    init() {
-      OmegaLog.info("OMEGA TS", "Initializing App...");
-      setupJuceShim();
-      this.store = window.metadataStore;
-      OmegaLog.info("OMEGA TS", "Store assigned: " + (this.store ? "YES" : "NO"));
+    async init() {
+      OmegaLog.info("APP", "Initializing Aseptic App...");
       this.setupEventListeners();
-      console.log("[OMEGA TS] Event Listeners Ready");
       this.setupInteractions();
-      console.log("[OMEGA TS] Interactions Ready");
       this.setupMenus();
-      console.log("[OMEGA TS] Menus Ready");
       this.setupModals();
-      console.log("[OMEGA TS] Modals Ready");
       this.setupKeyboard();
-      console.log("[OMEGA TS] Keyboard Ready");
       this.hideSplash();
-      OmegaLog.info("OMEGA TS", "hideSplash called");
-      setTimeout(() => {
-        if (!this.initialized) {
-          OmegaLog.error("OMEGA", "Init timed out. Showing console.");
-          const consoleEl = document.getElementById("debug-console");
-          if (consoleEl)
-            consoleEl.style.display = "block";
-        }
-      }, 6e3);
-      if (window.juce && window.juce.uiReady) {
-        window.juce.uiReady();
-      }
-      if (this.store && this.store.isLoaded) {
-        const build = this.store.getBuild();
-        const ts = this.store.getTimestamp();
-        const version = this.store.getVersion();
-        const logPanel = document.getElementById("debug-console-content");
-        if (logPanel) {
-          const banner = document.createElement("div");
-          banner.style.cssText = "color:#00e5ff;font-weight:bold;font-size:1.05em;padding:2px 0 4px;border-bottom:1px solid #1a3a3a;margin-bottom:4px;";
-          banner.textContent = `OMEGA v${version} \xB7 Build ${build} \xB7 ${ts}`;
-          logPanel.prepend(banner);
-        }
-        OmegaLog.info("OMEGA", `v${version} \xB7 Build ${build} \xB7 ${ts}`);
-        this.updateVersion(version, build);
-      } else {
-        OmegaLog.warn("OMEGA TS", "Store NOT loaded yet at end of init");
-      }
-      if (window.omegaRPC) {
-        window.omegaRPC.send("listCatalog", {}).then((resp) => {
-          if (resp && resp.components) {
-            window.omegaCatalog = Object.fromEntries(resp.components.map((c) => [c.id, c]));
-            OmegaLog.info("OMEGA", `ACE Catalog preloaded: ${resp.components.length} components`);
+      if (window.rpcCommandDispatcher) {
+        await window.rpcCommandDispatcher.dispatch({ type: "uiReady", payload: {} });
+        await window.rpcCommandDispatcher.dispatch({
+          type: "subscribeTelemetry",
+          payload: {
+            pins: ["activity", "system:midi_monitor", "osc_va:v_out"]
           }
-        }).catch(() => {
         });
       }
       this.initialized = true;
-      OmegaLog.info("OMEGA TS", "App Initialized.");
+      OmegaLog.info("APP", "App Readiness Achieved.");
     }
     setupEventListeners() {
-      OmegaLog.info("OMEGA TS", "Setting up Event Listeners...");
-      if (window.__JUCE__ && window.__JUCE__.backend) {
-        OmegaLog.info("OMEGA TS", "JUCE Backend found. Registering...");
-        const backend = window.__JUCE__.backend;
-        backend.addEventListener("onParameterChanged", (data) => this.syncUI(data.id, data.value));
-        backend.addEventListener("onLCDUpdate", (text) => this.updateLCD(text, false));
-        backend.addEventListener("onVersionUpdate", (version, build) => this.updateVersion(version, build));
-        backend.addEventListener("onBankPatchUpdate", (data) => {
-          this.currentBankGlobal = data.bank || 1;
-          this.currentPatchGlobal = data.patch || 1;
-          this.updateSevenSegment();
-        });
-      }
+      window.addEventListener("omega:onLCDUpdate", (e) => this.updateLCD(e.detail, false));
+      window.addEventListener("omega:onVersionUpdate", (e) => {
+        const { version, build } = e.detail;
+        this.updateVersion(version, build);
+      });
+      window.addEventListener("omega:telemetryUpdate", (e) => {
+        const { payload, tier } = e.detail;
+        if (!payload)
+          return;
+        if (payload["activity"]) {
+          const active = payload["activity"].v > 0.01;
+          document.querySelectorAll('.led[data-source="activity"]').forEach((led) => {
+            led.classList.toggle("active", active);
+          });
+        }
+        if (tier === "streaming") {
+        }
+      });
     }
     hideSplash() {
-      OmegaLog.info("OMEGA TS", "hideSplash execution starting. Setting 3.5s timeout...");
       const doHide = () => {
-        OmegaLog.info("OMEGA TS", "doHide timeout EXECUTING NOW");
         const splash = document.getElementById("splash-screen");
         const rack = document.getElementById("omega-rack");
         if (splash) {
@@ -1002,83 +761,72 @@
               rack.classList.add("visible");
             }
           }, 1e3);
-        } else if (rack) {
-          rack.style.display = "flex";
-          rack.classList.add("visible");
         }
       };
       setTimeout(doHide, 3500);
     }
-    updateVersion(version, build) {
+    updateVersion(version, build, timestamp) {
       const topEl = document.getElementById("top-bar-version");
       if (topEl) {
-        const buildStr = build ? ` (Build ${build})` : " (Online)";
-        topEl.innerText = `OMEGA ${version}${buildStr}`;
+        topEl.textContent = `OMEGA Era 6 [Build ${build || "ASEPTIC"}]`;
       }
       document.querySelectorAll(".splash-version, #app-title-mini, #about-version, .about-version").forEach((el) => {
         const htmlEl = el;
-        if (htmlEl.id === "app-title-mini")
-          htmlEl.innerText = "OMEGA Synthesizer v" + version;
-        else
-          htmlEl.innerText = version.startsWith("Version") ? version : "Version " + version;
+        htmlEl.textContent = version;
       });
       const buildEl = document.getElementById("about-build");
-      if (buildEl && build)
-        buildEl.innerText = build;
+      if (buildEl)
+        buildEl.textContent = build || "0";
       const tsEl = document.getElementById("about-timestamp");
-      if (tsEl && this.store)
-        tsEl.innerText = this.store.getTimestamp();
+      if (tsEl)
+        tsEl.textContent = timestamp || "";
     }
     updateLCD(text, isTemporary) {
       const lcd = document.getElementById("lcd-text");
       if (!lcd)
         return;
-      if (this.lcdTimer) {
+      if (this.lcdTimer)
         clearTimeout(this.lcdTimer);
-        this.lcdTimer = null;
-      }
       if (isTemporary) {
-        lcd.innerText = text;
+        lcd.textContent = text;
         lcd.style.color = "#ff8888";
         this.lcdTimer = window.setTimeout(() => {
-          lcd.innerText = this.lastPresetName;
+          lcd.textContent = this.lastPresetName;
           lcd.style.color = "#ff3c3c";
         }, 1500);
       } else {
         this.lastPresetName = text;
-        lcd.innerText = text;
+        lcd.textContent = text;
         lcd.style.color = "#ff3c3c";
       }
     }
-    updateSevenSegment() {
-      const b = document.getElementById("bank-digit");
-      const p = document.getElementById("patch-digit");
-      if (b)
-        b.innerText = this.currentBankGlobal.toString();
-      if (p)
-        p.innerText = this.currentPatchGlobal.toString();
-    }
     handleMenuAction(action) {
-      OmegaLog.info("OMEGA", "Handling Menu Action: " + action);
       switch (action) {
         case "clear_rack":
           if (window.confirm("WARNING: This will clear the entire modular rack. Are you sure?")) {
-            if (window.juce)
-              window.juce.menuAction("new_preset", "Empty Slate Preset");
+            window.rpcCommandDispatcher.dispatch({
+              type: "newPreset",
+              payload: {}
+            });
           }
           break;
         case "new_preset":
-          const presetName = window.prompt("\xBFDeseas vaciar el rack y crear un nuevo preset? Introduce el nombre:", "Init Preset");
+          const presetName = window.prompt("New Preset Name:", "Init Preset");
           if (presetName !== null) {
-            if (window.juce)
-              window.juce.menuAction("new_preset", presetName);
+            window.rpcCommandDispatcher.dispatch({
+              type: "newPreset",
+              payload: {}
+              // Payload shape can be expanded if backend supports name
+            });
           }
           break;
-        case "about":
-          this.showModal("about-modal");
+        case "exit":
+          window.rpcCommandDispatcher.dispatch({ type: "exit", payload: {} });
           break;
         case "toggle_preferences_modal":
           this.showModal("preferences-modal");
+          if (window.Preferences)
+            window.Preferences.init();
           break;
         case "toggle_presets_modal":
           this.showModal("presets-modal");
@@ -1088,20 +836,30 @@
           if (c)
             c.style.display = c.style.display === "none" ? "block" : "none";
           break;
+        case "toggle_matrix":
+          this.showModal("modulation-modal");
+          break;
+        case "toggle_module_browser":
+          this.showModal("module-browser-modal");
+          break;
+        case "about":
+          if (window.rpcCommandDispatcher) {
+            window.rpcCommandDispatcher.dispatch({ type: "getMetadata", payload: {} }).then((res) => {
+              if (res)
+                this.updateVersion(res.version, res.build, res.timestamp);
+            });
+          }
+          this.showModal("about-modal");
+          break;
         default:
-          if (window.juce)
-            window.juce.menuAction(action);
-          else
-            OmegaLog.warn("OMEGA", "Bridge disconnected - Remote action ignored: " + action);
+          window.rpcCommandDispatcher.dispatch({ type: "systemAction", target: action });
           break;
       }
     }
     showModal(id) {
       const modal = document.getElementById(id);
-      if (modal) {
+      if (modal)
         modal.style.display = "flex";
-        modal.style.zIndex = "30000";
-      }
     }
     setupModals() {
       document.querySelectorAll(".modal .close-btn, .modal .modal-ok-btn, .modal .pref-done-btn").forEach((btn) => {
@@ -1111,50 +869,54 @@
             modal.style.display = "none";
         });
       });
-      window.addEventListener("click", (e) => {
-        if (e.target.classList.contains("modal")) {
-          e.target.style.display = "none";
-        }
-      });
     }
     setupInteractions() {
-      OmegaLog.info("OMEGA TS", "Setting up button interaction listeners...");
-      const closeBtn = document.getElementById("close-console");
-      if (closeBtn)
-        closeBtn.onclick = () => {
-          OmegaLog.info("OMEGA", "Console Close requested");
-          const consoleEl = document.getElementById("debug-console");
-          if (consoleEl)
-            consoleEl.style.display = "none";
-        };
-      const clearBtn = document.getElementById("clear-console");
-      if (clearBtn)
-        clearBtn.onclick = () => {
-          OmegaLog.info("OMEGA", "Console Clear requested");
-          const logPanel = document.getElementById("debug-console-content");
-          if (logPanel)
-            logPanel.innerHTML = "";
-        };
-      const copyBtn = document.getElementById("copy-console");
-      if (copyBtn)
-        copyBtn.onclick = async () => {
-          OmegaLog.info("OMEGA", "Console Copy requested");
-          const logPanel = document.getElementById("debug-console-content");
-          if (logPanel) {
-            try {
-              await navigator.clipboard.writeText(logPanel.innerText);
-              const originalText = copyBtn.innerHTML;
-              copyBtn.innerHTML = "&#x2714;";
-              setTimeout(() => copyBtn.innerHTML = originalText, 1e3);
-            } catch (e) {
-              OmegaLog.error("OMEGA", "Clipboard failure", e);
-            }
+      const bind = (id, fn) => {
+        const el = document.getElementById(id);
+        if (el)
+          el.onclick = fn;
+      };
+      bind("close-console", () => {
+        const el = document.getElementById("debug-console");
+        if (el)
+          el.style.display = "none";
+      });
+      bind("clear-console", () => {
+        const el = document.getElementById("debug-console-content");
+        if (el)
+          el.innerHTML = "";
+      });
+      bind("copy-console", () => {
+        const el = document.getElementById("debug-console-content");
+        if (!el)
+          return;
+        const text = el.innerText;
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          const successful = document.execCommand("copy");
+          const btn = document.getElementById("copy-console");
+          if (btn) {
+            btn.innerText = successful ? "OK!" : "ERR";
+            setTimeout(() => {
+              if (btn)
+                btn.innerText = "C";
+            }, 1e3);
           }
-        };
+        } catch (err) {
+          console.error("Fallback copy failed", err);
+        }
+        document.body.removeChild(textArea);
+      });
       this.setupSliders();
       this.setupButtons();
       this.setupBender();
-      this.updateLCD(this.lastPresetName, false);
     }
     setupSliders() {
       document.querySelectorAll(".v-slider, .v-slider-mini, .b-track").forEach((container) => {
@@ -1164,18 +926,17 @@
         const paramID = pod.getAttribute("data-param");
         const move = (e) => {
           const rect = container.getBoundingClientRect();
-          let val = 1 - (e.clientY - rect.top) / rect.height;
-          val = Math.max(0, Math.min(1, val));
-          this.syncUI(paramID, val);
-          if (window.juce)
-            window.juce.setParameter(paramID, val);
+          let val = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
+          window.rpcCommandDispatcher.dispatch({
+            type: "setParameter",
+            payload: { target: paramID, value: val }
+          });
           this.updateLCD(paramID.toUpperCase() + ": " + val.toFixed(2), true);
         };
         container.addEventListener("pointerdown", (e) => {
-          const pointerEvent = e;
-          pointerEvent.preventDefault();
-          container.setPointerCapture(pointerEvent.pointerId);
-          move(pointerEvent);
+          e.preventDefault();
+          container.setPointerCapture(e.pointerId);
+          move(e);
           const onMove = (ev) => move(ev);
           const onUp = () => {
             container.removeEventListener("pointermove", onMove);
@@ -1191,24 +952,19 @@
         const paramID = btn.getAttribute("data-param");
         btn.addEventListener("pointerdown", (e) => {
           e.preventDefault();
-          btn.classList.add("pushed");
           const isActive = btn.getAttribute("data-active") === "true";
-          const nextVal = isActive ? 0 : 1;
-          this.syncUI(paramID, nextVal);
-          if (window.juce)
-            window.juce.setParameter(paramID, nextVal);
+          window.rpcCommandDispatcher.dispatch({ type: "setParameter", target: paramID, value: isActive ? 0 : 1 });
         });
-        const release = () => btn.classList.remove("pushed");
-        btn.addEventListener("pointerup", release);
-        btn.addEventListener("pointerleave", release);
       });
-      document.querySelectorAll("[data-action]").forEach((btn) => {
-        btn.addEventListener("pointerdown", (e) => {
+      document.querySelectorAll(".dropdown a[data-action]").forEach((btn) => {
+        const action = btn.getAttribute("data-action");
+        btn.onclick = (e) => {
           e.preventDefault();
-          const actionID = btn.getAttribute("data-action");
-          if (window.juce)
-            window.juce.menuAction(actionID);
-        });
+          e.stopPropagation();
+          OmegaLog.info("MENU", `Triggering action: ${action}`);
+          this.handleMenuAction(action);
+          document.querySelectorAll(".dropdown").forEach((d) => d.style.display = "none");
+        };
       });
     }
     setupBender() {
@@ -1217,61 +973,40 @@
       if (!stick || !housing)
         return;
       housing.addEventListener("pointerdown", (e) => {
-        const pointerEvent = e;
-        pointerEvent.preventDefault();
-        housing.setPointerCapture(pointerEvent.pointerId);
+        e.preventDefault();
+        housing.setPointerCapture(e.pointerId);
         const move = (ev) => {
           const rect = housing.getBoundingClientRect();
-          let x = (ev.clientX - rect.left) / rect.width;
-          x = Math.max(0, Math.min(1, x));
+          let x = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
           stick.style.left = x * 100 + "%";
-          if (window.juce)
-            window.juce.setParameter("bender", x);
+          window.rpcCommandDispatcher.dispatch({ type: "setParameter", target: "bender", value: x });
         };
-        move(pointerEvent);
-        const onMove = (ev) => move(ev);
         const onUp = () => {
-          housing.removeEventListener("pointermove", onMove);
+          housing.removeEventListener("pointermove", move);
           housing.removeEventListener("pointerup", onUp);
           stick.style.left = "50%";
-          if (window.juce)
-            window.juce.setParameter("bender", 0.5);
+          window.rpcCommandDispatcher.dispatch({ type: "setParameter", target: "bender", value: 0.5 });
         };
-        housing.addEventListener("pointermove", onMove);
+        housing.addEventListener("pointermove", move);
         housing.addEventListener("pointerup", onUp);
       });
-    }
-    syncUI(id, val) {
-      document.querySelectorAll(`[data-param="${id}"]`).forEach((pod) => {
-        const htmlPod = pod;
-        const knob = htmlPod.querySelector(".knob");
-        if (knob)
-          knob.style.transform = `translateX(-50%) rotate(${val * 270 - 135}deg)`;
-        const btn = htmlPod.tagName === "BUTTON" ? htmlPod : htmlPod.querySelector("button");
-        if (btn) {
-          const isActive = val > 0.5;
-          btn.setAttribute("data-active", isActive.toString());
-          btn.classList.toggle("active-mode", isActive);
-        }
-        if (htmlPod.tagName === "SELECT") {
-          htmlPod.value = val.toString();
-        }
-      });
-      const led = document.getElementById(`led-${id}`);
-      if (led)
-        led.classList.toggle("active", val > 0.5);
     }
     setupMenus() {
       document.querySelectorAll(".menu-item").forEach((item) => {
         const htmlItem = item;
+        if (htmlItem.id === "btn-global-matrix") {
+          htmlItem.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleMenuAction("toggle_matrix");
+          };
+          return;
+        }
         htmlItem.addEventListener("click", (e) => {
           const target = e.target;
           const dropdown = htmlItem.querySelector(".dropdown");
           if (target.tagName === "A" && target.hasAttribute("data-action")) {
-            const action = target.getAttribute("data-action");
-            if (action) {
-              this.handleMenuAction(action);
-            }
+            this.handleMenuAction(target.getAttribute("data-action"));
             if (dropdown)
               dropdown.style.display = "none";
             return;
@@ -1285,61 +1020,18 @@
           dropdown.style.display = isVisible ? "none" : "block";
         });
       });
-      window.addEventListener("click", () => {
-        document.querySelectorAll(".dropdown").forEach((d) => d.style.display = "none");
-      });
     }
     setupKeyboard() {
-      const bed = document.getElementById("ivory-keys-bed");
-      if (!bed)
-        return;
     }
   };
   var app = new OmegaApp();
-  window.handleOmegaMessage = (msg) => {
-    try {
-      const payload = typeof msg === "string" ? JSON.parse(msg) : msg;
-      const type = payload.type || "";
-      const state = payload.payload || payload;
-      OmegaLog.debug("OMEGA TS", "Message Received: " + type);
-      if (type === "onStateUpdate") {
-        const manager2 = window.moduleManager;
-        if (manager2)
-          manager2.updateRack(state);
-        if (window.patchbayHub)
-          window.patchbayHub.onStateUpdate(state);
-        if (window.modulePatchModal)
-          window.modulePatchModal.onStateUpdate(state);
-      } else if (type === "onPatchbayMatrixUpdate") {
-        if (window.patchbayHub) {
-          OmegaLog.debug("OMEGA TS", "Syncing Patchbay Hub...");
-          window.patchbayHub.onStateUpdate(state);
-        }
-        if (window.modulePatchModal) {
-          OmegaLog.debug("OMEGA TS", "Syncing Patch Modal...");
-          window.modulePatchModal.onStateUpdate(state);
-        }
-        const manager2 = window.moduleManager;
-        if (manager2 && manager2.activeModules) {
-          manager2.activeModules.forEach((mod) => {
-            if (mod.onStateUpdate)
-              mod.onStateUpdate(state);
-          });
-        }
-      } else if (type === "menuAction") {
-        app.handleMenuAction(payload.action || payload.payload?.action);
-      }
-    } catch (e) {
-      OmegaLog.error("OMEGA TS", "Error handling message", e);
-    }
-  };
 
   // preferences.js
   var OMEGA_Preferences = class {
     constructor() {
       __publicField(this, "settings", []);
       __publicField(this, "currentCategory", "GENERAL");
-      console.log("[Preferences TS] Initialized");
+      console.log("[Preferences] Initialized (Aseptic)");
     }
     async init() {
       await this.refresh();
@@ -1353,27 +1045,36 @@
           const htmlTab = tab;
           tabs.forEach((t) => t.classList.remove("active"));
           htmlTab.classList.add("active");
-          this.currentCategory = htmlTab.innerText.toUpperCase();
+          this.currentCategory = htmlTab.textContent?.trim().toUpperCase() || "GENERAL";
           this.render();
         };
       });
     }
     async refresh() {
       try {
-        if (window.juce && window.juce.getSystemSettings) {
-          const data = await window.juce.getSystemSettings();
+        const rpc2 = window.omegaRPC;
+        if (rpc2) {
+          const data = await rpc2.getSystemSettings();
           this.settings = Array.isArray(data) ? data : [];
         }
       } catch (e) {
-        console.error("[Preferences TS] Refresh failed:", e);
+        console.error("[Preferences] Refresh failed:", e);
       }
     }
     render() {
       const container = document.getElementById("preferences-body");
       if (!container)
         return;
+      if (this.settings.length === 0) {
+        container.innerHTML = `
+                <div class="pref-loading">
+                    <div class="spinner"></div>
+                    <span>Communicating with OMEGA Engine...</span>
+                </div>`;
+        return;
+      }
       container.innerHTML = "";
-      const catSettings = this.settings.filter((s) => s.category === this.currentCategory);
+      const catSettings = this.settings.filter((s) => s.category.toUpperCase() === this.currentCategory.toUpperCase());
       if (catSettings.length === 0) {
         container.innerHTML = `<div class="pref-empty">No settings found for ${this.currentCategory}.</div>`;
         return;
@@ -1408,26 +1109,20 @@
         resetBtn.onclick = () => this.reset(s.id);
       });
     }
-    async setSetting(id, value) {
-      try {
-        if (window.juce && window.juce.setSystemSetting) {
-          await window.juce.setSystemSetting(id, value);
-        }
-      } catch (e) {
-        console.error("[Preferences TS] Save failed:", e);
-      }
-    }
     async update(id, value) {
       const val = parseFloat(value);
-      await this.setSetting(id, val);
+      const rpc2 = window.omegaRPC;
+      if (rpc2) {
+        await rpc2.send("setSystemSetting", { id, value: val });
+      }
       const s = this.settings.find((x) => x.id === id);
       if (s)
         s.currentValue = val;
     }
-    async reset(id) {
+    reset(id) {
       const s = this.settings.find((x) => x.id === id);
       if (s) {
-        await this.update(id, s.defaultValue);
+        this.update(id, s.defaultValue);
         this.render();
       }
     }
@@ -1440,24 +1135,24 @@
     constructor() {
       __publicField(this, "params", []);
       __publicField(this, "activeVoice", -1);
-      console.log("[Service TS] Initialized");
+      console.log("[Service] Initialized (Aseptic)");
     }
     async init() {
       try {
         await this.refreshParams();
       } catch (e) {
-        console.error("[Service TS] Init failed:", e);
+        console.error("[Service] Init failed:", e);
       }
       this.renderVoices();
     }
     async refreshParams() {
-      const win = window;
-      if (win.juce && win.juce.getCalibrationParams) {
+      const rpc2 = window.omegaRPC;
+      if (rpc2) {
         try {
-          this.params = await win.juce.getCalibrationParams();
+          this.params = await rpc2.send("getCalibrationParams");
           this.renderParams();
         } catch (e) {
-          console.error("[Service TS] getCalibrationParams failed:", e);
+          console.error("[Service] getCalibrationParams failed:", e);
         }
       }
     }
@@ -1483,15 +1178,18 @@
         slider.oninput = (e) => this.updateParam(p.id, e.target.value);
       });
     }
-    updateParam(id, value) {
+    async updateParam(id, value) {
       const val = parseFloat(value);
       const p = this.params.find((x) => x.id === id);
       const display = document.getElementById(`val-${id}`);
       if (display && p)
         display.innerText = val.toFixed(2) + p.unit;
-      const win = window;
-      if (win.juce && win.juce.setCalibrationParam) {
-        win.juce.setCalibrationParam(id, val);
+      const dispatcher = window.rpcCommandDispatcher;
+      if (dispatcher) {
+        await dispatcher.dispatch({
+          type: "serviceAction",
+          value: { action: "setCalibrationParam", id, value: val }
+        });
       }
     }
     renderVoices() {
@@ -1508,27 +1206,28 @@
         container.appendChild(btn);
       }
     }
-    toggleVoiceTest(index) {
-      const win = window;
-      if (!win.juce)
+    async toggleVoiceTest(index) {
+      const dispatcher = window.rpcCommandDispatcher;
+      if (!dispatcher)
         return;
       if (this.activeVoice === index) {
         this.activeVoice = -1;
-        win.juce.serviceAction({ action: "stopVoiceTest" });
+        await dispatcher.dispatch({ type: "serviceAction", value: { action: "stopVoiceTest" } });
         document.querySelectorAll(".voice-test-btn").forEach((b) => b.classList.remove("active"));
       } else {
         this.activeVoice = index;
-        win.juce.serviceAction({ action: "testVoice", voice: index });
+        await dispatcher.dispatch({ type: "serviceAction", value: { action: "testVoice", voice: index } });
         document.querySelectorAll(".voice-test-btn").forEach((b) => b.classList.remove("active"));
         const btn = document.getElementById(`btn-voice-${index}`);
         if (btn)
           btn.classList.add("active");
       }
     }
-    serviceAction(action) {
-      const win = window;
-      if (win.juce)
-        win.juce.serviceAction({ action });
+    async serviceAction(action) {
+      const dispatcher = window.rpcCommandDispatcher;
+      if (dispatcher) {
+        await dispatcher.dispatch({ type: "serviceAction", value: { action } });
+      }
     }
   };
   var ServiceMode = new OMEGA_ServiceMode();
@@ -1542,7 +1241,7 @@
       __publicField(this, "selectedPresetIdx", -1);
       __publicField(this, "currentCategory", "All");
       __publicField(this, "searchQuery", "");
-      console.log("[PresetBrowser] Initialized");
+      console.log("[PresetBrowser] Initialized (Aseptic)");
     }
     async init() {
       this.setupListeners();
@@ -1565,15 +1264,16 @@
     }
     async refresh() {
       try {
-        if (window.juce && window.juce.getBrowserData) {
-          const response = await window.juce.getBrowserData();
+        const rpc2 = window.omegaRPC;
+        if (rpc2) {
+          const response = await rpc2.send("getBrowserData");
           if (response) {
             this.data = response;
             this.render();
           }
         }
       } catch (e) {
-        console.error("[PresetBrowser] Failed to refresh data:", e);
+        console.error("[PresetBrowser] Refresh failed:", e);
       }
     }
     render() {
@@ -1594,7 +1294,7 @@
           return;
         seen.add(cat);
         const li = document.createElement("li");
-        li.innerText = cat;
+        li.textContent = cat;
         if (this.currentCategory === cat)
           li.classList.add("active");
         li.onclick = () => this.selectCategory(cat);
@@ -1635,8 +1335,10 @@
     async selectLib(idx) {
       this.selectedLibIdx = idx;
       this.selectedPresetIdx = -1;
-      if (window.juce && window.juce.selectLibrary)
-        await window.juce.selectLibrary(idx);
+      const dispatcher = window.rpcCommandDispatcher;
+      if (dispatcher) {
+        await dispatcher.dispatch({ type: "selectLibrary", value: idx });
+      }
       this.render();
     }
     renderPresets() {
@@ -1664,8 +1366,12 @@
     }
     async selectPreset(idx) {
       this.selectedPresetIdx = idx;
-      if (window.juce && window.juce.loadLibraryPreset) {
-        await window.juce.loadLibraryPreset(this.selectedLibIdx, idx);
+      const dispatcher = window.rpcCommandDispatcher;
+      if (dispatcher) {
+        await dispatcher.dispatch({
+          type: "loadPreset",
+          value: { libIdx: this.selectedLibIdx, prstIdx: idx }
+        });
       }
       this.renderPresets();
       this.updateInfoPane();
@@ -1706,38 +1412,38 @@
       this.content = content;
       this.descriptor = this.normalizeDescriptor(descriptor);
     }
-    normalizeDescriptor(desc) {
-      if (desc.descriptor && !desc.items) {
-        return this.normalizeDescriptor(desc.descriptor);
+    normalizeDescriptor(schema) {
+      console.log(`[ModuleRenderer] Validating OMEGA Manifest for ${schema?.id || "unknown"}`);
+      if (!schema || !schema.items || !schema.layout) {
+        console.error("[ModuleRenderer] CONTRACT VIOLATION: Missing layout/items in manifest.", schema);
+        throw new Error(`Critical Contract Violation: Module ${schema?.id} manifest is incomplete.`);
       }
-      if (typeof desc.uiLayout === "string") {
-        try {
-          const parsed = JSON.parse(desc.uiLayout);
-          return {
-            ...desc,
-            version: desc.version || parsed.version || "4.1.0",
-            hp: desc.hp || parsed.hp || 0,
-            uiLayout: parsed.uiLayout || { columns: parsed.columns || 2, rows: parsed.rows || 1, gap: parsed.gap || 12 },
-            items: parsed.items || desc.items || []
-          };
-        } catch (e) {
-          console.error("[ModuleRenderer] Failed to parse uiLayout JSON:", e);
-        }
-      }
-      return desc;
+      return {
+        id: schema.id,
+        version: schema.version || "6.0.0-ASEPTIC",
+        hp: schema.layout.hp,
+        theme: schema.theme,
+        uiLayout: schema.layout,
+        items: schema.items,
+        registry: schema.registry
+      };
+    }
+    getRegistryEntity(id) {
+      if (!this.descriptor.registry)
+        return null;
+      return this.descriptor.registry.find((e) => e.id === id);
     }
     async init() {
-      const store2 = window.metadataStore;
-      const meta = await store2.ensureLoaded();
-      if (!meta)
-        return;
       this.render();
       this.bind();
       this.isInitialized = true;
+      if (window.runtimeStore) {
+      }
     }
     render() {
       const desc = this.descriptor;
-      const classes = ["panel", desc.panelClass || "", "aseptic-panel"];
+      const themeClass = `theme-${desc.theme || "default"}`;
+      const classes = ["panel", desc.panelClass || "", "aseptic-panel", themeClass];
       const hpWidth = desc.hp ? desc.hp * 5.08 * 2.95 : 100;
       const widthStyle = `min-width: ${hpWidth}px; width: fit-content;`;
       this.content.innerHTML = `
@@ -1750,280 +1456,146 @@
     }
     renderItem(item) {
       const id = item.paramId || item.source || item.portId;
-      const param = item.paramId ? window.metadataStore.getParam(item.paramId) : null;
+      const entity = id ? this.getRegistryEntity(id) : null;
       const style = `grid-row: ${item.row + 1}; grid-column: ${item.col + 1}${item.colSpan ? ` / span ${item.colSpan}` : ""};`;
-      const label = item.label || (param ? param.name : item.source || item.portId || "");
-      let semantic = item.semantic;
-      let look = item.look;
-      if (!semantic && item.control) {
-        switch (item.control) {
-          case "knob":
-            semantic = "scalar";
-            look = "knob";
-            break;
-          case "slider-v":
-            semantic = "scalar";
-            look = "slider-v";
-            break;
-          case "toggle":
-            semantic = "toggle";
-            look = "button";
-            break;
-          case "select":
-            semantic = "list";
-            look = "select";
-            break;
-          case "stepper":
-            semantic = "list";
-            look = "display";
-            break;
-          case "telemetry":
-            semantic = "telemetry";
-            look = "meter";
-            break;
-          case "led":
-            semantic = "telemetry";
-            look = "led";
-            break;
-          case "port":
-            semantic = "port";
-            look = "jack";
-            break;
-        }
-      }
-      if (!semantic)
-        return `<!-- Item missing semantic/control -->`;
-      switch (semantic) {
-        case "scalar":
-          if (look === "knob") {
-            return `
-                        <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                            <label>${label}</label>
-                            <div class="knob-ring" data-param="${param?.id || ""}">
-                                <div class="knob"><div class="knob-marker white"></div></div>
-                            </div>
-                        </div>
-                    `;
-          }
-          return `
-                    <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                        <label>${label}</label>
-                        <input type="range" class="${look === "slider-h" ? "h-slider" : "v-slider"}" data-param="${param?.id || ""}" min="${param?.min || 0}" max="${param?.max || 1}" step="${param?.step || "any"}" value="${param?.default || 0}" />
-                    </div>
-                `;
-        case "list":
-          if (look === "display") {
-            return `
-                        <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                            <label>${label}</label>
-                            <div class="display-unit" data-param="${param?.id || ""}">
-                                <button class="stepper-btn minus" data-dir="-1">\uFF0D</button>
-                                <div class="display-screen">
-                                    <span class="display-value">${param ? this._getParamValueLabel(param, this.values[param.id] || param.default || 0) : "---"}</span>
-                                </div>
-                                <button class="stepper-btn plus" data-dir="1">\uFF0B</button>
-                            </div>
-                        </div>
-                    `;
-          }
-          return `
-                    <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                        <label>${label}</label>
-                        <select class="selector-control" data-param="${param?.id || ""}">
-                            ${param?.options ? param.options.map((o) => `<option value="${o.value}">${o.label}</option>`).join("") : '<option value="0">DEFAULT</option>'}
-                        </select>
-                    </div>
-                `;
-        case "vector":
-          if (look === "joystick") {
-            return `
-                        <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                            <label>${label}</label>
-                            <div class="joystick-pad" data-param-x="${item.paramId || ""}" data-param-y="${item.paramIdY || ""}">
-                                <div class="joystick-handle"></div>
-                            </div>
-                        </div>
-                    `;
-          }
-          return `<!-- Unknown vector look: ${look} -->`;
-        case "toggle":
-        case "state":
-          if (look === "switch") {
-            return `
-                        <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                            <label>${label}</label>
-                            <div class="sw-unit" data-param="${param?.id || ""}">
-                                <div class="sw-path"><div class="sw-peg"></div></div>
-                            </div>
-                        </div>
-                    `;
-          }
-          return `
-                    <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                        <label>${label}</label>
-                        <button class="sq ${item.variant || item.color || "red"}" data-param="${param?.id || ""}"></button>
-                    </div>
-                `;
-        case "port":
-          return `<!-- Port ${label} hidden (Aseptic Standard) -->`;
-        case "telemetry":
-          if (look === "led") {
-            const ledColor = item.color || "orange";
-            const activeClass = this.descriptor.id === "debug_test" || this.descriptor.id === "debug" ? "active" : "";
-            return `
-                        <div class="control-group led-container variant-${item.variant || "default"}" style="${style}" data-source="${item.source || item.paramId || ""}">
-                            <div class="led led-${ledColor} ${activeClass}"></div>
-                            <label>${label}</label>
-                        </div>
-                    `;
-          }
-          return `
-                        <div class="control-group telemetry-container variant-${item.variant || "default"}" style="${style}" data-source="${item.source || item.paramId || ""}">
-                        <label>${label}</label>
-                        <div class="telemetry-display">
-                            <div class="telemetry-bar"></div>
-                        </div>
-                    </div>
-                `;
-        case "monitor":
-          return `
-                    <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                        <label>${label}</label>
-                        <div class="monitor-scope" data-source="${item.source || ""}">
-                            <canvas width="100" height="60"></canvas>
-                        </div>
-                    </div>
-                `;
-        case "graph":
-          return `
-                    <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                        <label>${label}</label>
-                        <div class="graph-adsr" data-param-group="${item.paramGroup || ""}">
-                            <svg viewBox="0 0 100 60"><path d="M0,60 L20,10 L40,30 L80,30 L100,60" fill="none" stroke="cyan" stroke-width="2"/></svg>
-                        </div>
-                    </div>
-                `;
-        case "keyboard":
-          return `
-                    <div class="control-group variant-${item.variant || "default"}" style="${style}">
-                        <div class="virtual-keyboard">
-                            <!-- Keyboard generated dynamically -->
-                        </div>
-                    </div>
-                `;
-        case "label":
-          return `<div class="panel-label variant-${item.variant || "default"}" style="${style}">${label}</div>`;
-        default:
-          return `<!-- Unknown semantic: ${semantic} -->`;
-      }
+      const label = item.label || (entity ? entity.label : id || "");
+      return this.buildControlCell(item, entity, style, label);
     }
-    renderFooter() {
+    buildControlCell(item, entity, style, label) {
+      const id = item.paramId || item.source || item.portId || "";
+      const cellClass = `control-cell variant-${item.variant || "default"}`;
+      const bindAttr = id ? `data-bind="${id}"` : "";
+      return `
+            <div class="${cellClass}" style="${style}" ${bindAttr} data-id="${id}">
+                <div class="cell-attachment-top">
+                    ${item.look === "led" ? "" : this.renderAttachment(item, "top")}
+                </div>
+
+                <div class="cell-main">
+                    ${this.renderComponent(item, entity, label)}
+                </div>
+
+                ${item.variant === "A" ? "" : `
+                <div class="cell-info">
+                    <label class="cell-label">${label.toUpperCase()}</label>
+                    <div class="cell-display" data-precision="${item.look === "display" ? 0 : 2}">
+                        ${entity ? this._getEntityValueLabel(entity, this.values[id] || entity.range?.default || 0) : "---"}
+                    </div>
+                </div>
+                `}
+
+                <div class="cell-attachment-bottom">
+                    ${this.renderAttachment(item, "bottom")}
+                </div>
+            </div>
+        `;
+    }
+    renderAttachment(item, position) {
+      if (item.look === "led" && position === "top") {
+        return `<div class="led variant-${item.variant || "default"}" data-source="${item.source || item.paramId || ""}"></div>`;
+      }
+      if (item.look === "meter" && position === "top") {
+        return `<div class="mini-meter"><div class="meter-bar"></div></div>`;
+      }
       return "";
+    }
+    renderComponent(item, entity, label) {
+      const look = item.look || "knob";
+      const id = item.paramId || item.source || item.portId || "";
+      switch (look) {
+        case "knob":
+          return `
+                    <div class="knob-ring" data-param="${id}">
+                        <div class="knob"><div class="knob-marker white"></div></div>
+                    </div>
+                `;
+        case "slider-v":
+        case "slider-h":
+          const range = entity?.range || { min: 0, max: 1, step: "any", default: 0 };
+          return `<input type="range" class="${look === "slider-h" ? "h-slider" : "v-slider"}" data-param="${id}" min="${range.min}" max="${range.max}" step="${range.step}" value="${range.default}" />`;
+        case "select":
+          return `
+                    <select class="selector-control" data-param="${id}">
+                        ${entity?.options ? entity.options.map((o) => `<option value="${o.value}">${o.label}</option>`).join("") : '<option value="0">DEFAULT</option>'}
+                    </select>
+                `;
+        case "switch":
+        case "toggle":
+        case "button":
+          return `<div class="sw-unit" data-param="${id}"><div class="sw-path"><div class="sw-peg"></div></div></div>`;
+        case "display":
+          return `
+                    <div class="display-unit" data-param="${id}">
+                        <button class="stepper-btn minus" data-dir="-1">\uFF0D</button>
+                        <div class="display-screen">
+                            <span class="display-value">${entity ? this._getEntityValueLabel(entity, this.values[id] || entity.range?.default || 0) : "---"}</span>
+                        </div>
+                        <button class="stepper-btn plus" data-dir="1">\uFF0B</button>
+                    </div>
+                `;
+        case "led":
+          return `<div class="led variant-${item.variant || "default"}" id="led-${id}" data-source="${id}"></div>`;
+        default:
+          return `<!-- Component ${look} -->`;
+      }
     }
     bind() {
       if (!this.descriptor.items)
         return;
       this.descriptor.items.forEach((item) => {
-        let semantic = item.semantic;
-        let look = item.look;
-        if (!semantic && item.control) {
-          switch (item.control) {
-            case "knob":
-              semantic = "scalar";
-              look = "knob";
-              break;
-            case "slider-v":
-              semantic = "scalar";
-              look = "slider-v";
-              break;
-            case "toggle":
-              semantic = "toggle";
-              look = "button";
-              break;
-            case "select":
-              semantic = "list";
-              look = "select";
-              break;
-            case "stepper":
-              semantic = "list";
-              look = "display";
-              break;
-            case "port":
-              semantic = "port";
-              look = "jack";
-              break;
-          }
-        }
-        const param = item.paramId ? window.metadataStore.getParam(item.paramId) : null;
-        if (!param && !item.portId)
+        const look = item.look || "knob";
+        const id = item.paramId || item.source || item.portId;
+        const entity = id ? this.getRegistryEntity(id) : null;
+        if (!entity)
           return;
-        if (semantic === "scalar") {
-          if (look === "knob") {
-            const ctrl = this.content.querySelector(`[data-param="${param.id}"].knob-ring`);
-            if (ctrl)
-              this._bindKnob(ctrl, param);
-          } else {
-            const input = this.content.querySelector(`input[data-param="${param.id}"]`);
-            if (input)
-              input.addEventListener("input", (e) => this.setParam(param.id, parseFloat(e.target.value)));
-          }
-        } else if (semantic === "list") {
-          if (look === "display") {
-            const ctrl = this.content.querySelector(`.display-unit[data-param="${param.id}"]`);
-            if (ctrl)
-              this._bindDisplay(ctrl, param);
-          } else {
-            const sel = this.content.querySelector(`select[data-param="${param.id}"]`);
-            if (sel)
-              sel.addEventListener("change", (e) => this.setParam(param.id, parseFloat(e.target.value)));
-          }
-        } else if (semantic === "toggle" || semantic === "state") {
-          const trigger = this.content.querySelector(`[data-param="${param.id}"]`);
+        if (look === "knob") {
+          const ctrl = this.content.querySelector(`[data-param="${id}"].knob-ring`);
+          if (ctrl)
+            this._bindKnob(ctrl, entity);
+        } else if (look === "slider-v" || look === "slider-h") {
+          const input = this.content.querySelector(`input[data-param="${id}"]`);
+          if (input)
+            input.addEventListener("input", (e) => this.setParam(id, parseFloat(e.target.value)));
+        } else if (look === "display") {
+          const ctrl = this.content.querySelector(`.display-unit[data-param="${id}"]`);
+          if (ctrl)
+            this._bindDisplay(ctrl, entity);
+        } else if (look === "select") {
+          const sel = this.content.querySelector(`select[data-param="${id}"]`);
+          if (sel)
+            sel.addEventListener("change", (e) => this.setParam(id, parseFloat(e.target.value)));
+        } else if (look === "button" || look === "switch" || look === "toggle") {
+          const trigger = this.content.querySelector(`[data-param="${id}"]`);
           if (trigger) {
             trigger.addEventListener("click", () => {
-              const current = this.values[param.id] || param.default || 0;
-              this.setParam(param.id, current > 0.5 ? 0 : 1);
-            });
-          }
-        } else if (semantic === "port") {
-          const jack = this.content.querySelector(`.port-container[data-port="${item.portId}"]`);
-          if (jack) {
-            jack.addEventListener("click", () => {
-              window.omegaRPC.openPatchModal(this.descriptor.id, item.portId);
+              const current = this.values[id] || entity.range?.default || 0;
+              this.setParam(id, current > 0.5 ? 0 : 1);
             });
           }
         }
       });
-      const footerBtn = this.content.querySelector('button[data-role="status"]');
-      if (footerBtn) {
-        const paramId = footerBtn.dataset.param;
-        footerBtn.addEventListener("click", () => {
-          const param = window.metadataStore.getParam(paramId);
-          const current = this.values[paramId] || (param ? param.default : 0);
-          this.setParam(paramId, current > 0.5 ? 0 : 1);
-        });
-      }
     }
-    _bindKnob(ctrl, param) {
+    _bindKnob(ctrl, entity) {
       const knob = ctrl.querySelector(".knob");
       if (!knob)
         return;
       let isDragging = false;
       let startY = 0;
       let startVal = 0;
+      const range = entity.range || { min: 0, max: 1 };
       knob.addEventListener("mousedown", (e) => {
         isDragging = true;
         startY = e.clientY;
-        startVal = this.values[param.id] || param.default || 0;
+        startVal = this.values[entity.id] || range.default || 0;
         e.preventDefault();
       });
       const onMove = (e) => {
         if (!isDragging)
           return;
         const delta = (startY - e.clientY) / 150;
-        let next = startVal + delta * (param.max - param.min);
-        next = Math.max(param.min, Math.min(param.max, next));
-        this.setParam(param.id, next);
+        let next = startVal + delta * (range.max - range.min);
+        next = Math.max(range.min, Math.min(range.max, next));
+        this.setParam(entity.id, next);
       };
       const onUp = () => {
         isDragging = false;
@@ -2031,124 +1603,112 @@
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     }
-    setParam(id, value) {
-      this.values[id] = value;
-      window.omegaRPC.setParam(id, value);
-      this.updateControlUI(id, value);
-    }
-    updateControlUI(id, value) {
-      const param = window.metadataStore.getParam(id);
-      if (!param)
-        return;
-      const input = this.content.querySelector(`input[data-param="${id}"]`);
-      if (input)
-        input.value = value.toString();
-      const btn = this.content.querySelector(`button[data-param="${id}"], .sw-unit[data-param="${id}"]`);
-      if (btn)
-        btn.classList.toggle("active", value > 0.5);
-      if (btn && btn.classList.contains("sw-unit"))
-        btn.setAttribute("data-state", value > 0.5 ? "1" : "0");
-      const sel = this.content.querySelector(`select[data-param="${id}"]`);
-      if (sel)
-        sel.value = value.toString();
-      const knob = this.content.querySelector(`[data-param="${id}"].knob-ring`);
-      if (knob)
-        this._updateKnobVisual(knob, param, value);
-      const display = this.content.querySelector(`.display-unit[data-param="${id}"] .display-value`);
-      if (display)
-        display.innerText = this._getParamValueLabel(param, value);
-      const fBtn = this.content.querySelector(`button[data-param="${id}"][data-role="status"]`);
-      if (fBtn)
-        fBtn.innerText = value > 0.5 ? "ON" : "BYPASS";
-    }
-    _getParamValueLabel(param, value) {
-      if (!param)
-        return value.toString();
-      if (param.options) {
-        const opt = param.options.find((o) => o.value === value);
-        if (opt)
-          return opt.label;
-      }
-      if (param.id === "midi_channel" && value >= 0 && value <= 16) {
-        return value === 0 ? "OMNI" : `CH ${Math.round(value)}`;
-      }
-      return value.toString();
-    }
-    _bindDisplay(ctrl, param) {
+    _bindDisplay(ctrl, entity) {
       const btns = ctrl.querySelectorAll(".stepper-btn");
       btns.forEach((btn) => {
         btn.addEventListener("click", (e) => {
           const dir = parseInt(e.target.dataset.dir || "0");
-          const current = this.values[param.id] ?? param.default ?? 0;
-          const opts = param.options;
+          const range = entity.range || { min: 0, max: 1, step: 1 };
+          const current = this.values[entity.id] ?? range.default ?? 0;
+          const opts = entity.options;
           if (opts && opts.length > 0) {
             const currentIndex = opts.findIndex((o) => o.value === current);
             const nextIndex = Math.max(0, Math.min(opts.length - 1, currentIndex + dir));
             const selected = opts[nextIndex];
             if (selected)
-              this.setParam(param.id, selected.value);
+              this.setParam(entity.id, selected.value);
           } else {
             let next = current + dir;
-            next = Math.max(param.min, Math.min(param.max, next));
-            this.setParam(param.id, next);
+            next = Math.max(range.min, Math.min(range.max, next));
+            this.setParam(entity.id, next);
           }
         });
       });
     }
-    _updateKnobVisual(ctrl, param, value) {
+    setParam(id, value) {
+      this.values[id] = value;
+      const paramId = `${this.descriptor.id}.${id}`;
+      window.rpcCommandDispatcher.dispatch({ type: "setParameter", target: paramId, value });
+      this.updateControlUI(id, value);
+    }
+    updateControlUI(id, value) {
+      const entity = this.getRegistryEntity(id);
+      if (!entity)
+        return;
+      const cell = this.content.querySelector(`[data-id="${id}"]`);
+      if (!cell)
+        return;
+      const input = cell.querySelector(`input[data-param="${id}"]`);
+      if (input)
+        input.value = value.toString();
+      const sw = cell.querySelector(`.sw-unit[data-param="${id}"]`);
+      if (sw)
+        sw.setAttribute("data-state", value > 0.5 ? "1" : "0");
+      const sel = cell.querySelector(`select[data-param="${id}"]`);
+      if (sel)
+        sel.value = value.toString();
+      const knob = cell.querySelector(`.knob-ring[data-param="${id}"]`);
+      if (knob)
+        this._updateKnobVisual(knob, entity, value);
+      const display = cell.querySelector(".cell-display");
+      if (display) {
+        display.innerText = this._getEntityValueLabel(entity, value);
+      }
+    }
+    _getEntityValueLabel(entity, value) {
+      if (!entity)
+        return value.toString();
+      if (entity.options) {
+        const opt = entity.options.find((o) => o.value === value);
+        if (opt)
+          return opt.label;
+      }
+      if (entity.id === "midi_channel" && value >= 0 && value <= 16) {
+        return value === 0 ? "OMNI" : `CH ${Math.round(value)}`;
+      }
+      return typeof value === "number" ? value.toFixed(2) : value.toString();
+    }
+    _updateKnobVisual(ctrl, entity, value) {
       const marker = ctrl.querySelector(".knob-marker");
       if (!marker)
         return;
-      const norm = (value - param.min) / (param.max - param.min || 1);
+      const range = entity.range || { min: 0, max: 1 };
+      const norm = (value - range.min) / (range.max - range.min || 1);
       const angle = -135 + norm * 270;
       marker.style.transform = `translateX(-50%) rotate(${angle}deg)`;
     }
-    onStateUpdate(state) {
-      if (!this.isInitialized)
+    syncAllFromStore() {
+      if (!this.isInitialized || !this.descriptor.items)
         return;
-      const params = state.parameters || {};
-      if (this.descriptor.items) {
-        this.descriptor.items.forEach((item) => {
-          if (item.paramId && params[item.paramId] !== void 0) {
-            this.values[item.paramId] = params[item.paramId];
-            this.updateControlUI(item.paramId, params[item.paramId]);
-          }
-        });
-      }
-      const telemetry = state.telemetry || {};
-      if (this.descriptor.items) {
-        this.descriptor.items.forEach((item) => {
-          const source = item.source || item.paramId;
-          if (!source)
-            return;
-          let val = telemetry[source];
-          if (val === void 0 && source.startsWith("telemetry.")) {
-            const subKey = source.split(".")[1];
-            if (subKey)
-              val = telemetry[subKey];
-          }
+      this.descriptor.items.forEach((item) => {
+        const id = item.paramId || item.id || item.source;
+        if (id) {
+          const globalId = `${this.descriptor.id}.${id}`;
+          const store = window.runtimeStore.getSnapshot();
+          const val = store.params[globalId];
+          const tVal = store.telemetry[globalId];
           if (val !== void 0) {
-            this.updateTelemetryUI(source, val);
+            this.values[id] = val;
+            this.updateControlUI(id, val);
           }
-        });
-      }
-      this.updatePortsUI(state);
+          if (tVal !== void 0) {
+            this.updateTelemetryUI(id, tVal.v || 0);
+          }
+        }
+      });
     }
     updateTelemetryUI(source, value) {
-      const el = this.content.querySelector(`[data-source="${source}"] .led, [data-source="${source}"] .led-indicator`);
-      if (el) {
-        const isActive = value > 0;
-        el.classList.toggle("active", isActive);
-        if (isActive) {
-          setTimeout(() => el.classList.remove("active"), 50);
-        }
-      }
-      const bar = this.content.querySelector(`[data-source="${source}"] .telemetry-bar`);
-      if (bar) {
-        bar.style.height = `${value * 100}%`;
-      }
+      const leds = this.content.querySelectorAll(`.led[data-source="${source}"]`);
+      leds.forEach((led) => {
+        led.classList.toggle("active", value > 0.05);
+      });
+      const meters = this.content.querySelectorAll(`[data-source="${source}"] .meter-bar, [data-source="${source}"] .mini-meter .meter-bar`);
+      meters.forEach((bar) => {
+        bar.style.height = `${Math.min(100, value * 100)}%`;
+      });
     }
-    updatePortsUI(state) {
+    onStateUpdate(state) {
+      this.syncAllFromStore();
     }
   };
 
@@ -2230,9 +1790,12 @@
       });
     }
     async fetchSourcesWithRetry() {
-      if (window.omegaRPC) {
+      if (window.rpcCommandDispatcher) {
         try {
-          const resp = await window.omegaRPC.send("getModulationMetadata", {});
+          const resp = await window.rpcCommandDispatcher.dispatch({
+            type: "systemQuery",
+            target: "getModulationMetadata"
+          });
           if (resp && resp.sources) {
             this.allSources = resp.sources.filter((s) => s.telemetryIndex !== -1);
             this.filteredSources = this.allSources;
@@ -2401,12 +1964,15 @@
       this.pollingInterval = setInterval(async () => {
         if (!this.isPowered || this.isFrozen)
           return;
-        if (window.omegaRPC) {
+        if (window.rpcCommandDispatcher) {
           const indices = [this.sourceA];
           if (this.isDual)
             indices.push(this.sourceB);
           try {
-            const data = await window.omegaRPC.send("getTelemetry", { indices });
+            const data = await window.rpcCommandDispatcher.dispatch({
+              type: "getTelemetry",
+              value: { indices }
+            });
             if (data) {
               if (data[this.sourceA.toString()])
                 this.dataA = data[this.sourceA.toString()].history || [];
@@ -2597,8 +2163,12 @@
           fireBtn.style.boxShadow = "0 0 15px rgba(0, 242, 255, 0.2)";
           fireBtn.style.transform = "";
         }
-        if (window.omegaRPC) {
-          window.omegaRPC.sendMidi(status, midiNote, velocity);
+        if (window.rpcCommandDispatcher) {
+          window.rpcCommandDispatcher.dispatch({
+            type: "sendMidi",
+            target: "system",
+            args: [status, midiNote, velocity]
+          });
         }
       };
       fireBtn.onmousedown = () => trigger(true);
@@ -2813,7 +2383,6 @@
 
   // components/ModulePatchbayMatrix.js
   var ModulePatchbayMatrix = class {
-    // [Hyper-ACE] Dynamic limit
     constructor(options = {}) {
       __publicField(this, "el", null);
       __publicField(this, "content", null);
@@ -2825,10 +2394,10 @@
       __publicField(this, "manualChangeTimer", null);
       __publicField(this, "selectedSlot", 0);
       __publicField(this, "maxSlots", 32);
+      __publicField(this, "structureBuilt", false);
       this.options = options;
       this.loadMetadata();
       this.syncMaxSlots();
-      this.setupSelectionListeners();
     }
     ensureElements() {
       if (this.el)
@@ -2842,25 +2411,21 @@
       if (rpc2) {
         try {
           const settings = await rpc2.getSystemSettings();
-          if (!settings || !Array.isArray(settings)) {
-            console.warn("[PatchbayMatrix] Settings missing or invalid, skipping sync.");
+          if (!settings || !Array.isArray(settings))
             return;
-          }
           const maxSlotsSetting = settings.find((s) => s && s.id === "maxPatchbaySlots");
           if (maxSlotsSetting) {
             const newValue = Math.floor(maxSlotsSetting.currentValue || 32);
             if (this.maxSlots !== newValue) {
-              console.log(`[PatchbayMatrix] Max Slots updated: ${this.maxSlots} -> ${newValue}`);
+              OmegaLog.info("MATRIX", `Capacity updated: ${newValue}`);
               this.maxSlots = newValue;
-              if (this.isWorkspaceOpen()) {
+              this.structureBuilt = false;
+              if (this.isWorkspaceOpen())
                 this.renderWorkspace();
-              }
-            } else {
-              console.log(`[PatchbayMatrix] Max Slots verified: ${this.maxSlots}`);
             }
           }
         } catch (e) {
-          console.warn("[PatchbayMatrix] Failed to sync maxPatchbaySlots:", e);
+          OmegaLog.warn("MATRIX", "Max slots sync failed", e);
         }
       }
     }
@@ -2868,17 +2433,18 @@
       const rpc2 = window.omegaRPC;
       if (rpc2) {
         try {
-          const resp = await rpc2.send("getModulationMetadata", {});
-          if (resp && (resp.sources || resp.targets)) {
-            this.sources = resp.sources || [];
-            this.targets = resp.targets || [];
-            console.log("[PatchbayMatrix] Metadata loaded:", this.sources.length, "sources,", this.targets.length, "targets");
-            if (this.isWorkspaceOpen()) {
+          const resp = await rpc2.send("getMetadata", {});
+          const params = resp?.parameters || resp;
+          if (params && Array.isArray(params)) {
+            this.sources = params.map((p) => ({ id: p.id || p.target, name: p.name || p.label, instance: p.groupId || p.instance }));
+            this.targets = params.map((p) => ({ id: p.id || p.target, name: p.name || p.label, instance: p.groupId || p.instance }));
+            if (this.isWorkspaceOpen())
               this.renderWorkspace();
-            }
+          } else {
+            OmegaLog.warn("MATRIX", "Received malformed metadata", resp);
           }
         } catch (e) {
-          console.error("[ModMatrix] Failed to load modulation metadata:", e);
+          OmegaLog.error("MATRIX", "Metadata load failed", e);
         }
       }
     }
@@ -2900,14 +2466,15 @@
     }
     onStateUpdate(state) {
       this.state = state;
-      const matrix = state?.preset?.patchbayMatrix || [];
+      const matrixData = state?.preset?.patchbayMatrix || [];
+      const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
       const activeCount = matrix.filter((s) => s.active).length;
       const countEl = document.getElementById("matrix-active-count");
       if (countEl)
         countEl.innerText = activeCount.toString().padStart(2, "0");
       this.triggerActivity("general");
       if (this.isWorkspaceOpen()) {
-        this.renderWorkspace();
+        this.syncSlotsFromState(matrix);
       }
     }
     triggerActivity(type) {
@@ -2932,9 +2499,19 @@
       if (!this.ensureElements())
         return;
       const grid = document.getElementById("matrix-grid-container");
-      const inspector = document.getElementById("matrix-inspector-container");
-      if (!grid || !inspector)
+      if (!grid)
         return;
+      this.setupHeaderToggles();
+      if (!this.structureBuilt || this.viewMode === "compose") {
+        this.renderStructure(grid);
+        this.structureBuilt = this.viewMode === "overview";
+      }
+      const matrixData = this.state?.preset?.patchbayMatrix || [];
+      const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
+      this.syncSlotsFromState(matrix);
+      this.renderInspector();
+    }
+    setupHeaderToggles() {
       const modalHeader = document.querySelector(".modulation-modal-content .modal-title");
       if (modalHeader && !document.getElementById("matrix-view-toggles")) {
         const toggles = document.createElement("div");
@@ -2947,146 +2524,132 @@
         modalHeader.parentElement?.insertBefore(toggles, modalHeader.nextSibling);
         document.getElementById("btn-view-compose")?.addEventListener("click", () => {
           this.viewMode = "compose";
+          this.structureBuilt = false;
           this.renderWorkspace();
         });
         document.getElementById("btn-view-overview")?.addEventListener("click", () => {
           this.viewMode = "overview";
+          this.structureBuilt = false;
           this.renderWorkspace();
         });
       }
-      const matrixData = this.state?.preset?.patchbayMatrix || [];
-      const matrix = Array.isArray(matrixData) ? matrixData : typeof matrixData === "object" ? Object.values(matrixData) : [];
-      const seenRoutings = /* @__PURE__ */ new Set();
-      const duplicates = /* @__PURE__ */ new Set();
-      matrix.forEach((s, i) => {
-        if (s.active && s.source && s.target) {
-          const key = `${s.source}->${s.target}`;
-          if (seenRoutings.has(key))
-            duplicates.add(i);
-          else
-            seenRoutings.add(key);
-        }
-      });
-      let gridHtml = "";
+    }
+    renderStructure(grid) {
+      let html = "";
+      const matrix = this.state?.preset?.patchbayMatrix || [];
       if (this.viewMode === "compose") {
         const activeSlots = matrix.map((s, i) => ({ ...s, i })).filter((s) => s.active || s.source !== "" && s.source !== void 0);
-        for (const slot of activeSlots) {
-          gridHtml += this.renderCard(slot, slot.i, duplicates.has(slot.i));
-        }
+        activeSlots.forEach((slot) => {
+          html += this.getSlotSkeleton(slot.i);
+        });
         if (activeSlots.length < this.maxSlots) {
-          gridHtml += `
+          html += `
                     <div class="matrix-card add-card" id="btn-add-modulation">
                         <div class="add-icon">\uFF0B</div>
                         <div class="card-label" style="text-align:center">ADD MODULATION</div>
                     </div>
                 `;
         }
-        if (activeSlots.length === 0 && this.sources.length === 0 && !this.state?.preset?.auxiliary) {
-          gridHtml = `
-                    <div class="empty-state-info">
-                        <div class="info-title">MODULAR RACK EMPTY</div>
-                        <p>The synthesizer rack is currently empty. Use the <b>Edit > Add Module</b> menu to begin building your signal path.</p>
-                        <div class="matrix-card add-card" id="btn-add-module-shortcut" style="width:200px; margin: 20px auto;">
-                            <div class="add-icon">\uFF0B</div>
-                            <div class="card-label">ADD MODULE</div>
-                        </div>
-                    </div>
-                `;
-        }
       } else {
         for (let i = 0; i < this.maxSlots; i++) {
-          const slot = matrix[i] || { active: false, source: "", target: "", amount: 0, via: "", viaAmount: 0 };
-          gridHtml += this.renderCard(slot, i, duplicates.has(i));
+          html += this.getSlotSkeleton(i);
         }
       }
-      grid.innerHTML = gridHtml;
-      this.renderInspector();
-      this.attachWorkspaceListeners();
+      grid.innerHTML = html;
+      this.attachGridListeners(grid);
       document.getElementById("btn-add-modulation")?.addEventListener("click", () => this.addModulation());
     }
-    renderCard(slot, i, isDuplicate) {
-      const isSelected = this.selectedSlot === i;
-      const amountColor = this.getAmountColor(slot.amount);
+    getSlotSkeleton(i) {
       return `
-            <div class="matrix-card ${slot.active ? "active" : ""} ${isSelected ? "selected" : ""} ${isDuplicate ? "duplicate-error" : ""}" data-index="${i}">
+            <div class="matrix-card aseptic-card" id="matrix-slot-${i}" data-index="${i}">
                 <div class="card-header">
                     <span class="card-index">${(i + 1).toString().padStart(2, "0")}</span>
-                    <div class="card-status ${slot.active ? "active" : ""}"></div>
-                    ${isDuplicate ? '<div class="error-badge">DUP</div>' : ""}
+                    <div class="card-status"></div>
                 </div>
                 <div class="card-routing">
-                    <div class="card-label">${this.getNameForId(this.sources, slot.source) || "EMPTY"}</div>
+                    <div class="card-source-label card-label">...</div>
                     <div class="card-arrow">\u2193</div>
-                    <div class="card-label">${this.getNameForId(this.targets, slot.target) || "---"}</div>
+                    <div class="card-target-label card-label">...</div>
                 </div>
                 <div class="bipolar-container">
                     <div class="bipolar-slider-bg">
-                        <div class="bipolar-slider-fill gain-mode" style="width: ${Math.min(slot.amount, 2) * 50}%; background-color: ${amountColor}"></div>
+                        <div class="bipolar-slider-fill gain-mode"></div>
                     </div>
-                    <div class="bipolar-value" style="color: ${amountColor}">${slot.amount.toFixed(2)}x</div>
+                    <div class="bipolar-value">0.00x</div>
                 </div>
-                ${slot.via ? `<div class="card-label-tiny" style="font-size:7px; color:#555; margin-top:2px;">VIA: ${this.getNameForId(this.sources, slot.via)}</div>` : ""}
+                <div class="card-via-label card-label-tiny"></div>
             </div>
         `;
+    }
+    syncSlotsFromState(matrix) {
+      matrix.forEach((slot, i) => {
+        const el = document.getElementById(`matrix-slot-${i}`);
+        if (!el)
+          return;
+        const isSelected = this.selectedSlot === i;
+        el.classList.toggle("active", slot.active);
+        el.classList.toggle("selected", isSelected);
+        const sourceLabel = el.querySelector(".card-source-label");
+        const targetLabel = el.querySelector(".card-target-label");
+        if (sourceLabel)
+          sourceLabel.textContent = this.getNameForId(this.sources, slot.source) || "EMPTY";
+        if (targetLabel)
+          targetLabel.textContent = this.getNameForId(this.targets, slot.target) || "---";
+        const fill = el.querySelector(".bipolar-slider-fill");
+        const valueDisp = el.querySelector(".bipolar-value");
+        if (fill && valueDisp) {
+          const amount = slot.amount || 0;
+          const color = this.getAmountColor(amount);
+          fill.style.width = `${Math.min(amount, 2) * 50}%`;
+          fill.style.backgroundColor = color;
+          valueDisp.textContent = `${amount.toFixed(2)}x`;
+          valueDisp.style.color = color;
+        }
+        const viaLabel = el.querySelector(".card-via-label");
+        if (viaLabel) {
+          viaLabel.textContent = slot.via ? `VIA: ${this.getNameForId(this.sources, slot.via)}` : "";
+        }
+      });
     }
     getAmountColor(val) {
       if (val <= 0.01)
         return "#ffffff";
       if (val <= 1) {
-        const factor = val;
-        const r = Math.round(255 - factor * 255);
-        const g = Math.round(255 - factor * 13);
-        const b = 255;
-        return `rgb(${r},${g},${b})`;
+        const f = val;
+        return `rgb(${Math.round(255 - f * 255)},${Math.round(255 - f * 13)},255)`;
       } else {
-        const factor = Math.min(val - 1, 1);
-        const r = Math.round(0 + factor * 255);
-        const g = Math.round(242 - factor * 85);
-        const b = Math.round(255 - factor * 255);
-        return `rgb(${r},${g},${b})`;
+        const f = Math.min(val - 1, 1);
+        return `rgb(${Math.round(f * 255)},${Math.round(242 - f * 85)},${Math.round(255 - f * 255)})`;
       }
     }
     addModulation() {
       const matrix = this.state?.preset?.patchbayMatrix || [];
-      let targetSlot = matrix.findIndex((s, idx) => idx < this.maxSlots && !s.active && (s.source === "" || s.source === void 0));
-      if (targetSlot === -1 && matrix.length < this.maxSlots) {
+      let targetSlot = matrix.findIndex((s, idx) => idx < this.maxSlots && !s.active && !s.source);
+      if (targetSlot === -1 && matrix.length < this.maxSlots)
         targetSlot = matrix.length;
-      }
       if (targetSlot !== -1 && targetSlot < this.maxSlots) {
         this.selectedSlot = targetSlot;
+        this.structureBuilt = false;
         this.renderWorkspace();
         setTimeout(() => {
-          const sourceSelect = document.querySelector('select[data-key="source"]');
-          if (sourceSelect)
-            sourceSelect.focus();
+          const sel = document.querySelector('select[data-key="source"]');
+          if (sel)
+            sel.focus();
         }, 100);
-      } else {
-        alert(`Patchbay Matrix is FULL (${matrix.length}/${this.maxSlots}). Please remove a slot first.`);
       }
     }
     renderInspector() {
       const container = document.getElementById("matrix-inspector-container");
       if (!container)
         return;
-      const matrixData = this.state?.preset?.patchbayMatrix || [];
-      const matrix = Array.isArray(matrixData) ? matrixData : typeof matrixData === "object" ? Object.values(matrixData) : [];
-      const slotIndex = isNaN(this.selectedSlot) ? 0 : this.selectedSlot;
-      const slot = matrix[slotIndex] || { active: false, source: "", target: "", amount: 0, via: "", viaAmount: 0 };
-      let sourceInstance = "";
-      let targetInstance = "";
-      if (slot.source)
-        sourceInstance = slot.source.split(".")[0];
-      if (slot.target)
-        targetInstance = slot.target.split(".")[0];
+      const matrix = this.state?.preset?.patchbayMatrix || [];
+      const slotIdx = this.selectedSlot;
+      const slot = matrix[slotIdx] || { active: false, source: "", target: "", amount: 0, via: "", viaAmount: 0 };
+      const targetInstance = slot.target?.split(".")[0] || "";
+      const sourceInstance = slot.source?.split(".")[0] || "";
       container.innerHTML = `
-            <div class="inspector-title">SLOT ${(slotIndex + 1).toString().padStart(2, "0")} DETAILS</div>
+            <div class="inspector-title">SLOT ${(slotIdx + 1).toString().padStart(2, "0")} DETAILS</div>
             
-            ${this.sources.length === 0 ? `
-                <div class="metadata-warning">
-                    \u26A0\uFE0F NO ROUTING NODES FOUND<br>
-                    <span style="font-size:9px; opacity:0.6; text-transform:none;">Add oscillators, filters or envelopes to populate sources and targets.</span>
-                </div>
-            ` : ""}
             <div class="control-group">
                 <label>SOURCE</label>
                 <select class="inspector-select" data-key="source">
@@ -3124,43 +2687,18 @@
                 <button class="juno-btn" id="btn-init-matrix" style="flex:1">INIT ALL</button>
             </div>
         `;
-      if (!document.getElementById("matrix-inspector-style")) {
-        const style = document.createElement("style");
-        style.id = "matrix-inspector-style";
-        style.innerHTML = `
-                .inspector-select {
-                    width: 100%;
-                    background: #111;
-                    color: var(--neon-cyan);
-                    border: 1px solid #333;
-                    padding: 8px;
-                    font-size: 11px;
-                    border-radius: 4px;
-                }
-                .inspector-range {
-                    width: 100%;
-                    accent-color: var(--neon-cyan);
-                }
-            `;
-        document.head.appendChild(style);
-      }
-      this.attachInspectorListeners();
-    }
-    getBipolarStyle(val) {
-      const width = Math.abs(val) * 50;
-      const left = val >= 0 ? 50 : 50 - width;
-      return `left: ${left}%; width: ${width}%;`;
+      this.attachInspectorListeners(container);
     }
     getNameForId(list, id) {
       const item = list.find((s) => s.id === id);
       return item ? item.name : "";
     }
-    generateOptions(list, current, excludeInstance) {
+    generateOptions(list, current, exclude) {
       let html = '<option value="">- NONE -</option>';
       const groups = {};
       for (const opt of list) {
         const groupName = opt.instance || "Global";
-        if (excludeInstance && groupName === excludeInstance)
+        if (exclude && groupName === exclude)
           continue;
         if (!groups[groupName])
           groups[groupName] = [];
@@ -3168,143 +2706,66 @@
       }
       for (const [group, items] of Object.entries(groups)) {
         html += `<optgroup label="${group.toUpperCase()}">`;
-        for (const item of items) {
-          const displayName = item.name.replace(group, "").trim() || item.name;
-          html += `<option value="${item.id}" ${item.id === current ? "selected" : ""}>${displayName}</option>`;
-        }
+        items.forEach((item) => {
+          const disp = item.name.replace(group, "").trim() || item.name;
+          html += `<option value="${item.id}" ${item.id === current ? "selected" : ""}>${disp}</option>`;
+        });
         html += `</optgroup>`;
       }
       return html;
     }
-    setupSelectionListeners() {
-      document.addEventListener("click", (e) => {
-        const card = e.target.closest(".matrix-card");
-        if (card) {
-          this.selectedSlot = parseInt(card.dataset.index);
+    attachGridListeners(grid) {
+      grid.querySelectorAll(".matrix-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          this.selectedSlot = parseInt(card.dataset.index || "0");
           this.renderWorkspace();
-        }
-      });
-    }
-    attachWorkspaceListeners() {
-      const cards = document.querySelectorAll(".matrix-card");
-      cards.forEach((card) => {
-        const sliderArea = card.querySelector(".bipolar-slider-bg");
-        if (sliderArea) {
+        });
+        const slider = card.querySelector(".bipolar-slider-bg");
+        if (slider) {
           let isDragging = false;
-          sliderArea.addEventListener("mousedown", (e) => {
+          const update = (e) => {
+            const rect = slider.getBoundingClientRect();
+            const val = Math.max(0, Math.min(2, (e.clientX - rect.left) / rect.width * 2));
+            this.sendUpdate(parseInt(card.dataset.index || "0"), "amount", val);
+          };
+          slider.addEventListener("pointerdown", (e) => {
             isDragging = true;
-            this.updateFromMouse(e, sliderArea, card);
+            e.target.setPointerCapture(e.pointerId);
+            update(e);
           });
-          window.addEventListener("mousemove", (e) => {
+          slider.addEventListener("pointermove", (e) => {
             if (isDragging)
-              this.updateFromMouse(e, sliderArea, card);
+              update(e);
           });
-          window.addEventListener("mouseup", () => isDragging = false);
+          slider.addEventListener("pointerup", () => isDragging = false);
         }
       });
     }
-    updateFromMouse(e, area, card) {
-      const rect = area.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const percent = Math.max(0, Math.min(1, x / rect.width));
-      const val = percent * 2;
-      const slotIdx = parseInt(card.dataset.index || "0");
-      this.triggerActivity("manual");
-      this.sendUpdate(slotIdx, "amount", val);
-    }
-    attachInspectorListeners() {
-      const container = document.getElementById("matrix-inspector-container");
-      if (!container)
-        return;
-      container.querySelectorAll("select, input").forEach((ctrl) => {
-        const eventType = ctrl.tagName === "SELECT" ? "change" : "input";
-        ctrl.addEventListener(eventType, (e) => {
-          const key = e.target.dataset.key;
-          const value = e.target.type === "range" ? parseFloat(e.target.value) : e.target.value;
-          this.triggerActivity("manual");
-          this.sendUpdate(this.selectedSlot, key, value);
+    attachInspectorListeners(container) {
+      container.querySelectorAll(".inspector-select, .inspector-range").forEach((ctrl) => {
+        ctrl.addEventListener(ctrl.tagName === "SELECT" ? "change" : "input", (e) => {
+          const val = e.target.type === "range" ? parseFloat(e.target.value) : e.target.value;
+          this.sendUpdate(this.selectedSlot, e.target.dataset.key, val);
         });
       });
-      const clearBtn = document.getElementById("btn-clear-slot");
-      if (clearBtn) {
-        clearBtn.addEventListener("click", () => {
-          this.sendUpdate(this.selectedSlot, "source", "");
-          this.sendUpdate(this.selectedSlot, "target", "");
-          this.sendUpdate(this.selectedSlot, "amount", 0);
-          this.triggerActivity("manual");
-        });
-      }
+      document.getElementById("btn-clear-slot")?.addEventListener("click", () => {
+        this.sendUpdate(this.selectedSlot, "source", "");
+        this.sendUpdate(this.selectedSlot, "target", "");
+        this.sendUpdate(this.selectedSlot, "amount", 0);
+      });
     }
     sendUpdate(slot, key, value) {
-      const rpc2 = window.omegaRPC;
-      if (rpc2) {
-        rpc2.call("updatePatchbayMatrixSlot", { slot, key, value });
+      this.triggerActivity("manual");
+      const dispatcher = window.rpcCommandDispatcher;
+      if (dispatcher) {
+        dispatcher.dispatch({
+          type: "patchbayMatrixAction",
+          value: { slot, key, value }
+        });
       }
     }
   };
   window.ModulePatchbayMatrix = ModulePatchbayMatrix;
-
-  // logic/era5/Era5ManifestParser.js
-  var Era5ManifestParser = class {
-    /**
-     * Parses the raw YAML-derived JSON manifest into a Tab-based hierarchy.
-     */
-    static parse(manifest) {
-      const tabsMap = /* @__PURE__ */ new Map();
-      const entities = manifest.registry || [];
-      entities.forEach((entity) => {
-        const pres = entity.presentation || {};
-        let tabName = (pres.tab || "").toUpperCase();
-        if (!tabName && (entity.direction === "output" || entity.direction === "input")) {
-          tabName = "PATCHING";
-        }
-        if (!tabName)
-          tabName = "GENERAL";
-        const groupName = (pres.group || "UNGROUPED").toUpperCase();
-        if (!tabsMap.has(tabName)) {
-          tabsMap.set(tabName, /* @__PURE__ */ new Map());
-        }
-        const tabGroups = tabsMap.get(tabName);
-        if (!tabGroups.has(groupName)) {
-          tabGroups.set(groupName, []);
-        }
-        tabGroups.get(groupName).push(this.normalizeEntity(entity));
-      });
-      return Array.from(tabsMap.entries()).map(([tabId, groupsMap]) => {
-        groupsMap.forEach((list) => {
-          list.sort((a, b) => a.presentation.order - b.presentation.order);
-        });
-        return {
-          id: tabId,
-          groups: groupsMap
-        };
-      }).sort((a, b) => {
-        if (a.id === "GENERAL")
-          return -1;
-        if (b.id === "GENERAL")
-          return 1;
-        return a.id.localeCompare(b.id);
-      });
-    }
-    static normalizeEntity(raw) {
-      return {
-        id: raw.id,
-        label: raw.label || raw.id.toUpperCase(),
-        roles: raw.roles || ["control"],
-        direction: raw.direction || "input",
-        precision: raw.precision ?? 2,
-        range: raw.range,
-        options: raw.options,
-        presentation: {
-          tab: (raw.presentation?.tab || "GENERAL").toUpperCase(),
-          group: (raw.presentation?.group || "UNGROUPED").toUpperCase(),
-          order: raw.presentation?.order || 99,
-          control: raw.presentation?.control || "knob"
-        },
-        attachments: raw.attachments || []
-      };
-    }
-  };
 
   // components/ModulePatchModal.js
   var ModulePatchModal = class {
@@ -3313,12 +2774,11 @@
       __publicField(this, "tabsContainer", null);
       __publicField(this, "viewport", null);
       __publicField(this, "currentInstanceId", "");
-      __publicField(this, "activeTab", "GENERAL");
-      __publicField(this, "currentTabs", []);
-      __publicField(this, "currentManifest", null);
+      __publicField(this, "activeTab", "");
+      __publicField(this, "currentSchema", null);
       __publicField(this, "patchbayMatrix", []);
       __publicField(this, "maxSlots", 32);
-      console.log("[ModulePatchModal] Initializing Unified Era 5.2 UI...");
+      console.log("[ModulePatchModal] Initializing Unified Era 6 UI...");
       this.init();
     }
     init() {
@@ -3330,242 +2790,234 @@
           this.close();
       });
       this.tabsContainer?.addEventListener("click", (e) => {
-        const btn = e.target.closest(".era5-tab-btn");
+        const btn = e.target.closest(".aseptic-tab-btn");
         if (btn) {
           const tabId = btn.getAttribute("data-tab");
           if (tabId)
             this.switchTab(tabId);
         }
       });
+      if (window.runtimeStateStore) {
+        window.runtimeStateStore.subscribe(() => {
+          this.updateRealtimeUI();
+        });
+      }
     }
-    async open(instanceId, manifest) {
+    async open(instanceId, schema) {
       if (!this.el)
         return;
       this.currentInstanceId = instanceId;
-      this.currentManifest = manifest;
+      this.currentSchema = schema;
       this.el.style.display = "flex";
-      this.currentTabs = Era5ManifestParser.parse(manifest);
-      this.renderTabs(this.currentTabs);
-      const defaultTab = this.currentTabs.find((t) => t.id === "GENERAL") ? "GENERAL" : this.currentTabs[0]?.id || "GENERAL";
-      this.switchTab(defaultTab);
+      if (!schema || !schema.items) {
+        this.renderError("INVALID_CONTRACT");
+        return;
+      }
+      this.renderTabs(schema);
+      const tabs = this.getTabsFromSchema(schema);
+      const defaultTab = tabs[0] || "";
+      if (defaultTab)
+        this.switchTab(defaultTab);
     }
     close() {
       if (this.el)
         this.el.style.display = "none";
     }
-    renderTabs(tabs) {
+    renderTabs(schema) {
       if (!this.tabsContainer)
         return;
       this.tabsContainer.innerHTML = "";
-      tabs.filter((t) => t.id !== "PATCHING").forEach((tab) => {
+      const tabs = this.getTabsFromSchema(schema);
+      tabs.forEach((tabTitle) => {
         const btn = document.createElement("button");
-        btn.className = "era5-tab-btn";
-        btn.innerText = tab.id.toUpperCase();
-        btn.setAttribute("data-tab", tab.id);
+        btn.className = "aseptic-tab-btn";
+        btn.innerText = tabTitle.toUpperCase();
+        btn.setAttribute("data-tab", tabTitle);
         this.tabsContainer.appendChild(btn);
       });
-      const patchBtn = document.createElement("button");
-      patchBtn.className = "era5-tab-btn sanctuary";
-      patchBtn.innerText = "PATCHING";
-      patchBtn.setAttribute("data-tab", "PATCHING");
-      this.tabsContainer.appendChild(patchBtn);
+    }
+    getTabsFromSchema(schema) {
+      if (!schema || !schema.items)
+        return [];
+      const tabs = /* @__PURE__ */ new Set();
+      schema.items.forEach((item) => {
+        if (item.tab)
+          tabs.add(item.tab);
+      });
+      return Array.from(tabs);
     }
     switchTab(tabId) {
       this.activeTab = tabId;
-      this.tabsContainer?.querySelectorAll(".era5-tab-btn").forEach((btn) => {
+      this.tabsContainer?.querySelectorAll(".aseptic-tab-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
       });
-      if (tabId === "PATCHING") {
-        this.renderPatchingSanctuary();
-      } else {
-        const tabData = this.currentTabs.find((t) => t.id === tabId);
-        if (tabData)
-          this.renderGroups(tabData);
-      }
+      this.renderTabContent(tabId);
     }
-    renderGroups(tab) {
-      if (!this.viewport)
+    renderTabContent(tabId) {
+      if (!this.viewport || !this.currentSchema)
         return;
       this.viewport.innerHTML = "";
+      const items = this.currentSchema.items.filter((i) => i.tab === tabId);
       const form = document.createElement("div");
       form.id = "patch-params-form";
-      form.className = "era5-params-container";
+      form.className = "aseptic-params-container";
       this.viewport.appendChild(form);
-      tab.groups.forEach((entities, groupName) => {
+      const groups = /* @__PURE__ */ new Map();
+      items.forEach((item) => {
+        const g = item.group || "PARAMETERS";
+        if (!groups.has(g))
+          groups.set(g, []);
+        groups.get(g).push(item);
+      });
+      groups.forEach((groupItems, groupName) => {
         const groupHeader = document.createElement("div");
-        groupHeader.className = "era5-group-title";
+        groupHeader.className = "aseptic-group-title";
         groupHeader.innerText = groupName.toUpperCase();
         form.appendChild(groupHeader);
-        for (let i = 0; i < entities.length; i++) {
-          const entity = entities[i];
-          if (!entity)
-            continue;
-          const nextEntity = entities[i + 1];
-          if (nextEntity && this.isPair(entity, nextEntity)) {
-            this.renderParameterRow(form, [entity, nextEntity]);
-            i++;
-          } else {
-            this.renderParameterRow(form, [entity]);
-          }
-        }
+        groupItems.forEach((item) => {
+          this.renderParameterRow(form, [item]);
+        });
       });
-      if (tab.groups.size === 0) {
-        form.innerHTML = `<div class="patch-empty-msg">NO CONFIGURATION PARAMETERS AVAILABLE</div>`;
-      }
+      this.setupListeners();
     }
-    isPair(a, b) {
-      const nameA = a.id.toLowerCase();
-      const nameB = b.id.toLowerCase();
-      const suffixes = [["min", "max"], ["low", "high"], ["lo", "hi"], ["start", "end"]];
-      return suffixes.some(([s1, s2]) => {
-        if (nameA.endsWith(s1) && nameB.endsWith(s2)) {
-          return nameA.substring(0, nameA.length - s1.length) === nameB.substring(0, nameB.length - s2.length);
-        }
-        return false;
+    setupListeners() {
+      if (!this.viewport)
+        return;
+      this.viewport.querySelectorAll("select.selector-control").forEach((select) => {
+        select.addEventListener("change", (e) => {
+          const id = select.getAttribute("data-param");
+          const val = parseFloat(e.target.value);
+          const paramId = `${this.currentInstanceId}.${id}`;
+          window.rpcCommandDispatcher.dispatch({ type: "setParameter", target: paramId, value: val });
+        });
+      });
+      this.viewport.querySelectorAll(".knob-ring").forEach((ring) => {
+        const id = ring.getAttribute("data-param");
+        const move = (e) => {
+          const rect = ring.getBoundingClientRect();
+          let val = 1 - (e.clientY - rect.top) / rect.height;
+          val = Math.max(0, Math.min(1, val));
+          const paramId = `${this.currentInstanceId}.${id}`;
+          window.rpcCommandDispatcher.dispatch({ type: "setParameter", target: paramId, value: val });
+          const knob = ring.querySelector(".knob");
+          if (knob)
+            knob.style.transform = `translateX(-50%) rotate(${val * 270 - 135}deg)`;
+        };
+        ring.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          ring.setPointerCapture(e.pointerId);
+          move(e);
+          const onMove = (ev) => move(ev);
+          const onUp = () => {
+            ring.removeEventListener("pointermove", onMove);
+            ring.removeEventListener("pointerup", onUp);
+          };
+          ring.addEventListener("pointermove", onMove);
+          ring.addEventListener("pointerup", onUp);
+        });
       });
     }
-    renderParameterRow(container, entities) {
+    renderParameterRow(container, items) {
       const row = document.createElement("div");
-      row.className = "patch-param-row" + (entities.length > 1 ? " pair" : "");
-      let labelStr = entities[0]?.label || "UNKNOWN";
-      if (entities.length > 1) {
-        labelStr = labelStr.replace(/(_min|min|_low|low|_lo|lo|_start|start)$/i, " RANGE");
-      }
-      const label = document.createElement("div");
-      label.className = "patch-param-label";
-      label.innerText = labelStr.toUpperCase();
-      row.appendChild(label);
-      const controlsWrapper = document.createElement("div");
-      controlsWrapper.className = "patch-param-controls-wrapper";
-      entities.forEach((entity) => {
-        const ctrl = document.createElement("div");
-        ctrl.className = "patch-param-control";
-        if (entity.presentation.control === "list" && entity.options) {
-          const select = document.createElement("select");
-          entity.options.forEach((opt) => {
-            const o = document.createElement("option");
-            o.value = opt.value.toString();
-            o.innerText = opt.label;
-            select.appendChild(o);
-          });
-          ctrl.appendChild(select);
-        } else {
-          const input = document.createElement("input");
-          input.type = "number";
-          input.value = entity.range?.default?.toString() || "0";
-          ctrl.appendChild(input);
-        }
-        controlsWrapper.appendChild(ctrl);
+      row.className = "aseptic-params-row";
+      items.forEach((item) => {
+        const cell = this.buildControlCell(item);
+        row.appendChild(cell);
       });
-      row.appendChild(controlsWrapper);
       container.appendChild(row);
     }
     /**
-     * ERA 5.2 STANDARD: Control Cell Generator
+     * ERA 6 STANDARD: Unified Control Cell Generator
      */
-    buildControlCell(entity) {
+    buildControlCell(item) {
       const cell = document.createElement("div");
+      const id = item.paramId || item.id;
       cell.className = "control-cell";
-      cell.id = `cell-${this.currentInstanceId}-${entity.id}`;
-      entity.attachments?.forEach((att) => {
-        const attEl = document.createElement("div");
-        attEl.className = `control-cell-attachment attachment-${att.type}`;
-        attEl.innerText = "\u25CF";
-        cell.appendChild(attEl);
-      });
-      const comp = document.createElement("div");
-      comp.className = `entity-control control-${entity.presentation.control}`;
-      comp.innerHTML = `<div class="knob-placeholder"></div>`;
-      cell.appendChild(comp);
-      const label = document.createElement("div");
-      label.className = "control-cell-label";
-      label.innerText = entity.label;
-      cell.appendChild(label);
-      const disp = document.createElement("div");
-      disp.className = "control-cell-display";
-      disp.innerText = entity.range?.default?.toString() || "0";
-      cell.appendChild(disp);
-      return cell;
-    }
-    renderPatchingSanctuary() {
-      const viewport = this.viewport;
-      if (!viewport)
-        return;
-      viewport.innerHTML = `
-            <div class="era5-group-container aseptic-panel">
-                <div class="era5-group-title">PATCHING SANCTUARY</div>
-                <div class="patch-bay-layout" style="display: flex; gap: 40px;">
-                    <div class="patch-column" style="flex: 1;">
-                        <h3 class="patch-section-title" style="font-size: 10px; color: var(--neon-cyan); letter-spacing: 2px;">INPUTS / TARGETS</h3>
-                        <div id="era5-patch-inputs" class="patch-list"></div>
-                    </div>
-                    <div class="patch-column" style="flex: 1;">
-                        <h3 class="patch-section-title" style="font-size: 10px; color: var(--signal-audio); letter-spacing: 2px;">OUTPUTS / SOURCES</h3>
-                        <div id="era5-patch-outputs" class="patch-list"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-      const inputsEl = document.getElementById("era5-patch-inputs");
-      const outputsEl = document.getElementById("era5-patch-outputs");
-      const patchingTabData = this.currentTabs.find((t) => t.id === "PATCHING");
-      if (!patchingTabData) {
-        if (inputsEl)
-          inputsEl.innerHTML = '<div class="patch-empty">NO INPUTS DEFINED</div>';
-        if (outputsEl)
-          outputsEl.innerHTML = '<div class="patch-empty">NO OUTPUTS DEFINED</div>';
-        return;
+      cell.id = `cell-${this.currentInstanceId}-${id}`;
+      cell.setAttribute("data-bind", id);
+      const top = document.createElement("div");
+      top.className = "cell-attachment-top";
+      if (item.roles?.includes("stream")) {
+        const led = document.createElement("div");
+        led.className = "led led-orange";
+        led.setAttribute("data-source", id);
+        top.appendChild(led);
       }
-      const allPatchEntities = [];
-      patchingTabData.groups.forEach((entities) => allPatchEntities.push(...entities));
-      allPatchEntities.forEach((entity) => {
-        const portGroup = document.createElement("div");
-        portGroup.className = "patch-port-group";
-        portGroup.style.marginBottom = "8px";
-        const typeClass = `type-${entity.presentation.control.toLowerCase() || "cv"}`;
-        const isOutput = entity.direction === "output";
-        portGroup.innerHTML = `
-                <div class="patch-port-header">
-                    <div class="patch-port-id">${entity.label.toUpperCase()}</div>
-                    <div class="patch-type-badge ${typeClass}">${entity.presentation.control.toUpperCase()}</div>
-                    <button class="patch-add-btn" title="Add Slot">\uFF0B</button>
+      cell.appendChild(top);
+      const main = document.createElement("div");
+      main.className = "cell-main";
+      if (item.look === "list" && item.options) {
+        const select = document.createElement("select");
+        select.className = "selector-control";
+        select.setAttribute("data-param", id);
+        item.options.forEach((opt) => {
+          const o = document.createElement("option");
+          o.value = opt.value.toString();
+          o.innerText = opt.label;
+          select.appendChild(o);
+        });
+        main.appendChild(select);
+      } else {
+        main.innerHTML = `
+                <div class="knob-ring" data-param="${id}">
+                    <div class="knob"><div class="knob-marker white"></div></div>
                 </div>
             `;
-        const fullId = `${this.currentInstanceId}.${entity.id}`;
-        const activeSlots = this.patchbayMatrix.filter((s) => s.active && (isOutput ? s.source === fullId : s.target === fullId));
-        if (activeSlots.length === 0) {
-          const empty = document.createElement("div");
-          empty.className = "patch-empty-msg";
-          empty.innerText = "NO CONNECTIONS";
-          portGroup.appendChild(empty);
-        } else {
-          activeSlots.forEach((slot) => {
-            const slotRow = document.createElement("div");
-            slotRow.className = "patch-slot-row";
-            const remote = isOutput ? slot.target : slot.source;
-            slotRow.innerHTML = `
-                        <div class="patch-selector-container">
-                            <span class="patch-label" style="font-size:10px; color:var(--neon-cyan)">${remote || "AUTO"}</span>
-                        </div>
-                        <div class="patch-amount-container">
-                            <span class="patch-amount-value" style="font-family:monospace">${Math.round(slot.amount * 100)}%</span>
-                        </div>
-                    `;
-            portGroup.appendChild(slotRow);
-          });
+      }
+      cell.appendChild(main);
+      const info = document.createElement("div");
+      info.className = "cell-info";
+      const label = document.createElement("label");
+      label.className = "cell-label";
+      label.innerText = (item.label || id).toUpperCase();
+      info.appendChild(label);
+      const display = document.createElement("div");
+      display.className = "cell-display";
+      display.setAttribute("data-precision", (item.ui_precision ?? 2).toString());
+      const currentVal = window.runtimeStateStore?.getValue(`${this.currentInstanceId}.${id}`, item.default || 0);
+      display.innerText = currentVal.toString();
+      info.appendChild(display);
+      cell.appendChild(info);
+      return cell;
+    }
+    /**
+     * ERA 6: Real-time UI refresh from Aseptic Store
+     */
+    updateRealtimeUI() {
+      if (!this.el || this.el.style.display !== "flex" || !this.viewport)
+        return;
+      this.viewport.querySelectorAll(".control-cell").forEach((cell) => {
+        const id = cell.getAttribute("data-bind");
+        if (!id)
+          return;
+        const val = window.runtimeStateStore.getValue(`${this.currentInstanceId}.${id}`);
+        const knob = cell.querySelector(".knob");
+        if (knob)
+          knob.style.transform = `translateX(-50%) rotate(${val * 270 - 135}deg)`;
+        const display = cell.querySelector(".cell-display");
+        if (display) {
+          const precision = parseInt(display.getAttribute("data-precision") || "2");
+          display.innerText = val.toFixed(precision);
         }
-        if (isOutput)
-          outputsEl?.appendChild(portGroup);
-        else
-          inputsEl?.appendChild(portGroup);
+        const select = cell.querySelector("select");
+        if (select)
+          select.value = val.toString();
+        const led = cell.querySelector(".led");
+        if (led) {
+          const tVal = window.runtimeStateStore.getTelemetry(`${this.currentInstanceId}.${id}`);
+          led.classList.toggle("active", tVal > 0.05);
+        }
       });
     }
-    onStateUpdate(state) {
-      const matrix = state?.preset?.patchbayMatrix || [];
-      this.patchbayMatrix = Array.isArray(matrix) ? matrix : Object.values(matrix);
-      if (this.el?.style.display === "flex") {
-        this.switchTab(this.activeTab);
-      }
+    renderError(reason) {
+      if (!this.viewport)
+        return;
+      this.viewport.innerHTML = `
+            <div class="contract-error-full">
+                <div class="error-msg">CONTRACT VIOLATION</div>
+                <div class="error-detail">${reason}</div>
+            </div>
+        `;
     }
   };
 
@@ -3749,16 +3201,11 @@
       this.render();
     }
     async fetchCatalog() {
-      if (window.omegaRPC) {
-        try {
-          const resp = await window.omegaRPC.send("listCatalog", {});
-          if (resp && resp.components) {
-            this.catalog = resp.components;
-            window.omegaCatalog = Object.fromEntries(resp.components.map((c) => [c.id, c]));
-          }
-        } catch (e) {
-          console.error("[ModuleBrowser] Failed to fetch catalog:", e);
-        }
+      const invStore = window.inventoryStore;
+      if (invStore) {
+        await invStore.ensureLoaded();
+        this.catalog = invStore.getAllItems();
+        window.omegaCatalog = Object.fromEntries(this.catalog.map((c) => [c.id, c]));
       }
     }
     render() {
@@ -3855,82 +3302,160 @@
       }, 500);
     }
     async addModule(componentId) {
-      if (window.omegaRPC) {
+      if (window.rpcCommandDispatcher) {
         try {
-          const resp = await window.omegaRPC.send("addModule", { componentId });
+          const resp = await window.rpcCommandDispatcher.dispatch({
+            type: "systemAction",
+            target: "addModule",
+            value: { componentId }
+          });
           if (resp && !resp.error) {
             this.el.style.display = "none";
-            console.log("[ModuleBrowser] Module added successfully:", componentId);
+            console.log("[ModuleBrowser] Aseptic Instantiation Success:", componentId);
           } else {
-            alert("Failed to add module: " + (resp.error || "Unknown error"));
+            alert("Failed to add module: " + (resp?.error || "Unknown error"));
           }
         } catch (e) {
-          console.error("[ModuleBrowser] RPC Error adding module:", e);
+          console.error("[ModuleBrowser] Dispatch Error:", e);
         }
       }
     }
   };
   window.ModuleBrowser = ModuleBrowser;
 
-  // index.ts
-  var store = new MetadataStore();
-  var manager = new ModuleManager();
-  window.omegaRPC = rpc;
-  window.metadataStore = store;
-  window.moduleManager = manager;
-  window.Preferences = Preferences;
-  window.ServiceMode = ServiceMode;
-  window.ModuleRenderer = ModuleRenderer;
-  window.ModuleOscilloscope = ModuleOscilloscope;
-  window.ModuleMidiTrigger = ModuleMidiTrigger;
-  window.ModuleMidiViewer = ModuleMidiViewer;
-  window.ModulePatchbayMatrix = ModulePatchbayMatrix;
-  window.ModuleMidiToCv = ModuleMidiToCv;
-  window.ModuleBrowser = ModuleBrowser;
-  document.addEventListener("DOMContentLoaded", async () => {
-    console.log("[OMEGA] Booting Synth UI...");
-    setupJuceShim();
-    try {
-      console.log("[OMEGA] Loading Metadata...");
-      await Promise.race([
-        store.ensureLoaded(),
-        new Promise((resolve) => setTimeout(resolve, 3e3))
-      ]);
-      await store.getModulationMetadata();
-    } catch (e) {
-      console.error("[OMEGA] Metadata load failed, continuing:", e);
+  // RpcCommandDispatcher.js
+  var RpcCommandDispatcher = class {
+    constructor() {
+      __publicField(this, "rpc");
+      this.rpc = window.omegaRPC;
+      OmegaLog.info("DISPATCH", "RpcCommandDispatcher Initialized");
     }
-    console.log("[OMEGA] Initializing Components...");
+    async dispatch(cmd) {
+      OmegaLog.debug("DISPATCH", `${cmd.type}`, cmd.payload || "");
+      if (!this.rpc) {
+        OmegaLog.error("DISPATCH", "RPC Bridge missing! Command aborted.");
+        return;
+      }
+      try {
+        switch (cmd.type) {
+          case "setParameter":
+            if (!cmd.payload || !("target" in cmd.payload))
+              throw new Error("setParameter missing target");
+            return await this.rpc.send("setParameter", cmd.payload);
+          case "loadPreset":
+          case "loadLibraryPreset":
+            return await this.rpc.send("loadPreset", cmd.payload);
+          case "updatePatchbayMatrixSlot":
+          case "patchbayMatrixAction":
+            return await this.rpc.send("updatePatchbayMatrixSlot", cmd.payload || cmd.value);
+          case "getMetadata":
+            return await this.rpc.send("getMetadata", cmd.payload || {});
+          case "uiReady":
+            return await this.rpc.send("uiReady", cmd.payload || {});
+          case "subscribeTelemetry":
+            return await this.rpc.send("subscribeTelemetry", cmd.payload);
+          case "serviceAction":
+            return await this.rpc.send("serviceAction", cmd.payload);
+          case "setSystemSetting":
+            return await this.rpc.send("setSystemSetting", cmd.payload);
+          case "exit":
+            return await this.rpc.send("exit", {});
+          case "newPreset":
+            return await this.rpc.send("newPreset", cmd.payload);
+          default:
+            const target = cmd.target || cmd.payload && cmd.payload.target;
+            if (target) {
+              return await this.rpc.send(target, cmd.payload || {});
+            }
+            OmegaLog.warn("DISPATCH", `Unknown command type: ${cmd.type}`);
+        }
+      } catch (e) {
+        OmegaLog.error("DISPATCH", `Failed to execute ${cmd.type}`, e);
+      }
+    }
+  };
+  window.rpcCommandDispatcher = new RpcCommandDispatcher();
+
+  // index.ts
+  var runtimeStore = new RuntimeStore();
+  var schemaStore = new SchemaStore2();
+  var graphStore = new GraphStore();
+  var sessionStore = new SessionStore();
+  var inventoryStore = new InventoryStore();
+  var rpcCommandDispatcher = new RpcCommandDispatcher();
+  var manager = new ModuleManager();
+  var win = window;
+  win.runtimeStore = runtimeStore;
+  win.schemaStore = schemaStore;
+  win.graphStore = graphStore;
+  win.sessionStore = sessionStore;
+  win.inventoryStore = inventoryStore;
+  win.rpcCommandDispatcher = rpcCommandDispatcher;
+  win.moduleManager = manager;
+  win.omegaRPC = rpc;
+  win.Preferences = Preferences;
+  win.ServiceMode = ServiceMode;
+  win.ModuleRenderer = ModuleRenderer;
+  win.ModuleOscilloscope = ModuleOscilloscope;
+  win.ModuleMidiTrigger = ModuleMidiTrigger;
+  win.ModuleMidiViewer = ModuleMidiViewer;
+  win.ModulePatchbayMatrix = ModulePatchbayMatrix;
+  win.ModuleMidiToCv = ModuleMidiToCv;
+  win.ModuleBrowser = ModuleBrowser;
+  document.addEventListener("DOMContentLoaded", async () => {
+    console.log("[OMEGA] Booting Era 6.1 Aseptic UI...");
+    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      await Promise.all([
+        schemaStore.ensureLoaded(),
+        inventoryStore.ensureLoaded()
+      ]);
+    } catch (e) {
+      console.error("[OMEGA] Store initialization failed:", e);
+    }
     try {
       await Preferences.init();
       await PresetBrowser.init();
       const matrixHub = new ModulePatchbayMatrix();
-      window.patchbayHub = matrixHub;
-      const matrixBtn = document.getElementById("btn-global-matrix");
-      if (matrixBtn) matrixBtn.onclick = () => matrixHub.toggleWorkspace(true);
-      const matrixMenuLink = document.getElementById("menu-matrix");
-      if (matrixMenuLink) matrixMenuLink.onclick = () => matrixHub.toggleWorkspace(true);
-      const moduleBrowser = new ModuleBrowser();
-      window.moduleBrowser = moduleBrowser;
-      const addModuleMenuLink = document.getElementById("menu-add-module");
-      if (addModuleMenuLink) addModuleMenuLink.onclick = () => window.moduleBrowser.open();
+      win.patchbayHub = matrixHub;
       const configModal = new ModulePatchModal();
-      window.modulePatchModal = configModal;
-      document.addEventListener("patch-request", async (e) => {
-        const { instanceId } = e.detail;
-        const manifest = store.getInventoryItem(instanceId);
-        console.log(`[Dispatcher] Opening Alpha Config for: ${instanceId}`);
-        await configModal.open(instanceId, manifest);
+      win.modulePatchModal = configModal;
+      const bind = (id, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.onclick = fn;
+      };
+      bind("btn-global-matrix", () => matrixHub.toggleWorkspace(true));
+      bind("menu-matrix", () => matrixHub.toggleWorkspace(true));
+      const showModal = (id) => {
+        const m = document.getElementById(id);
+        if (m) m.style.display = "flex";
+      };
+      bind("menu-about", () => showModal("about-modal"));
+      bind("menu-preferences", async () => {
+        await Preferences.init();
+        showModal("preferences-modal");
       });
-      console.log("[OMEGA] System Ready. Awaiting user interaction.");
+      if (win.moduleBrowser) {
+        bind("menu-add-module", () => win.moduleBrowser.open());
+      }
+      document.addEventListener("patch-request", (e) => {
+        const detail = e.detail;
+        const { instanceId, componentId } = detail;
+        const schema = schemaStore.getSchemaForComponent(componentId);
+        configModal.open(instanceId, schema);
+      });
     } catch (e) {
-      console.error("[OMEGA] Component init failed:", e);
+      console.error("[OMEGA] Boot failure during component init:", e);
     }
-    console.log("[OMEGA] Calling app.init()...");
     app.init();
-    window.addEventListener("omega:stateUpdate", (e) => {
-      if (window.patchbayHub) window.patchbayHub.onStateUpdate(e.detail);
-      if (window.modulePatchModal) window.modulePatchModal.onStateUpdate(e.detail);
-    });
+    const handleAsepticEvent = (e) => {
+      const type = e.type.replace("omega:", "");
+      runtimeStore.reduceEvent({ type, ...e.detail });
+      if (win.patchbayHub?.updateSync) win.patchbayHub.updateSync();
+      if (win.modulePatchModal?.updateSync) win.modulePatchModal.updateSync();
+    };
+    window.addEventListener("omega:onStateUpdate", handleAsepticEvent);
+    window.addEventListener("omega:PARAMCHANGE", handleAsepticEvent);
+    window.addEventListener("omega:telemetryUpdate", handleAsepticEvent);
   });
 })();

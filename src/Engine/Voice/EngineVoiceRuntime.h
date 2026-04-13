@@ -190,34 +190,31 @@ namespace Voice {
                         unitOut = currentInput * gain * state.ampEnvelope; 
                         break;
                     }
-                    /* DEPRECATED NATIVE MIDI (VA 2.1.W Migration)
-                    case 501: // MIDI IN Bridge (WASM Paradigm)
+                    case 501: // MIDI IN Bridge (VA 2.2 Gold Transformation)
                     {
-                        // 1. Forward external MIDI to the modular buffer (POD Mockup)
-                        // In a real WASM host, this would invoke the WASM bridge.
-                        uint8_t status = state.modularMidi[0];
-                        
-                        // 2. Publish activity to telemetry for the UI LED
-                        snapshot.midiActivity = (status > 0) ? 1.0f : 0.0f;
-                        unitOut = 0.0f; 
+                        // 1. Publish activity to telemetry for the UI LED
+                        // We check if any message exists in this block
+                        snapshot.midiActivity = (state.modularMidi.count > 0) ? 1.0f : 0.0f;
+                        unitOut = 0.0f; // Input modules produce no audio
                         break;
                     }
-                    case 601: // MIDI to CV Converter
+                    case 601: // MIDI to CV Converter (Era 5.2 Refit)
                     {
-                        uint8_t status = state.modularMidi[0];
-                        uint8_t data1  = state.modularMidi[1];
-                        uint8_t data2  = state.modularMidi[2];
-                        
-                        if ((status & 0xF0) == 0x90 && data2 > 0) {
-                            state.frequencyHz = 440.0f * pow(2.0f, (data1 - 69) / 12.0f);
-                            state.velocity = data2 / 127.0f;
-                            state.triggerRequested = true;
+                        for (int mIdx = 0; mIdx < state.modularMidi.count; ++mIdx) {
+                            const auto& msg = state.modularMidi.messages[mIdx];
+                            uint8_t status = msg.status;
+                            uint8_t data1  = msg.d1;
+                            uint8_t data2  = msg.d2;
+                            
+                            if ((status & 0xF0) == 0x90 && data2 > 0) {
+                                state.frequencyHz = 440.0f * pow(2.0f, (data1 - 69.0f) / 12.0f);
+                                state.velocity = data2 / 127.0f;
+                                state.triggerRequested = true;
+                            }
                         }
-                        
                         unitOut = 0.0f;
                         break;
                     }
-                    */
                     default:
                     {
                         // Dynamic WASM Unit Support (VA 2.1.W)
