@@ -29,12 +29,61 @@ interface AsepticOutlineProps {
 }
 
 const AsepticOutline: React.FC<AsepticOutlineProps> = ({ 
+  moduleData,
   activeView, 
   onViewChange, 
   assetStatus,
   collapsed,
-  onExpand
+  onSelect,
+  selectedId
 }) => {
+  const [searchTerm, setSearchTerm] = React.useState('');
+
+  const registry = moduleData?.registry || [];
+  
+  // 1. Check if DNA root matches (Semantic Discovery)
+  const dnaMatches = React.useMemo(() => {
+    if (!searchTerm || !moduleData) return false;
+    const term = searchTerm.toLowerCase();
+    return (
+      moduleData.id?.toLowerCase().includes(term) ||
+      moduleData.name?.toLowerCase().includes(term) ||
+      moduleData.tags?.some((t: string) => t.toLowerCase().includes(term))
+    );
+  }, [searchTerm, moduleData]);
+
+  // 2. Filter Registry (Only if searchTerm exists)
+  const filteredRegistry = React.useMemo(() => {
+    if (!searchTerm) return []; // EMPTY BY DEFAULT as per USER VISION
+    const term = searchTerm.toLowerCase();
+    return registry.filter((item: RegistryItem) => {
+      return (
+        item.id.toLowerCase().includes(term) || 
+        item.label.toLowerCase().includes(term) ||
+        item.type.toLowerCase().includes(term) ||
+        (item as any).description?.toLowerCase().includes(term) ||
+        (item as any).modelId?.toLowerCase().includes(term) ||
+        item.roles.some(r => r.toLowerCase().includes(term)) ||
+        item.presentation?.group?.toLowerCase().includes(term) ||
+        (item as any).tags?.some((t: string) => t.toLowerCase().includes(term))
+      );
+    });
+  }, [searchTerm, registry]);
+
+  const getComponentIcon = (comp?: string) => {
+    switch(comp) {
+      case 'knob': return '🔘';
+      case 'slider_v':
+      case 'slider_h': return '🎚️';
+      case 'switch':
+      case 'button': return '⏻';
+      case 'port': return '🔌';
+      case 'led': return '🚨';
+      case 'display': return '📊';
+      default: return '📦';
+    }
+  };
+
   return (
     <div className={`aseptic-outline ${collapsed ? 'mini-mode' : ''}`}>
       {/* 1. VIEW NAVIGATION */}
@@ -77,6 +126,80 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
           {activeView === 'source' && <span className="active-dot" />}
         </div>
       </div>
+
+      {/* 2. ASEPTIC SEARCH & STRUCTURE */}
+      {!collapsed && (
+        <div className="outline-section structure-section">
+          <header className="section-header" style={{ marginBottom: '5px' }}>
+            <span className="section-icon">🔍</span>
+            <span className="section-title">ASEPTIC SEARCH</span>
+          </header>
+          
+          <div className="search-box-container">
+            <div className="aseptic-search-wrapper">
+              <input 
+                type="text" 
+                className="aseptic-search-input"
+                placeholder="Search Registry..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button 
+                  className="clear-search-btn"
+                  onClick={() => setSearchTerm('')}
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+
+          <header className="section-header" style={{ marginTop: '15px' }}>
+            <span className="section-icon">🧬</span>
+            <span className="section-title">DISCOVERY RESULTS</span>
+          </header>
+
+          <div className="structure-list">
+            {dnaMatches && (
+              <div 
+                className={`outline-item structure-item dna-match ${selectedId === '_module_root' ? 'active' : ''}`}
+                onClick={() => {
+                  if (typeof (onSelect as any) === 'function') {
+                    (onSelect as any)('_module_root');
+                  }
+                }}
+              >
+                <span className="item-icon">🏠</span>
+                <span className="item-label" style={{ color: 'var(--neon-cyan)', fontWeight: 800 }}>MODULE DNA</span>
+                <span className="item-id-hint">Identity</span>
+              </div>
+            )}
+
+            {filteredRegistry.map((item: RegistryItem) => (
+              <div 
+                key={item.id}
+                className={`outline-item structure-item ${selectedId === item.id ? 'active' : ''}`}
+                onClick={() => {
+                  if (typeof onSelect === 'function') {
+                    onSelect(item.id);
+                  }
+                }}
+              >
+                <span className="item-icon">{getComponentIcon(item.presentation?.ui?.component)}</span>
+                <span className="item-label">{item.label}</span>
+                <span className="item-id-hint">{item.id}</span>
+                {selectedId === item.id && <span className="active-dot" />}
+              </div>
+            ))}
+            
+            {filteredRegistry.length === 0 && searchTerm && (
+              <div className="empty-search-hint">No matches for "{searchTerm}"</div>
+            )}
+          </div>
+        </div>
+      )}
 
       <style>{`
         .aseptic-outline {
@@ -141,6 +264,82 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
         }
         .status-dot.exists { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
         .status-dot.loading { background: var(--neon-amber); animation: pulse 1s infinite; }
+
+        .search-box-container {
+          padding: 0 15px;
+          margin-bottom: 15px;
+        }
+        .aseptic-search-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .aseptic-search-input {
+          width: 100%;
+          background: rgba(255,255,255,0.03);
+          border: none;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding: 8px 30px 8px 10px;
+          color: #fff;
+          font-size: 11px;
+          outline: none;
+          transition: border-color 0.3s;
+        }
+        .aseptic-search-input:focus {
+          border-color: var(--neon-cyan);
+          background: rgba(0, 242, 255, 0.03);
+        }
+        .clear-search-btn {
+          position: absolute;
+          right: 5px;
+          background: none;
+          border: none;
+          color: #555;
+          font-size: 18px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          transition: color 0.2s;
+        }
+        .clear-search-btn:hover {
+          color: var(--neon-cyan);
+        }
+        .structure-list {
+          overflow-y: auto;
+          max-height: calc(100vh - 400px);
+          margin-top: 10px;
+          padding-bottom: 20px;
+        }
+        .structure-item {
+          padding: 6px 15px;
+          gap: 10px;
+          margin: 1px 8px;
+        }
+        .dna-match {
+          border-left: 2px solid var(--neon-cyan);
+          background: rgba(0, 242, 255, 0.03);
+          margin-bottom: 10px;
+        }
+        .item-id-hint {
+          font-size: 9px;
+          opacity: 0.3;
+          margin-left: auto;
+          font-family: monospace;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 60px;
+        }
+        .empty-search-hint {
+          padding: 15px;
+          font-size: 10px;
+          color: var(--neon-amber);
+          opacity: 0.6;
+          text-align: center;
+        }
 
         .mini-mode .item-label, 
         .mini-mode .section-title,

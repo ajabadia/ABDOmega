@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import RegistryEditor from './components/RegistryEditor';
+import { useState } from 'react';
 import PropertyPanel from './components/PropertyPanel';
 import LivePreview from './components/LivePreview';
 import DebugConsole from './components/DebugConsole';
@@ -23,7 +22,7 @@ function App() {
     validationErrors, validateManifest,
     currentFilePath, handleSave, handleNew, handleOpen,
     wasmStatus, wasmDetails,
-    handleAsepticHealing, applyAsepticSuggestion,
+    handleAsepticHealing,
     updateModuleMetadata, updateRegistryItem,
     isDirty
   } = useAsepticEditor(addLog);
@@ -80,7 +79,7 @@ function App() {
     const newRegistry = [...moduleData.registry];
     
     // Resolve group name
-    const groupName = autoGroup || 'MAIN';
+    const groupName: string = (autoGroup as any) || 'MAIN';
     // Unique Cell ID for this pack instance
     const cellId = `cell_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     
@@ -208,11 +207,18 @@ function App() {
                 </button>
               </div>
               <AsepticOutline 
+                moduleData={moduleData}
                 activeView={activeView}
                 onViewChange={setActiveView}
                 assetStatus={assetStates.loading ? 'loading' : (assetStates.exists ? 'exists' : 'missing')}
                 collapsed={outlineCollapsed}
                 onExpand={() => setOutlineCollapsed(false)}
+                onSelect={(id) => {
+                  setSelectedId(id);
+                  if (activeView !== 'editor') setActiveView('editor');
+                  openPropertyModal(id);
+                }}
+                selectedId={selectedId}
               />
             </aside>
 

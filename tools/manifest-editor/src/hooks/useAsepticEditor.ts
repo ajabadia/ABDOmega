@@ -5,7 +5,6 @@ import AJV from 'ajv';
 import addFormats from 'ajv-formats';
 import era6Schema from '../schema.json';
 import { translateAsepticError, runHeuristicChecks } from '../services/aceLintService';
-import type { AceLintError } from '../services/aceLintService';
 
 const ajv = new AJV({ 
   allErrors: true, 
@@ -437,26 +436,30 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
       }
 
       let finalPath = path;
-      if (!isValid) {
-        if (!finalPath.endsWith('.working')) finalPath += '.working';
-      } else {
-        if (finalPath.endsWith('.working')) {
-          finalPath = finalPath.replace('.working', '');
-          addLog("Manifest is now VALID. Removing .working extension.");
+      if (finalPath) {
+        if (!isValid) {
+          if (!finalPath.endsWith('.working')) finalPath += '.working';
+        } else {
+          if (finalPath.endsWith('.working')) {
+            finalPath = finalPath.replace('.working', '');
+            addLog("Manifest is now VALID. Removing .working extension.");
+          }
         }
       }
 
       const yamlContent = yaml.dump(sanitized, { indent: 2, lineWidth: -1, noRefs: true });
-      // @ts-ignore
-      await window.electronAPI.writeFile(finalPath, yamlContent);
-      addLog(`Saved successfully: ${finalPath}`);
+      if (finalPath) {
+        // @ts-ignore
+        await window.electronAPI.writeFile(finalPath, yamlContent);
+        addLog(`Saved successfully: ${finalPath}`);
+      }
       
       if (isValid) {
         setCurrentFilePath(finalPath);
         setValidationErrors([]);
         
         // HIGIENE ASÉPTICA: Si existía un .working y acabamos de salvar el oficial, ofrecer borrar el old
-        if (finalPath.endsWith('.acemm')) {
+        if (finalPath && finalPath.endsWith('.acemm')) {
           const workingPath = `${finalPath}.working`;
           // @ts-ignore
           const workingExists = await window.electronAPI.fileExists(workingPath);

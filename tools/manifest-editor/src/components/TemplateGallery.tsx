@@ -65,7 +65,6 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onAddItems, onClose, 
     { id: 'user_library', name: 'User Library', icon: '👤' }
   ];
 
-  const activeCategory = categories.find(c => c.id === selectedCategory);
   
   // Decide which templates to show
   const displayTemplates = selectedCategory === 'user_library' 
@@ -113,7 +112,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onAddItems, onClose, 
             </div>
             <button 
               className="add-tpl-btn"
-              onClick={() => onAddItems(tpl.items, tpl.autoGroup)}
+              onClick={() => onAddItems(tpl.items, (tpl as any).autoGroup)}
             >
               ADD
             </button>

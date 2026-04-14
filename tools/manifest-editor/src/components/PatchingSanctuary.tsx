@@ -74,8 +74,6 @@ const PatchingSanctuary: React.FC<PatchingSanctuaryProps> = ({
           <tbody>
             {items.map(item => {
               const itemIsPort = isPort(item);
-              const hasIn = item.roles.includes('input');
-              const hasOut = item.roles.includes('output');
 
               return (
                 <tr key={item.id} className={itemIsPort ? 'row-port' : 'row-param'}>
@@ -116,7 +114,7 @@ const PatchingSanctuary: React.FC<PatchingSanctuaryProps> = ({
                   <td className="center">
                     {itemIsPort ? (
                       <span className="status-indicator port-active" title="Recognized by OMEGA Patchbay">
-                        {hasIn ? '📥' : '📤'}
+                        {item.roles.includes('input') ? '📥' : '📤'}
                       </span>
                     ) : item.back ? (
                       <span className="status-indicator trimmer" title="Internal Trimmer (ROM/PCB)">

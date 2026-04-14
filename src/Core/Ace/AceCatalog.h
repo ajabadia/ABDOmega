@@ -94,6 +94,12 @@ namespace Ace {
 
         std::vector<const ComponentInfo*> listByFamilyAndEngine(const std::string& family, const std::string& engine) const;
         std::vector<const ComponentInfo*> getComponents() const;
+        
+        /**
+         * @brief Busca componentes basándose en una consulta semántica.
+         * Compara contra ID, Nombre, ModelID y Tags.
+         */
+        std::vector<const ComponentInfo*> findComponents(const std::string& query) const;
 
         std::string getFallbackId(const std::string& family, const std::string& engine) const;
         void buildFallbacks();

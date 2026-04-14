@@ -231,6 +231,30 @@ namespace Ace {
         return results;
     }
 
+    std::vector<const ComponentInfo*> AceCatalog::findComponents(const std::string& query) const {
+        std::vector<const ComponentInfo*> results;
+        if (query.empty()) return getComponents();
+
+        juce::String jquery(query);
+        for (auto const& [id, info] : mComponents) {
+            bool match = false;
+            if (juce::String(info.id).containsIgnoreCase(jquery)) match = true;
+            else if (juce::String(info.name).containsIgnoreCase(jquery)) match = true;
+            else if (juce::String(info.modelId).containsIgnoreCase(jquery)) match = true;
+            else {
+                for (auto const& tag : info.tags) {
+                    if (juce::String(tag).containsIgnoreCase(jquery)) {
+                        match = true;
+                        break;
+                    }
+                }
+            }
+
+            if (match) results.push_back(&info);
+        }
+        return results;
+    }
+
     std::string AceCatalog::getFallbackId(const std::string& family, const std::string& engine) const {
         return "";
     }

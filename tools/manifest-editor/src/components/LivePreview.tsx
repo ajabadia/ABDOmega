@@ -357,7 +357,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({ moduleData, onUpdate }) => {
               minHeight: '60px'
             }}>
               {/* ATTACHMENTS (Etiquetas, LEDs, Displays asociados) */}
-              {item.presentation?.attachments?.map((att: any, aIdx: number) => renderAttachment(att, item.label, item.default))}
+              {item.presentation?.attachments?.map((att: any) => renderAttachment(att, item.label, item.default))}
 
               {/* CORE COMPONENT */}
               {renderComponent(item)}
