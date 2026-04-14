@@ -23,6 +23,8 @@ namespace Ace {
         std::string position; // "top", "bottom", "left", "right"
         std::string role;
         std::string unit;
+        std::string color;    // ERA 6.3
+        std::string bind;     // ERA 6.3
     };
 
     /**
@@ -38,7 +40,7 @@ namespace Ace {
         bool modulable = true;
         std::vector<Modulation::PortOption> options;
 
-        // Metadata Era 6.2 (Presentation)
+        // Metadata Era 6.2+ (Presentation & Engineering)
         std::string tab;
         std::string group;
         int order = 0;
@@ -46,6 +48,11 @@ namespace Ace {
         std::string uiVariant;
         std::string uiSize;
         std::vector<Attachment> attachments;
+
+        float precision = 0.0f;    // ERA 6.3
+        float uiPrecision = 0.0f; // ERA 6.3
+        bool front = true;        // ERA 6.3
+        bool back = true;         // ERA 6.3
     };
 
     /**
@@ -65,6 +72,11 @@ namespace Ace {
         
         uint32_t implementationId = 0; 
         std::map<std::string, float> defaultParams; 
+        
+        // Extended Identity (ERA 6.3)
+        std::vector<std::string> tags;
+        int hp = 0;
+        std::string rack;
     };
 
     /**

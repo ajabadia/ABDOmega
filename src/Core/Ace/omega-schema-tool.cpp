@@ -92,6 +92,18 @@ int main(int argc, char* argv[])
     tagsProp->setProperty("items", juce::var(createStringProp("Classification tag")));
     props->setProperty("tags", juce::var(tagsProp));
 
+    // Layout Metadata (ERA 6.3)
+    auto layoutProp = new juce::DynamicObject();
+    layoutProp->setProperty("type", "object");
+    auto layoutSubProps = new juce::DynamicObject();
+    layoutSubProps->setProperty("hp", juce::var(createNumProp("Suggested Horizontal Pitch")));
+    auto rackEnum = createStringProp("Suggested rack location");
+    juce::Array<juce::var> racks; racks.add("upper"); racks.add("lower");
+    rackEnum->setProperty("enum", racks);
+    layoutSubProps->setProperty("rack", juce::var(rackEnum));
+    layoutProp->setProperty("properties", juce::var(layoutSubProps));
+    props->setProperty("layout", juce::var(layoutProp));
+
     auto registryProp = new juce::DynamicObject();
     registryProp->setProperty("type", "array");
     
@@ -119,6 +131,11 @@ int main(int argc, char* argv[])
     itemProps->setProperty("back", juce::var(new juce::DynamicObject()));
     ((juce::DynamicObject*)itemProps->getProperty("front").getDynamicObject())->setProperty("type", "boolean");
     ((juce::DynamicObject*)itemProps->getProperty("back").getDynamicObject())->setProperty("type", "boolean");
+
+    itemProps->setProperty("default", juce::var(createNumProp("Standalone default value (Alternative to range.default)")));
+    itemProps->setProperty("precision", juce::var(createNumProp("DSP Precision (decimal places)")));
+    itemProps->setProperty("ui_precision", juce::var(createNumProp("Display Precision")));
+    itemProps->setProperty("unit", juce::var(createStringProp("Measurement unit (Hz, dB, %, etc.)")));
 
     auto rolesProp = new juce::DynamicObject();
     rolesProp->setProperty("type", "array");
@@ -192,7 +209,9 @@ int main(int argc, char* argv[])
     
     attachItemProps->setProperty("role", juce::var(createStringProp("Attachment role (e.g. activity)")));
     attachItemProps->setProperty("unit", juce::var(createStringProp("Display unit")));
-    
+    attachItemProps->setProperty("color", juce::var(createStringProp("Attachment color hex or keyword")));
+    attachItemProps->setProperty("bind", juce::var(createStringProp("Data binding (self, parent, or entity ID)")));
+
     attachItem->setProperty("properties", juce::var(attachItemProps));
     attachProp->setProperty("items", juce::var(attachItem));
     presSubProps->setProperty("attachments", juce::var(attachProp));

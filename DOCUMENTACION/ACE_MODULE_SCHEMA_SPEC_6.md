@@ -42,28 +42,41 @@ Los siguientes campos son mandatorios para la correcta vinculación con el motor
 - `implementationId`: ID numérico único usado para el binding de parámetros y ruteo interno en el motor.
 - `engine`: Tipo de motor de ejecución (`WASM` para asépticos, `Modular` para legacy).
 - `theme`: Estética visual sugerida (`aseptic`, `industrial`, `classic`).
+- `tags`: Array de etiquetas de clasificación para el navegador (ej. `["ACID", "FM", "VINTAGE"]`).
 
-### D. Technical Identity DNA (Era 6.1)
-Los siguientes campos son mandatorios para la correcta vinculación con el motor OMEGA y la gestión de flotas:
-- `modelId`: Identificador del "hardware" lógico o clase de referencia (ej. `ACE-VCO-60`).
-- `implementationId`: ID numérico único usado para el binding de parámetros y ruteo interno en el motor.
-- `engine`: Tipo de motor de ejecución (`WASM` para asépticos, `Modular` para legacy).
-- `theme`: Estética visual sugerida (`aseptic`, `industrial`, `classic`).
+### E. Registry (Parámetros y Puertos)
+Todo parámetro, puerto o medidor debe declararse en el `registry`.
+- `id`: ID único dentro del módulo (pueden usarse namespaces con puntos).
+- `label`: Etiqueta legible para la UI (Obligatorio en Era 6.2).
+- `type`: `int`, `float`, `bool`, `string`, `list`, `audio`, `cv`, `midi`, `gate`.
+- `roles`: Lista de etiquetas que definen el comportamiento (múltiples permitidos):
+    - `control`: Entidad manipulable por el usuario.
+    - `stream`: Flujo de datos continuo (Audio/CV).
+    - `output` / `input`: Dirección de la señal.
+    - `mod_source` / `mod_target`: Entidades elegibles para el Patchbay.
+    - `telemetry`: Datos de visualización pasiva (Meters, LEDs).
+    - `expert`: Entidades destinadas a configuración avanzada.
+- `front`: `boolean`. Si es `true`, la entidad es candidata a renderizarse en el panel frontal.
+- `back`: `boolean`. Si es `true`, aparece en la vista de ingeniería / trasera.
 
-### D. Technical Identity DNA (Era 6.1)
-Los siguientes campos son mandatorios para la correcta vinculación con el motor OMEGA y la gestión de flotas:
-- `modelId`: Identificador del "hardware" lógico o clase de referencia (ej. `ACE-VCO-60`).
-- `implementationId`: ID numérico único usado para el binding de parámetros y ruteo interno en el motor.
-- `engine`: Tipo de motor de ejecución (`WASM` para asépticos, `Modular` para legacy).
-- `theme`: Estética visual sugerida (`aseptic`, `industrial`, `classic`).
+### F. Attributes & Engineering Specs
+- `range`: `{ min, max, default }`.
+- `default`: Valor por defecto (alternativa a `range.default`).
+- `precision`: Resolución DSP (decimales significativos).
+- `ui_precision`: Resolución de visualización en la UI.
+- `unit`: Unidad de medida (Hz, dB, ms, %, etc.).
 
 ---
 
-## 3. Capa 2: Workspace & View Policy (Hints Visuales)
+## 3. Capa 2: Physical Layout & View Policy
 
-El esquema incluye "sugerencias" de cómo debería representarse el módulo en una UI estándar de rack, pero el frontend puede ignorar estos hints según el contexto (ej: una vista compacta de mezclador).
+El esquema incluye pistas sobre la ocupación física y sugerencias de representación.
 
-### A. Zonificación (Pestañas/Tabs)
+### A. Layout Hints (Chasis)
+- `layout.hp`: Ancho sugerido en unidades HP (Horizontal Pitch).
+- `layout.rack`: Ubicación sugerida en el chasis (`upper`, `lower`).
+
+### B. Zonificación (Agrupación)
 Se elimina la noción de pestañas fijas en el core. Se usan hints para agrupar:
 - `tab`: Identificador de la categoría de visualización (ej: `MAIN`, `PATCHING`, `SETUP`).
 - `group`: Agrupación lógica dentro de la pestaña.

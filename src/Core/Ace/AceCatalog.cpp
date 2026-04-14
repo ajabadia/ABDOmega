@@ -70,6 +70,19 @@ namespace Ace {
 
             info.version = safeAsInt(componentNode["version"], 1);
 
+            // ERA 6.3: Root Tags
+            if (componentNode["tags"].IsDefined() && componentNode["tags"].IsSequence()) {
+                YAML::Node tagsNode = componentNode["tags"];
+                for (auto t : tagsNode) info.tags.push_back(t.as<std::string>());
+            }
+
+            // ERA 6.3: Layout Hints
+            if (componentNode["layout"].IsDefined()) {
+                YAML::Node layout = componentNode["layout"];
+                info.hp = safeAsInt(layout["hp"], 0);
+                if (layout["rack"].IsDefined()) info.rack = layout["rack"].as<std::string>();
+            }
+
             if (componentNode["registry"].IsDefined() && componentNode["registry"].IsSequence()) {
                 YAML::Node regSeq = componentNode["registry"];
                 for (auto it = regSeq.begin(); it != regSeq.end(); ++it) {
@@ -96,6 +109,10 @@ namespace Ace {
                                 if (roleValue == "control" || roleValue == "mod_target") hasCtrl = true;
                                 if (roleValue == "output" || roleValue == "stream" || roleValue == "mod_source") hasPort = true;
                                 if (roleValue == "telemetry") hasTele = true;
+                                
+                                // Direct role mapping for direction fallback
+                                if (roleValue == "input") currentEntryDir = "input";
+                                if (roleValue == "output") currentEntryDir = "output";
                             }
                         }
 
@@ -104,6 +121,14 @@ namespace Ace {
                             pdef.id = currentEntryId;
                             pdef.label = currentEntryLabel;
                             pdef.defaultValue = currentEntryDefVal;
+                            
+                            // ERA 6.3: Engineering Metrics
+                            pdef.unit = entryNode["unit"].IsDefined() ? entryNode["unit"].as<std::string>() : "";
+                            pdef.precision = safeAsFloat(entryNode["precision"], 0.0f);
+                            pdef.uiPrecision = safeAsFloat(entryNode["ui_precision"], 0.0f);
+                            pdef.front = entryNode["front"].IsDefined() ? entryNode["front"].as<bool>() : true;
+                            pdef.back = entryNode["back"].IsDefined() ? entryNode["back"].as<bool>() : true;
+
                             if (entryNode["range"].IsDefined()) {
                                 pdef.min = safeAsFloat(entryNode["range"]["min"], 0.0f);
                                 pdef.max = safeAsFloat(entryNode["range"]["max"], 1.0f);
@@ -131,6 +156,8 @@ namespace Ace {
                                         att.position = attNode["position"].IsDefined() ? attNode["position"].as<std::string>() : "";
                                         att.role = attNode["role"].IsDefined() ? attNode["role"].as<std::string>() : "";
                                         att.unit = attNode["unit"].IsDefined() ? attNode["unit"].as<std::string>() : "";
+                                        att.color = attNode["color"].IsDefined() ? attNode["color"].as<std::string>() : "";
+                                        att.bind = attNode["bind"].IsDefined() ? attNode["bind"].as<std::string>() : "";
                                         pdef.attachments.push_back(att);
                                     }
                                 }

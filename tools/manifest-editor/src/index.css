@@ -2245,5 +2245,82 @@ body {
   overflow-y: auto;
 }
 
+/* --- ASEPTIC UI EXTENSIONS (ERA 6.3) --- */
+.aseptic-toggle-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #666;
+  padding: 4px 10px;
+  font-size: 9px;
+  font-weight: 800;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.aseptic-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #aaa;
+}
+
+.aseptic-toggle-btn.active {
+  background: rgba(0, 242, 255, 0.1);
+  border-color: rgba(0, 242, 255, 0.4);
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+  box-shadow: inset 0 0 5px rgba(0, 242, 255, 0.1);
+}
+
+.aseptic-toggle-btn.active[title*="Front Panel"] {
+   /* Cyan for Front */
+}
+
+.aseptic-toggle-btn.active[title*="Engineering"], 
+.aseptic-toggle-btn.active:nth-child(2) {
+  /* Color amber for BACK/Engineering layers */
+  background: rgba(255, 170, 0, 0.1);
+  border-color: rgba(255, 170, 0, 0.4);
+  color: var(--neon-amber);
+  text-shadow: 0 0 8px rgba(255, 170, 0, 0.5);
+}
+
+.attachment-row {
+  display: flex;
+  gap: 8px;
+  background: rgba(0,0,0,0.2);
+  padding: 6px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  align-items: center;
+}
+
+.attachment-row select, .attachment-row input {
+  background: #000;
+  border: 1px solid #222;
+  color: #ccc;
+  font-size: 10px;
+  padding: 4px;
+  border-radius: 2px;
+}
+
+.attachment-row input::placeholder {
+  color: #444;
+}
+
+.attachment-row .del-btn {
+  background: transparent;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  padding: 0 5px;
+  font-size: 14px;
+}
+
+.attachment-row .del-btn:hover {
+  color: #ff4444;
+}
+
 
 

@@ -1,166 +1,287 @@
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://omega-synth.dev/schema/module-schema-6.2.json",
-  "title": "OMEGA Aseptic Module Contract (Era 6.2)",
-  "type": "object",
-  "_metadata": {
-    "generator": "OMEGA Aseptic Schema Tool",
-    "engine_version": "6.2.0",
-    "generated_at": "2026-04-13T22:18:00.000+02:00"
-  },
-  "required": [
-    "id",
-    "name",
-    "description",
-    "modelId",
-    "implementationId",
-    "engine",
-    "family",
-    "version",
-    "registry",
-    "tags"
-  ],
-  "properties": {
-    "id": {
-      "type": "string",
-      "minLength": 1,
-      "pattern": "^[a-z0-9_]+$",
-      "description": "Module unique identifier (snake_case)"
-    },
-    "name": {
-      "type": "string",
-      "description": "Display name"
-    },
-    "description": {
-      "type": "string",
-      "description": "Module purpose and short documentation"
-    },
-    "modelId": {
-      "type": "string",
-      "description": "Hardware reference or logical class (e.g. ACE-UTIL-MIDI-IN)"
-    },
-    "implementationId": {
-      "type": "integer",
-      "description": "Unique numeric identifier for engine binding"
-    },
-    "engine": {
-      "type": "string",
-      "enum": ["Modular", "WASM"],
-      "description": "Core execution engine"
-    },
-    "family": {
-      "type": "string",
-      "enum": [
-        "OSCILLATOR",
-        "FILTER",
-        "ENVELOPE",
-        "IO",
-        "FX",
-        "UTILITY"
-      ],
-      "description": "Module category"
-    },
-    "theme": {
-      "type": "string",
-      "enum": ["aseptic", "industrial", "classic"],
-      "description": "Visual aesthetic style"
-    },
-    "version": {
-      "type": "string",
-      "description": "Version in semantic format (e.g. 6.2)"
-    },
-    "tags": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Classification tags"
-    },
-    "registry": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "type",
-          "roles",
-          "front",
-          "back"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^[a-z0-9_]+$",
-            "description": "Item internal binding ID"
-          },
-          "label": {
-            "type": "string",
-            "description": "UI Display Label"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "int", "float", "bool", "audio", "cv", "midi", "gate", "list", "text", "voltage"
-            ],
-            "description": "Data type"
-          },
-          "front": { "type": "boolean" },
-          "back": { "type": "boolean" },
-          "roles": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "control", "stream", "input", "output", "mod_source", "mod_target", "telemetry"
-              ]
-            }
-          },
-          "range": {
-            "type": "object",
-            "properties": {
-              "min": { "type": "number" },
-              "max": { "type": "number" },
-              "default": { "type": "number" }
-            }
-          },
-          "presentation": {
-            "type": "object",
-            "properties": {
-              "tab": { "type": "string" },
-              "group": { "type": "string" },
-              "order": { "type": "integer" },
-              "cell": { "type": "string", "description": "Virtual Cell ID for logical grouping" },
-              "ui": {
-                "type": "object",
-                "properties": {
-                  "component": {
-                    "type": "string",
-                    "enum": ["knob", "slider_v", "slider_h", "switch", "port", "display", "led", "button"]
-                  },
-                  "variant": { "type": "string" },
-                  "size": {
-                    "type": "string",
-                    "enum": ["mini", "small", "medium", "large", "xl"]
-                  }
-                }
-              },
-              "attachments": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "type": { "type": "string", "enum": ["led", "display", "label"] },
-                    "position": { "type": "string", "enum": ["top", "bottom", "left", "right"] },
-                    "role": { "type": "string" },
-                    "unit": { "type": "string" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "additionalProperties": false
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://omega-synth.dev/schema/module-schema-6.2.json",
+  "title": "OMEGA Aseptic Module Contract (Era 6.2)",
+  "type": "object",
+  "_metadata": {
+    "generator": "OMEGA Aseptic Schema Tool",
+    "engine_version": "6.2.0",
+    "generated_at": "2026-04-14T11:11:17.978+02:00"
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "modelId",
+    "implementationId",
+    "engine",
+    "family",
+    "version",
+    "registry",
+    "tags"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Module unique identifier (snake_case)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Module purpose and short documentation"
+    },
+    "modelId": {
+      "type": "string",
+      "description": "Hardware reference or logical class (e.g. ACE-UTIL-MIDI-IN)"
+    },
+    "implementationId": {
+      "type": "integer",
+      "description": "Unique numeric identifier for engine binding"
+    },
+    "engine": {
+      "type": "string",
+      "description": "Core execution engine",
+      "enum": [
+        "Modular",
+        "WASM"
+      ]
+    },
+    "family": {
+      "type": "string",
+      "description": "Module category",
+      "enum": [
+        "OSCILLATOR",
+        "FILTER",
+        "ENVELOPE",
+        "IO",
+        "FX",
+        "UTILITY"
+      ]
+    },
+    "theme": {
+      "type": "string",
+      "description": "Visual aesthetic style",
+      "enum": [
+        "aseptic",
+        "industrial",
+        "classic"
+      ]
+    },
+    "version": {
+      "type": "string",
+      "description": "Version in semantic format (e.g. 6.2)"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "Classification tag"
+      }
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "hp": {
+          "type": "number",
+          "description": "Suggested Horizontal Pitch"
+        },
+        "rack": {
+          "type": "string",
+          "description": "Suggested rack location",
+          "enum": [
+            "upper",
+            "lower"
+          ]
+        }
+      }
+    },
+    "registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type",
+          "roles",
+          "front",
+          "back"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Item internal binding ID"
+          },
+          "label": {
+            "type": "string",
+            "description": "UI Display Label"
+          },
+          "type": {
+            "type": "string",
+            "description": "Data type",
+            "enum": [
+              "int",
+              "float",
+              "bool",
+              "audio",
+              "cv",
+              "midi",
+              "gate",
+              "list",
+              "text",
+              "voltage"
+            ]
+          },
+          "front": {
+            "type": "boolean"
+          },
+          "back": {
+            "type": "boolean"
+          },
+          "default": {
+            "type": "number",
+            "description": "Standalone default value (Alternative to range.default)"
+          },
+          "precision": {
+            "type": "number",
+            "description": "DSP Precision (decimal places)"
+          },
+          "ui_precision": {
+            "type": "number",
+            "description": "Display Precision"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Measurement unit (Hz, dB, %, etc.)"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "control",
+                "stream",
+                "input",
+                "output",
+                "mod_source",
+                "mod_target",
+                "telemetry"
+              ]
+            }
+          },
+          "range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "default": {
+                "type": "number"
+              }
+            }
+          },
+          "presentation": {
+            "type": "object",
+            "properties": {
+              "tab": {
+                "type": "string",
+                "description": "Visibility Tab"
+              },
+              "group": {
+                "type": "string",
+                "description": "Logical Group"
+              },
+              "order": {
+                "type": "integer"
+              },
+              "ui": {
+                "type": "object",
+                "properties": {
+                  "component": {
+                    "type": "string",
+                    "description": "Visual component type",
+                    "enum": [
+                      "knob",
+                      "slider_v",
+                      "slider_h",
+                      "switch",
+                      "port",
+                      "display",
+                      "led",
+                      "button"
+                    ]
+                  },
+                  "variant": {
+                    "type": "string",
+                    "description": "Semantic variant (A, B, C...)"
+                  },
+                  "size": {
+                    "type": "string",
+                    "description": "Visual size class",
+                    "enum": [
+                      "mini",
+                      "small",
+                      "medium",
+                      "large",
+                      "xl"
+                    ]
+                  }
+                }
+              },
+              "attachments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "description": "Attachment type",
+                      "enum": [
+                        "led",
+                        "display",
+                        "label"
+                      ]
+                    },
+                    "position": {
+                      "type": "string",
+                      "description": "Zones position",
+                      "enum": [
+                        "top",
+                        "bottom",
+                        "left",
+                        "right"
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "Attachment role (e.g. activity)"
+                    },
+                    "unit": {
+                      "type": "string",
+                      "description": "Display unit"
+                    },
+                    "color": {
+                      "type": "string",
+                      "description": "Attachment color hex or keyword"
+                    },
+                    "bind": {
+                      "type": "string",
+                      "description": "Data binding (self, parent, or entity ID)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
 }

@@ -1,0 +1,68 @@
+# OMEGA ACE Manifest - Test Module Era 6.3
+id: "test_vco_63"
+name: "Aseptic VCO 6.3"
+description: "High-precision test oscillator for metadata alignment verification."
+version: "6.3.0"
+modelId: "ACE-TEST-63"
+implementationId: 999
+engine: "WASM"
+family: "OSCILLATOR"
+theme: "aseptic"
+tags:
+  - "ANALOG"
+  - "ULTRA-LOW"
+  - "ALIGNED"
+
+# NEW: Physical Layout Hints
+layout:
+  hp: 12
+  rack: "lower"
+
+registry:
+  - id: "frequency"
+    label: "FREQ"
+    type: "float"
+    roles: ["control", "mod_target", "input"]
+    front: true  # Visible in main panel
+    back: false  # Hidden from back trimmers
+    unit: "Hz"
+    precision: 4
+    ui_precision: 2
+    range:
+      min: 20
+      max: 20000
+      default: 440
+    presentation:
+      tab: "MAIN"
+      group: "PITCH"
+      order: 1
+      ui:
+        component: "knob"
+        size: "large"
+      attachments:
+        - type: "led"
+          position: "top"
+          role: "activity"
+          color: "cyan"
+          bind: "self"
+
+  - id: "gain_trim"
+    label: "GAIN TRIM"
+    type: "float"
+    roles: ["control", "expert"]
+    front: false # Internal trimmer
+    back: true   # Visible in engineering view
+    unit: "dB"
+    precision: 1
+    range:
+      min: -96
+      max: 0
+      default: -6
+    presentation:
+      tab: "SETUP"
+      group: "INTERNAL"
+      order: 10
+      ui:
+        component: "slider_v"
+        variant: "TRIM"
+        size: "mini"

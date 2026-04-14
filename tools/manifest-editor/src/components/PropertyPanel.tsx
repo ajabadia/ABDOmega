@@ -12,13 +12,21 @@ interface RegistryItem {
     default?: number;
   };
   unit?: string;
+  precision?: number;    // ERA 6.3
+  ui_precision?: number; // ERA 6.3
   front: boolean;
   back: boolean;
   theme?: 'aseptic' | 'industrial' | 'classic'; // Root only
+  tags?: string[];       // ERA 6.3
+  layout?: {             // ERA 6.3
+    hp?: number;
+    rack?: 'upper' | 'lower';
+  };
   presentation?: {
     tab?: string;
     group?: string;
     order?: number;
+    cell?: string;       // ERA 6.3
     ui?: {
       component?: string;
       variant?: string;
@@ -29,6 +37,8 @@ interface RegistryItem {
       position: 'top' | 'bottom' | 'left' | 'right';
       role?: string;
       unit?: string;
+      color?: string;    // ERA 6.3
+      bind?: string;     // ERA 6.3
     }>;
   };
 }
@@ -182,50 +192,105 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </div>
 
             {isRoot && (
-               <div className="control-group">
-                 <label>📝 Description</label>
-                 <textarea 
-                   className={`aseptic-input ${getFieldError('description') ? 'error-border' : ''}`}
-                   value={(item as any).description || ''}
-                   onChange={(e) => onUpdate({ ...item, description: e.target.value } as any)}
-                   placeholder="Detailed purpose of the module..."
-                   rows={3}
-                 />
-                 {getFieldError('description') ? (
-                   <span className="ace-lint-msg warning">{getFieldError('description').message}</span>
-                 ) : (
-                   <span className="field-hint">Sound Design pedagogical context.</span>
-                 )}
-               </div>
+               <>
+                <div className="control-group">
+                  <label>📝 Description</label>
+                  <textarea 
+                    className={`aseptic-input ${getFieldError('description') ? 'error-border' : ''}`}
+                    value={(item as any).description || ''}
+                    onChange={(e) => onUpdate({ ...item, description: e.target.value } as any)}
+                    placeholder="Detailed purpose of the module..."
+                    rows={3}
+                  />
+                  {getFieldError('description') ? (
+                    <span className="ace-lint-msg warning">{getFieldError('description').message}</span>
+                  ) : (
+                    <span className="field-hint">Sound Design pedagogical context.</span>
+                  )}
+                </div>
+
+                <div className="control-group">
+                  <label>🏷️ Tags (Aseptic Search)</label>
+                  <input 
+                    className="aseptic-input" 
+                    value={(item.tags || []).join(', ')} 
+                    onChange={(e) => onUpdate({ ...item, tags: e.target.value.split(',').map(t => t.trim()).filter(t => t) })}
+                    placeholder="e.g. LFO, Acid, FM..."
+                  />
+                  <span className="field-hint">Comma-separated classification tags.</span>
+                </div>
+
+                <div className="layout-horizontal-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div className="control-group">
+                    <label>📐 HP Width</label>
+                    <input 
+                      type="number"
+                      className="aseptic-input" 
+                      value={item.layout?.hp || 0} 
+                      onChange={(e) => onUpdate({ ...item, layout: { ...item.layout, hp: parseInt(e.target.value) || 0 }})}
+                    />
+                    <span className="field-hint">Horizontal Pitch.</span>
+                  </div>
+                  <div className="control-group">
+                    <label>🏗️ Rack Zone</label>
+                    <select 
+                      className="aseptic-input"
+                      value={item.layout?.rack || 'lower'}
+                      onChange={(e) => onUpdate({ ...item, layout: { ...item.layout, rack: e.target.value as any }})}
+                    >
+                      <option value="upper">UPPER (Standard)</option>
+                      <option value="lower">LOWER (Utility/IO)</option>
+                    </select>
+                  </div>
+                </div>
+              </>
             )}
 
             {!isRoot && (
-              <div className="control-group">
-                <label>
-                  🎭 Roles
-                  <span 
-                    className="help-trigger" 
-                    onMouseEnter={() => setActiveHelp('roles')}
-                    onMouseLeave={() => setActiveHelp(null)}
-                  >?</span>
-                  {activeHelp === 'roles' && <AsepticTooltip topic="roles" />}
-                </label>
-                <div className="roles-pill-container">
-                  {['control', 'input', 'output', 'storage'].map(role => (
-                    <button 
-                      key={role}
-                      className={`role-pill ${item.roles?.includes(role) ? 'active' : ''}`}
-                      onClick={() => {
-                        const roles = item.roles || [];
-                        const newRoles = roles.includes(role) 
-                          ? roles.filter(r => r !== role)
-                          : [...roles, role];
-                        onUpdate({ ...item, roles: newRoles });
-                      }}
-                    >
-                      {role.toUpperCase()}
-                    </button>
-                  ))}
+              <div className="roles-visibility-group" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '20px', alignItems: 'end' }}>
+                <div className="control-group">
+                  <label>
+                    🎭 Roles
+                    <span 
+                      className="help-trigger" 
+                      onMouseEnter={() => setActiveHelp('roles')}
+                      onMouseLeave={() => setActiveHelp(null)}
+                    >?</span>
+                    {activeHelp === 'roles' && <AsepticTooltip topic="roles" />}
+                  </label>
+                  <div className="roles-pill-container">
+                    {['control', 'input', 'output', 'telemetry', 'stream'].map(role => (
+                      <button 
+                        key={role}
+                        className={`role-pill ${item.roles?.includes(role) ? 'active' : ''}`}
+                        onClick={() => {
+                          const roles = item.roles || [];
+                          const newRoles = roles.includes(role) 
+                            ? roles.filter(r => r !== role)
+                            : [...roles, role];
+                          onUpdate({ ...item, roles: newRoles });
+                        }}
+                      >
+                        {role.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="visibility-toggles" style={{ display: 'flex', gap: '10px', paddingBottom: '4px' }}>
+                  <button 
+                    className={`aseptic-toggle-btn ${item.front ? 'active' : ''}`}
+                    onClick={() => onUpdate({ ...item, front: !item.front })}
+                    title="Visible in Front Panel"
+                  >
+                    FRONT
+                  </button>
+                  <button 
+                    className={`aseptic-toggle-btn ${item.back ? 'active' : ''}`}
+                    onClick={() => onUpdate({ ...item, back: !item.back })}
+                    title="Visible in Engineering View"
+                  >
+                    BACK
+                  </button>
                 </div>
               </div>
             )}
@@ -300,11 +365,11 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </section>
       )}
 
-      {/* SECCIÓN NUEVA PARA ROOT: TECHNICAL SPEC */}
+      {/* SECCIÓN NUEVA PARA ROOT: TECHNICAL SPEC (Consolidated) */}
       {isRoot && (
         <section className="form-section">
           <header className="section-divider">
-             <span className="divider-label">TECHNICAL SPECIFICATION</span>
+             <span className="divider-label">EXECUTION ENGINE</span>
           </header>
           <div className="grid-2-col">
             <div className="control-group">
@@ -322,42 +387,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               <label>Version</label>
               <input 
                 className="aseptic-input" 
-                value={(item as any).version || '6.1'} 
+                value={(item as any).version || '6.3'} 
                 onChange={(e) => onUpdate({ ...item, version: e.target.value } as any)} 
               />
             </div>
-          </div>
-
-          <div className="control-group" style={{ marginTop: '15px' }}>
-            <label>Tags (Metadata)</label>
-            <div className="tags-container">
-              {((item as any).tags || []).map((tag: string, i: number) => (
-                <span key={i} className="tag-pill">
-                  {tag}
-                  <button onClick={() => {
-                    const newTags = (item as any).tags.filter((t: string) => t !== tag);
-                    onUpdate({ ...item, tags: newTags } as any);
-                  }}>×</button>
-                </span>
-              ))}
-              <input 
-                className="tag-input"
-                placeholder="+ Add tag..."
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const val = (e.target as HTMLInputElement).value.trim();
-                    if (val) {
-                      const tags = (item as any).tags || [];
-                      if (!tags.includes(val)) {
-                        onUpdate({ ...item, tags: [...tags, val] } as any);
-                      }
-                      (e.target as HTMLInputElement).value = '';
-                    }
-                  }
-                }}
-              />
-            </div>
-            <span className="field-hint">Categorization for Discovery & Matrix filtering.</span>
           </div>
         </section>
       )}
@@ -399,6 +432,29 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <div className="control-group">
                   <label>📏 Unit</label>
                   <input className="aseptic-input" value={item.unit ?? ''} onChange={(e) => onUpdate({...item, unit: e.target.value})} placeholder="Hz, dB..." />
+                </div>
+              </div>
+
+              <div className="grid-2-col" style={{ marginTop: '10px' }}>
+                <div className="control-group">
+                  <label>🎯 DSP Precision</label>
+                  <input 
+                    type="number"
+                    className="aseptic-input" 
+                    value={item.precision ?? 0} 
+                    onChange={(e) => onUpdate({...item, precision: parseFloat(e.target.value) || 0})} 
+                  />
+                  <span className="field-hint">Decimal places for processing.</span>
+                </div>
+                <div className="control-group">
+                  <label>👁️ UI Precision</label>
+                  <input 
+                    type="number"
+                    className="aseptic-input" 
+                    value={item.ui_precision ?? 0} 
+                    onChange={(e) => onUpdate({...item, ui_precision: parseFloat(e.target.value) || 0})} 
+                  />
+                  <span className="field-hint">Display formatting.</span>
                 </div>
               </div>
 
@@ -531,6 +587,48 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </div>
               </div>
 
+              <div className="grid-3-col" style={{ marginTop: '15px' }}>
+                <div className="control-group">
+                  <label>📦 Group</label>
+                  <input 
+                    className="aseptic-input" 
+                    value={item.presentation?.group || ''} 
+                    onChange={(e) => {
+                      const presentation = item.presentation || {};
+                      onUpdate({ ...item, presentation: { ...presentation, group: e.target.value } });
+                    }}
+                    placeholder="e.g. FILTER"
+                  />
+                  <span className="field-hint">Semantic Cluster.</span>
+                </div>
+                <div className="control-group">
+                  <label>🔢 Order</label>
+                  <input 
+                    type="number"
+                    className="aseptic-input" 
+                    value={item.presentation?.order || 0} 
+                    onChange={(e) => {
+                      const presentation = item.presentation || {};
+                      onUpdate({ ...item, presentation: { ...presentation, order: parseInt(e.target.value) || 0 } });
+                    }}
+                  />
+                  <span className="field-hint">Placement weight.</span>
+                </div>
+                <div className="control-group">
+                  <label>🔲 Cell Jack</label>
+                  <input 
+                    className="aseptic-input" 
+                    value={item.presentation?.cell || ''} 
+                    onChange={(e) => {
+                      const presentation = item.presentation || {};
+                      onUpdate({ ...item, presentation: { ...presentation, cell: e.target.value } });
+                    }}
+                    placeholder="e.g. J1, J2"
+                  />
+                  <span className="field-hint">Physical binding.</span>
+                </div>
+              </div>
+
               <div className="grid-2-col" style={{ marginTop: '15px' }}>
                 <div className="control-group">
                   <label>
@@ -622,11 +720,32 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                         <option value="right">RGT</option>
                       </select>
                       <input 
-                        placeholder="Role/Unit..."
+                        placeholder="Role/Unit"
+                        style={{ width: '80px' }}
                         value={att.role || att.unit || ''} 
                         onChange={(e) => {
                           const atts = [...(item.presentation!.attachments!)];
                           atts[idx] = { ...atts[idx], role: e.target.value };
+                          onUpdate({ ...item, presentation: { ...item.presentation!, attachments: atts } });
+                        }}
+                      />
+                      <input 
+                        placeholder="Color"
+                        style={{ width: '60px' }}
+                        value={att.color || ''} 
+                        onChange={(e) => {
+                          const atts = [...(item.presentation!.attachments!)];
+                          atts[idx] = { ...atts[idx], color: e.target.value };
+                          onUpdate({ ...item, presentation: { ...item.presentation!, attachments: atts } });
+                        }}
+                      />
+                      <input 
+                        placeholder="Bind"
+                        style={{ width: '60px' }}
+                        value={att.bind || ''} 
+                        onChange={(e) => {
+                          const atts = [...(item.presentation!.attachments!)];
+                          atts[idx] = { ...atts[idx], bind: e.target.value };
                           onUpdate({ ...item, presentation: { ...item.presentation!, attachments: atts } });
                         }}
                       />
