@@ -1,13 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://omega-synth.dev/schema/module-schema-6.1.json",
-  "title": "OMEGA Aseptic Module Contract (Era 6.1)",
+  "$id": "https://omega-synth.dev/schema/module-schema-6.2.json",
+  "title": "OMEGA Aseptic Module Contract (Era 6.2)",
   "type": "object",
   "_metadata": {
     "generator": "OMEGA Aseptic Schema Tool",
-    "engine_version": "6.1.0",
-    "build_id": "488",
-    "generated_at": "2026-04-13T12:08:23.000+02:00"
+    "engine_version": "6.2.0",
+    "generated_at": "2026-04-13T22:18:00.000+02:00"
   },
   "required": [
     "id",
@@ -18,12 +17,15 @@
     "engine",
     "family",
     "version",
-    "registry"
+    "registry",
+    "tags"
   ],
   "properties": {
     "id": {
       "type": "string",
-      "description": "Module unique identifier (kebab-case)"
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Module unique identifier (snake_case)"
     },
     "name": {
       "type": "string",
@@ -48,7 +50,6 @@
     },
     "family": {
       "type": "string",
-      "description": "Module category",
       "enum": [
         "OSCILLATOR",
         "FILTER",
@@ -56,7 +57,8 @@
         "IO",
         "FX",
         "UTILITY"
-      ]
+      ],
+      "description": "Module category"
     },
     "theme": {
       "type": "string",
@@ -65,14 +67,12 @@
     },
     "version": {
       "type": "string",
-      "description": "Version in semantic format (e.g. 6.1)"
+      "description": "Version in semantic format (e.g. 6.2)"
     },
-    "assets": {
-      "type": "object",
-      "properties": {
-        "icon": { "type": "string" },
-        "image": { "type": "string" }
-      }
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Classification tags"
     },
     "registry": {
       "type": "array",
@@ -80,51 +80,81 @@
         "type": "object",
         "required": [
           "id",
+          "label",
           "type",
-          "roles"
+          "roles",
+          "front",
+          "back"
         ],
         "properties": {
           "id": {
             "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z0-9_]+$",
             "description": "Item internal binding ID"
+          },
+          "label": {
+            "type": "string",
+            "description": "UI Display Label"
           },
           "type": {
             "type": "string",
-            "description": "Data type",
             "enum": [
-              "int",
-              "float",
-              "bool",
-              "audio",
-              "cv"
-            ]
+              "int", "float", "bool", "audio", "cv", "midi", "gate", "list", "text", "voltage"
+            ],
+            "description": "Data type"
           },
+          "front": { "type": "boolean" },
+          "back": { "type": "boolean" },
           "roles": {
             "type": "array",
             "items": {
               "type": "string",
               "enum": [
-                "control",
-                "stream",
-                "input",
-                "output",
-                "mod_source",
-                "mod_target",
-                "telemetry"
+                "control", "stream", "input", "output", "mod_source", "mod_target", "telemetry"
               ]
             }
           },
           "range": {
             "type": "object",
             "properties": {
-              "min": {
-                "type": "number"
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "default": { "type": "number" }
+            }
+          },
+          "presentation": {
+            "type": "object",
+            "properties": {
+              "tab": { "type": "string" },
+              "group": { "type": "string" },
+              "order": { "type": "integer" },
+              "cell": { "type": "string", "description": "Virtual Cell ID for logical grouping" },
+              "ui": {
+                "type": "object",
+                "properties": {
+                  "component": {
+                    "type": "string",
+                    "enum": ["knob", "slider_v", "slider_h", "switch", "port", "display", "led", "button"]
+                  },
+                  "variant": { "type": "string" },
+                  "size": {
+                    "type": "string",
+                    "enum": ["mini", "small", "medium", "large", "xl"]
+                  }
+                }
               },
-              "max": {
-                "type": "number"
-              },
-              "default": {
-                "type": "number"
+              "attachments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": { "type": "string", "enum": ["led", "display", "label"] },
+                    "position": { "type": "string", "enum": ["top", "bottom", "left", "right"] },
+                    "role": { "type": "string" },
+                    "unit": { "type": "string" }
+                  }
+                }
               }
             }
           }

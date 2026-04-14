@@ -1,0 +1,23 @@
+{
+  "id": "audio_in",
+  "name": "Audio Input",
+  "category": "ports",
+  "layout": { "columns": 1, "hp": 5, "gap": 10 },
+  "items": [
+    {
+      "label": "Audio In",
+      "type": "audio",
+      "front": true,
+      "back": false,
+      "roles": ["input", "stream"],
+      "presentation": {
+        "tab": "PATCHING",
+        "ui": { "component": "port", "size": "medium" },
+        "attachments": [
+          { "type": "led", "position": "right", "role": "activity" },
+          { "type": "label", "position": "top" }
+        ]
+      }
+    }
+  ]
+}

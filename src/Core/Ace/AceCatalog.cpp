@@ -58,6 +58,16 @@ namespace Ace {
                 info.implementationId = 0;
             }
 
+            if (componentNode["description"].IsDefined()) {
+                info.description = componentNode["description"].as<std::string>();
+            }
+
+            if (componentNode["theme"].IsDefined()) {
+                info.theme = componentNode["theme"].as<std::string>();
+            } else {
+                info.theme = "aseptic";
+            }
+
             info.version = safeAsInt(componentNode["version"], 1);
 
             if (componentNode["registry"].IsDefined() && componentNode["registry"].IsSequence()) {
@@ -97,7 +107,35 @@ namespace Ace {
                             if (entryNode["range"].IsDefined()) {
                                 pdef.min = safeAsFloat(entryNode["range"]["min"], 0.0f);
                                 pdef.max = safeAsFloat(entryNode["range"]["max"], 1.0f);
+                                pdef.defaultValue = safeAsFloat(entryNode["range"]["default"], pdef.defaultValue);
                             }
+
+                            if (entryNode["presentation"].IsDefined()) {
+                                YAML::Node pres = entryNode["presentation"];
+                                pdef.tab = pres["tab"].IsDefined() ? pres["tab"].as<std::string>() : "";
+                                pdef.group = pres["group"].IsDefined() ? pres["group"].as<std::string>() : "";
+                                pdef.order = pres["order"].IsDefined() ? pres["order"].as<int>() : 0;
+
+                                if (pres["ui"].IsDefined()) {
+                                    pdef.uiComponent = pres["ui"]["component"].IsDefined() ? pres["ui"]["component"].as<std::string>() : "";
+                                    pdef.uiVariant = pres["ui"]["variant"].IsDefined() ? pres["ui"]["variant"].as<std::string>() : "";
+                                    pdef.uiSize = pres["ui"]["size"].IsDefined() ? pres["ui"]["size"].as<std::string>() : "";
+                                }
+
+                                if (pres["attachments"].IsDefined() && pres["attachments"].IsSequence()) {
+                                    YAML::Node atts = pres["attachments"];
+                                    for (auto ait = atts.begin(); ait != atts.end(); ++ait) {
+                                        YAML::Node attNode = *ait;
+                                        Attachment att;
+                                        att.type = attNode["type"].IsDefined() ? attNode["type"].as<std::string>() : "";
+                                        att.position = attNode["position"].IsDefined() ? attNode["position"].as<std::string>() : "";
+                                        att.role = attNode["role"].IsDefined() ? attNode["role"].as<std::string>() : "";
+                                        att.unit = attNode["unit"].IsDefined() ? attNode["unit"].as<std::string>() : "";
+                                        pdef.attachments.push_back(att);
+                                    }
+                                }
+                            }
+
                             info.parameters.push_back(pdef);
                             info.defaultParams[currentEntryId] = currentEntryDefVal;
                         }

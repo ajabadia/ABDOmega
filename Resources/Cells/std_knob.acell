@@ -1,0 +1,22 @@
+{
+  "id": "std_knob",
+  "name": "Standard Knob",
+  "category": "knobs",
+  "layout": { "columns": 1, "hp": 5, "gap": 10 },
+  "items": [
+    {
+      "label": "Frequency",
+      "type": "float",
+      "front": true,
+      "back": false,
+      "roles": ["control", "mod_target"],
+      "range": { "min": 0, "max": 1, "default": 0.5 },
+      "presentation": {
+        "ui": { "component": "knob", "variant": "B", "size": "medium" },
+        "attachments": [
+          { "type": "label", "position": "bottom" }
+        ]
+      }
+    }
+  ]
+}

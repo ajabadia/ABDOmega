@@ -16,6 +16,16 @@ namespace Core {
 namespace Ace {
 
     /**
+     * @brief Tipos de adjuntos visuales para celdas de control.
+     */
+    struct Attachment {
+        std::string type;     // "label", "led", "display"
+        std::string position; // "top", "bottom", "left", "right"
+        std::string role;
+        std::string unit;
+    };
+
+    /**
      * @brief Definición de un parámetro de componente ACE.
      */
     struct ParameterDef {
@@ -27,6 +37,15 @@ namespace Ace {
         float defaultValue = 0.0f;
         bool modulable = true;
         std::vector<Modulation::PortOption> options;
+
+        // Metadata Era 6.2 (Presentation)
+        std::string tab;
+        std::string group;
+        int order = 0;
+        std::string uiComponent;
+        std::string uiVariant;
+        std::string uiSize;
+        std::vector<Attachment> attachments;
     };
 
     /**
@@ -35,9 +54,11 @@ namespace Ace {
     struct ComponentInfo {
         std::string id;
         std::string name;
+        std::string description;
         std::string family;   
         std::string engine;   
         std::string modelId;
+        std::string theme;
         int version = 1;
         std::vector<ParameterDef> parameters;
         std::vector<Modulation::PortDescriptor> ports;

@@ -32,15 +32,18 @@ const WasmHeartbeat: React.FC<WasmHeartbeatProps> = ({ status, details, onHeal }
 
   return (
     <div 
-      className={`wasm-heartbeat status-${status} ${canHeal ? 'clickable' : ''}`} 
+      className={`wasm-heartbeat-card status-${status}`} 
       onClick={() => canHeal && onHeal && onHeal()}
-      title={canHeal ? "Click to Force Aseptic Healing (Scan WASM Exports)" : (details || getStatusLabel())}
+      title={details || getStatusLabel()}
+      style={{ cursor: canHeal ? 'pointer' : 'default' }}
     >
-      <div className="heart-icon">{getHeartIcon()}</div>
-      <div className="heart-label">
-        <span className="tiny-label">WASM HEARTBEAT</span>
-        <span className="heavy-label">{getStatusLabel()}</span>
-        {canHeal && <span className="action-hint">CLICK TO HEAL</span>}
+      <div className={`heart-icon ${status === 'sync' ? 'pulse' : ''}`}>
+        {getHeartIcon()}
+      </div>
+      <div className="heart-info">
+        <span className="heart-label">WASM HEARTBEAT</span>
+        <span className="heart-status">{getStatusLabel()}</span>
+        {status === 'mismatch' && <span className="heart-label" style={{ color: 'var(--neon-amber)' }}>CLICK TO HEAL</span>}
       </div>
     </div>
   );

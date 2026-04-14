@@ -1,0 +1,19 @@
+/* OMEGA INDUSTRIAL COLORS (Amber Identity) */
+.theme-industrial {
+    --module-bg: #1e1e1e;
+    --module-header-bg: #222;
+    --module-border: 1px solid #444;
+    --module-label-color: #888;
+    --module-display-bg: #0a0a0a;
+    --module-display-color: #ff9900;
+    --module-accent: #ff6600;
+    --module-font-main: "Consolas", monospace;
+    --module-font-mono: "Consolas", monospace;
+    --module-glow: 0 0 15px rgba(255, 102, 0, 0.5);
+    
+    /* Industrial Density */
+    --knob-size: 34px;
+    --cell-padding: 4px;
+    --module-knob-bg: conic-gradient(from 0deg, #222, #444, #222, #444, #222);
+    --module-knob-border: #555;
+}

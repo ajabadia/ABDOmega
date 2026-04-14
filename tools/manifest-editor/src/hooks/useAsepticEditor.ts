@@ -4,6 +4,8 @@ import yaml from 'js-yaml';
 import AJV from 'ajv';
 import addFormats from 'ajv-formats';
 import era6Schema from '../schema.json';
+import { translateAsepticError, runHeuristicChecks } from '../services/aceLintService';
+import type { AceLintError } from '../services/aceLintService';
 
 const ajv = new AJV({ 
   allErrors: true, 
@@ -16,21 +18,21 @@ const validateEra6 = ajv.compile(era6Schema);
 
 export const useAsepticEditor = (addLog: (msg: string) => void) => {
   const [moduleData, setModuleData] = useState({
-    id: 'new_module_001',
-    name: 'Untitled Module',
-    description: '',
-    modelId: 'ACE-GENERIC',
-    implementationId: 0,
+    id: 'midi_in',
+    name: 'MIDI IN',
+    description: 'Canonical MIDI Input Bridge for the OMEGA Rack (Era 6.2 Absolute).',
+    modelId: 'ACE-UTIL-MIDI-IN',
+    implementationId: 601,
     engine: 'WASM' as any,
-    family: 'OSCILLATOR',
+    family: 'UTILITY',
     theme: 'aseptic' as any,
-    version: '6.1',
-    assets: {
-      icon: '',
-      image: ''
-    },
-    registry: [] as any[]
+    version: '6.2',
+    tags: [] as string[],
+    registry: [] as any[],
+    _user_edits: {} as Record<string, boolean> 
   });
+
+  const [isDirty, setIsDirty] = useState(false);
 
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
       setWasmStatus('error');
       setWasmDetails(err.message);
     }
-  }, [addLog]);
+  }, [addLog, moduleData.family]);
 
   const handleAsepticHealing = useCallback(async () => {
     // @ts-ignore
@@ -199,7 +201,9 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
             id: cleanId,
             label: cleanId.toUpperCase().replace(/_/g, ' '),
             type: isStream ? (rawName.includes('cv') ? 'cv' : 'audio') : 'float',
-            roles: isPort ? ['output'] : ['control']
+            roles: isPort ? ['output'] : ['control'],
+            front: !isPort, 
+            back: false
           };
 
           // Inferencia proactiva de roles
@@ -229,6 +233,49 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
     }
   }, [currentFilePath, moduleData.id, moduleData.registry, addLog, checkWasmIntegrity]);
 
+  const slugify = (text: string) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '_')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const updateModuleMetadata = (updates: any) => {
+    setModuleData(prev => ({ ...prev, ...updates }));
+    setIsDirty(true);
+  };
+
+  const updateRegistryItem = (id: string, updates: any) => {
+    setModuleData(prev => {
+      const newRegistry = prev.registry.map(item => {
+        if (item.id === id) {
+          const newItem = { ...item, ...updates };
+          
+          const isDefaultId = item.id.startsWith('param_') || item.id === '';
+          const hasManuallyEdited = prev._user_edits?.[id];
+
+          // Auto-Slug proactivo si el label cambia
+          if (updates.label && (isDefaultId || !hasManuallyEdited)) {
+             newItem.id = slugify(updates.label);
+          }
+
+          return newItem;
+        }
+        return item;
+      });
+
+      // Si el ID de un item cambia por actualización manual, lo rastreamos
+      let newUserEdits = { ...prev._user_edits };
+      if (updates.id !== undefined) {
+        newUserEdits[id] = true;
+      }
+
+      return { ...prev, registry: newRegistry, _user_edits: newUserEdits };
+    });
+  };
+
   const applyAsepticSuggestion = useCallback(() => {
     if (suggestedId) {
       setModuleData(prev => ({ ...prev, id: suggestedId }));
@@ -246,11 +293,23 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
   }, [currentFilePath, moduleData.id, moduleData.registry, checkWasmIntegrity]);
 
   const normalizeItem = useCallback((item: any) => {
-    if (item.range && !item.min) {
-      item.min = item.range.min;
-      item.max = item.range.max;
-      item.default = item.range.default;
+    // Migración Era 6.2: Mover min, max, default al objeto range
+    if (item.min !== undefined || item.max !== undefined || item.default !== undefined) {
+      if (!item.range) item.range = {};
+      if (item.min !== undefined) item.range.min = item.min;
+      if (item.max !== undefined) item.range.max = item.max;
+      if (item.default !== undefined) item.range.default = item.default;
+      
+      // Purga de campos obsoletos para cumplir el contrato 6.2
+      delete item.min;
+      delete item.max;
+      delete item.default;
     }
+
+    // Flags de visibilidad por defecto
+    if (item.front === undefined) item.front = true;
+    if (item.back === undefined) item.back = false;
+
     return item;
   }, []);
 
@@ -262,7 +321,9 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
           id: item.id, 
           label: item.label, 
           type: item.type, 
-          roles: item.roles 
+          roles: item.roles,
+          front: item.front ?? true,
+          back: item.back ?? false
         };
         if (item.type !== 'audio' && item.type !== 'cv' && item.type !== 'midi') {
           rItem.range = {
@@ -274,10 +335,6 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
         return rItem;
       });
     }
-    // Asegurar que assets esté presente si se define
-    if (clean.assets && (!clean.assets.icon && !clean.assets.image)) {
-      delete clean.assets;
-    }
     delete clean._aseptic_draft;
     return clean;
   }, []);
@@ -286,16 +343,28 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
     const sanitized = sanitizeManifest(moduleData);
     const valid = validateEra6(sanitized);
     
-    // Sincronizar SIEMPRE el estado de errores para la UI
-    const errors = validateEra6.errors || [];
-    setValidationErrors(errors);
-    
     if (!valid) {
-      addLog(`Validation FAILED: ${errors.length} errors.`);
+      const technicalErrors = validateEra6.errors || [];
+      const pedagogicalErrors = technicalErrors.map(translateAsepticError);
+      const heuristicErrors = runHeuristicChecks(moduleData);
+      
+      const allErrors = [...pedagogicalErrors, ...heuristicErrors];
+      
+      setValidationErrors(allErrors);
+      addLog(`Validation FAILED: Found ${allErrors.length} architectural issues.`);
       return false;
     }
-    setValidationErrors([]);
-    addLog("Validation SUCCESS: 100% Aseptic.");
+
+    const heuristicErrors = runHeuristicChecks(moduleData);
+    if (heuristicErrors.length > 0) {
+      setValidationErrors(heuristicErrors);
+      addLog(`Validation WARNING: Found ${heuristicErrors.length} Sound Design suggestions.`);
+      // No devolvemos false aquí, permitimos salvar pero avisamos
+    } else {
+      setValidationErrors([]);
+      addLog("Validation SUCCESS: 100% Aseptic.");
+    }
+
     return true;
   }, [moduleData, sanitizeManifest, addLog]);
 
@@ -323,8 +392,9 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
           family: parsed.family || 'OSCILLATOR',
           theme: parsed.theme || parsed.Theme || 'aseptic',
           version: parsed.version || "6.1",
-          assets: parsed.assets || { icon: '', image: '' },
-          registry: (parsed.registry || []).map(normalizeItem)
+          tags: parsed.tags || [],
+          registry: (parsed.registry || []).map(normalizeItem),
+          _user_edits: { '_root': true } // Al cargar, marcamos como editado para que no se auto-pise el ID
         });
         setCurrentFilePath(filePath);
         setSelectedId(null);
@@ -414,8 +484,9 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
         family: 'OSCILLATOR',
         theme: 'aseptic',
         version: '6.1',
-        assets: { icon: '', image: '' },
-        registry: []
+        tags: [],
+        registry: [],
+        _user_edits: {}
       });
       setCurrentFilePath(null);
       setWasmStatus('none');
@@ -431,7 +502,9 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
     validationErrors, setValidationErrors,
     wasmStatus, wasmDetails,
     idMismatch, suggestedId,
+    handleAsepticHealing, applyAsepticSuggestion,
+    updateModuleMetadata, updateRegistryItem,
     handleOpen, handleSave, handleNew, validateManifest,
-    handleAsepticHealing, applyAsepticSuggestion
+    isDirty
   };
 };

@@ -12,7 +12,7 @@ interface RegistryEditorProps {
   items: RegistryItem[];
   onUpdate: (items: RegistryItem[]) => void;
   selectedIndex: number | null;
-  onSelect: (index: number) => void;
+  onSelect: (index: number | null) => void;
 }
 
 const RegistryEditor: React.FC<RegistryEditorProps> = ({ items, onUpdate, selectedIndex, onSelect }) => {
@@ -23,7 +23,25 @@ const RegistryEditor: React.FC<RegistryEditorProps> = ({ items, onUpdate, select
   };
 
   return (
-    <div style={{ padding: '0 20px 20px', overflowY: 'auto', flex: 1 }}>
+    <div style={{ padding: '0 20px 20px', overflowY: 'auto', flex: 1, position: 'relative' }}>
+      <div 
+        onClick={() => onSelect(null)}
+        style={{ 
+          margin: '20px 0 10px',
+          padding: '12px 20px',
+          background: selectedIndex === null ? 'rgba(0, 242, 255, 0.1)' : '#111',
+          border: `1px solid ${selectedIndex === null ? 'var(--neon-cyan)' : '#333'}`,
+          borderRadius: '4px',
+          color: selectedIndex === null ? 'var(--neon-cyan)' : '#888',
+          fontSize: '11px',
+          fontWeight: 900,
+          cursor: 'pointer',
+          textAlign: 'center',
+          letterSpacing: '1px'
+        }}
+      >
+        {selectedIndex === null ? '▶ ' : ''}📁 CONFIGURE MODULE IDENTITY & ASSETS
+      </div>
       <table className="registry-table">
         <thead>
           <tr>

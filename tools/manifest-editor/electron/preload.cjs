@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fileExists: (path) => ipcRenderer.invoke('file-exists', path),
   scanWasm: (path) => ipcRenderer.invoke('scan-wasm', path),
   deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
+  readCells: () => ipcRenderer.invoke('read-cells'),
 });

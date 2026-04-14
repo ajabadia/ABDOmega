@@ -66,4 +66,45 @@ La Era 6 ha culminado su fase de endurecimiento arquitectónico. OMEGA cuenta ah
 
 ---
 
-*Última actualización: 2026-04-12 (Absolute Era 6 Certified)*
+## Fase 37: Aseptic Manifest Workbench (Q2 2026 - COMPLETADO)
+
+Transformación del editor técnico en un entorno de autoría semántica profesional.
+
+### 1. Ergonomía de Autoría Semántica [COMPLETADO]
+- [x] Implementación de **Navegación Estructural (Aseptic Outline)** con soporte inicial de IDs técnicos.
+- [x] Refactorización de la ficha de entidad en paneles contextuales básicos.
+- [x] Sistema de colapsado y gestión de espacio de trabajo (IDE Layout).
+
+### 2. Validación y Inteligencia de Contrato [COMPLETADO]
+- [x] Motor de **Linting ACE** con mensajes pedagógicos accionables.
+- [x] Sincronización "Auto-Sync" con binarios WASM (**WasmHeartbeat**).
+- [x] Protocolo de "Aseptic Healing" para reparación automática de manifiestos.
+
+### 3. Visualización y Feedback [COMPLETADO]
+- [x] **Arquitectura de Temas Atómica**: Migración de temas a una estructura modular.
+- [x] **Live Viewport con Linter Visual**: Motor de reflexión CSS para validación de componentes.
+
+---
+
+## Fase 38: UX Mastering & Semantic Navigation (Q2 2026 - EN CURSO)
+
+Refinamiento de la experiencia de usuario para autores de manifiestos.
+
+### 1. El Árbol Semántico [/]
+- [/] **Navegación Jerárquica**: Outline agrupado por `tab` y `group`.
+- [/] **Iconografía Contextual**: Identificación visual por componente (Knob, Slider, Port).
+- [ ] **Dirty State Management**: Indicadores de cambios sin guardar para guardado manual.
+
+### 2. Paneles Contextuales e Inteligencia [/]
+- [/] **Organización por Concern**: PropertyPanel con secciones colapsables (Identity, Contract, UI).
+- [/] **Contextual Help Popups**: Explicaciones integradas para campos técnicos (roles, precision, lookups).
+- [ ] **Templates de Intención**: Creación de entidades pre-configuradas (ej: "Añadir Knob con LED").
+
+### 3. Ecosistema y Validación [ ]
+- [ ] Despliegue masivo de definiciones de componentes en temas atómicos.
+- [ ] Implementación de la **Patching Sanctuary** (Matriz local) dentro del Workbench.
+
+
+---
+
+*Última actualización: 2026-04-13 (Phase 37 - Workbench Era 6.1 Finalization)*

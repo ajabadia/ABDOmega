@@ -1,0 +1,36 @@
+{
+  "id": "adsr_vertical",
+  "name": "ADSR (Vertical)",
+  "category": "packs",
+  "layout": { "columns": 4, "hp": 20, "gap": 12 },
+  "items": [
+    {
+      "id_suffix": "attack",
+      "label": "Attack",
+      "type": "float",
+      "roles": ["control"],
+      "presentation": { "ui": { "component": "slider_v", "size": "medium" }, "attachments": [{ "type": "label", "position": "bottom" }] }
+    },
+    {
+      "id_suffix": "decay",
+      "label": "Decay",
+      "type": "float",
+      "roles": ["control"],
+      "presentation": { "ui": { "component": "slider_v", "size": "medium" }, "attachments": [{ "type": "label", "position": "bottom" }] }
+    },
+    {
+      "id_suffix": "sustain",
+      "label": "Sustain",
+      "type": "float",
+      "roles": ["control"],
+      "presentation": { "ui": { "component": "slider_v", "size": "medium" }, "attachments": [{ "type": "label", "position": "bottom" }] }
+    },
+    {
+      "id_suffix": "release",
+      "label": "Release",
+      "type": "float",
+      "roles": ["control"],
+      "presentation": { "ui": { "component": "slider_v", "size": "medium" }, "attachments": [{ "type": "label", "position": "bottom" }] }
+    }
+  ]
+}

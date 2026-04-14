@@ -1,0 +1,60 @@
+/* OMEGA INDUSTRIAL KNOBS (Retro Radar Aesthetic) */
+
+.theme-industrial .knob {
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle at 30% 30%, #2a2210, #1a1508);
+  border: 1px solid #4d3a00;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Variation A: Large Pointer Dial */
+.theme-industrial .knob.variant-A {
+  width: 50px;
+  height: 50px;
+}
+.theme-industrial .knob.variant-A::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 3px;
+  height: 15px;
+  background: var(--module-accent);
+  transform: translateX(-50%);
+  box-shadow: 0 0 8px var(--module-accent);
+}
+
+/* Variation B: Standard Grip */
+.theme-industrial .knob.variant-B {
+  width: 34px;
+  height: 34px;
+}
+.theme-industrial .knob.variant-B::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 2px;
+  height: 10px;
+  background: var(--module-accent);
+  transform: translateX(-50%);
+}
+
+/* Variation C: Tiny Screw-head */
+.theme-industrial .knob.variant-C {
+  width: 20px;
+  height: 20px;
+  background: #222;
+  border: 1px dashed #4d3a00;
+}
+.theme-industrial .knob.variant-C::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  width: 80%;
+  height: 2px;
+  background: #444;
+  transform: translateY(-50%) rotate(45deg);
+}

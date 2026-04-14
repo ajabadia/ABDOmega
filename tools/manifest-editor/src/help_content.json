@@ -1,0 +1,22 @@
+{
+  "roles": {
+    "title": "Module Roles",
+    "content": "Define el propósito semántico de este registro. **Control** para parámetros editables, **Input/Output** para flujo de señales, y **Storage** para persistencia de estado."
+  },
+  "technical_id": {
+    "title": "Technical ID (snake_case)",
+    "content": "Identificador único interno usado por el motor WASM. Debe seguir el patrón `snake_case` (ej: `cutoff_freq`). Cambiar esto puede romper conexiones existentes."
+  },
+  "data_type": {
+    "title": "Data Specification",
+    "content": "Define la naturaleza del dato. **FLOAT** es continuo (0.0-1.0), **INT** es discreto. **Audio/CV** son flujos de alta tasa de muestreo para procesamiento de señal."
+  },
+  "ui_component": {
+    "title": "Visual Component",
+    "content": "Selecciona el widget físico que representará este valor en el frontal. Cada componente tiene requerimientos visuales específicos (como LEDs o Displays adjuntos)."
+  },
+  "semantic_variant": {
+    "title": "Style Variant",
+    "content": "Key de diseño (A, B, C...) que selecciona una variación estética dentro del tema activo. Permite diferenciar visualmente controles de distintas jerarquías."
+  }
+}

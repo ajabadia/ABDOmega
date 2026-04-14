@@ -67,4 +67,14 @@ Un módulo front-end se considera conforme a la Era 6 si cumple:
 - **Layout Declarativo**: La posición y agrupación se derivan al 100% de la propiedad `presentation` del esquema.
 
 ---
+
+## 6. Engineering Workbench Console (Era 6.3)
+
+El **Manifest Editor** evoluciona hacia una **Consola de Ingeniería Aseptizada** centrada en la auditoría estructural:
+
+- **Sanctuary Hub (I/O Hub)**: Actúa como la authority central de inspección. Sustituye al árbol de navegación estático por una tabla de señales interactiva de alto rendimiento.
+- **Representation Decoupling (Modals)**: La edición de propiedades se traslada a un sistema de **Modales Globales**. Esto evita la fragmentación del espacio de trabajo y asegura que el renderizado de detalles sea una capa efímera sobre la estructura sólida.
+- **Dynamic Visuals**: Las representaciones gráficas (ilustraciones SVG) se reservan para la inspección de identidad de módulo (Module DNA), manteniéndose ocultas durante la ingeniería de parámetros para maximizar la "Asepsia Visual".
+
+---
 *OMEGA — WebUI Architecture Blueprint*

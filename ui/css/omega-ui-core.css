@@ -1,0 +1,149 @@
+/* 
+   OMEGA UI CORE (Universal Style System) 
+   Shared between Manifest Workbench and WebUI 
+*/
+
+:root {
+  --omega-cyan: #00f2ff;
+  --omega-amber: #ffaa00;
+  --omega-green: #39FF14;
+  --omega-orange: #FF5E00;
+  --omega-red: #FF0000;
+}
+
+/* --- ASEPTIC BUTTONS --- */
+.aseptic-btn {
+  background: #222;
+  border: 1px solid #333;
+  color: #eee;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+
+.aseptic-btn:hover {
+  background: #333;
+  border-color: #444;
+}
+
+.aseptic-btn.primary {
+  background: var(--omega-cyan);
+  color: #000;
+  border: none;
+}
+
+.aseptic-btn.primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+}
+
+/* --- ASEPTIC INPUTS --- */
+.aseptic-input {
+  background: #000;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.aseptic-input:focus {
+  outline: none;
+  border-color: var(--omega-cyan);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.1);
+}
+
+.aseptic-input.error-border {
+  border-color: var(--omega-red) !important;
+  background: rgba(255, 77, 77, 0.05);
+}
+
+/* --- MODAL SYSTEM --- */
+.aseptic-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+}
+
+.aseptic-modal-content {
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 30px 100px rgba(0,0,0,1);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #222;
+}
+
+.modal-header h3 {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #888;
+  margin: 0;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.modal-footer {
+  padding: 10px 20px;
+  border-top: 1px solid #222;
+  background: #050505;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.close-btn:hover {
+  opacity: 1;
+}
+
+/* --- TAG PILLS --- */
+.tag-pill {
+  background: #1a1a1a;
+  color: var(--omega-cyan);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--omega-cyan);
+}
+
+.tag-pill button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}

@@ -1,0 +1,35 @@
+/* OMEGA ASEPTIC LEDS (Neon Glow Aesthetic) */
+
+.theme-aseptic .led {
+  border-radius: 50%;
+  background: #002222;
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Variation A: Large glowing orb */
+.theme-aseptic .led.variant-A {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  box-shadow: 
+    0 0 10px #fff, 
+    0 0 20px var(--module-accent), 
+    0 0 40px rgba(0, 242, 255, 0.2);
+}
+
+/* Variation B: Status dot */
+.theme-aseptic .led.variant-B {
+  width: 10px;
+  height: 10px;
+  background: var(--module-accent);
+  box-shadow: 0 0 15px var(--module-accent);
+}
+
+/* Variation C: Sub-pixel indicator */
+.theme-aseptic .led.variant-C {
+  width: 4px;
+  height: 4px;
+  background: var(--module-accent);
+  opacity: 0.4;
+}
