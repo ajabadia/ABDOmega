@@ -1028,6 +1028,170 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
+.error-list-inline {
+  background: rgba(255, 68, 68, 0.05);
+  padding: 10px 15px;
+  border-left: 3px solid var(--neon-amber);
+  margin: 5px 20px;
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+}
+
+.error-item-inline {
+  margin-bottom: 4px;
+  display: flex;
+  gap: 10px;
+}
+
+.error-path {
+  color: var(--neon-amber);
+  font-weight: bold;
+}
+
+.error-msg {
+  color: #ccc;
+}
+
+.error-details-row td {
+  padding: 0 !important;
+  background: #050505 !important;
+}
+
+.legacy-field-warning {
+  background: rgba(255, 170, 0, 0.05);
+  border: 1px dashed rgba(255, 170, 0, 0.3);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.legacy-field-warning .warning-icon {
+  font-size: 14px;
+}
+
+.legacy-field-warning .warning-text {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.legacy-field-warning .warning-text b {
+  color: var(--neon-amber);
+}
+
+.system-badge {
+  background: #3c00ff;
+  color: #fff;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 10px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(60, 0, 255, 0.4);
+}
+
+.system-pin-info {
+  background: rgba(60, 0, 255, 0.05);
+  border: 1px solid rgba(60, 0, 255, 0.2);
+  padding: 12px;
+  border-radius: 6px;
+  margin: 15px 0;
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.system-pin-info .info-icon {
+  font-size: 20px;
+}
+
+.system-pin-info .info-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #88f;
+  margin-bottom: 4px;
+}
+
+.system-pin-info .info-desc {
+  font-size: 11px;
+  color: #ccc;
+}
+
+.field-hint.system-lock {
+  color: #88f;
+  font-style: italic;
+}
+
+.system-pin-mode .id-field {
+  background: rgba(0,0,0,0.2);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.pin-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #111;
+  border: 1px solid var(--neon-cyan);
+  border-top: none;
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 242, 0.2);
+}
+
+.pin-suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.pin-suggestion-item:hover {
+  background: rgba(0, 242, 255, 0.1);
+}
+
+.pin-suggestion-item .pin-id {
+  color: var(--neon-cyan);
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.pin-suggestion-item .pin-label {
+  color: #888;
+  font-size: 9px;
+}
+
+.action-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.aseptic-btn.x-small {
+  padding: 2px 6px;
+  font-size: 9px;
+  min-width: auto;
+}
+
+.heal-btn {
+  background: rgba(255, 170, 0, 0.1) !important;
+  border-color: rgba(255, 170, 0, 0.3) !important;
+  color: var(--neon-amber) !important;
+}
+
+.heal-btn:hover {
+  background: var(--neon-amber) !important;
+  color: #000 !important;
+}
+
 .field-hint {
   display: block;
   font-size: 10px;
@@ -1593,6 +1757,31 @@ body {
   border-bottom: 1px solid var(--border-dim);
 }
 
+.sanctuary-tabl.error-log {
+  padding: 4px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.error-path-tag {
+  color: var(--neon-amber);
+  font-weight: bold;
+  font-size: 10px;
+  background: rgba(255, 170, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.error-sep {
+  color: #555;
+}
+
+.error-text {
+  color: #ddd;
+}
+
 .sanctuary-table td {
   padding: 12px 20px;
   border-bottom: 1px solid #111;
@@ -2136,6 +2325,26 @@ body {
   justify-content: center;
   background: rgba(0,0,0,0.6);
   backdrop-filter: blur(5px);
+}
+
+.property-footer-actions {
+  display: flex;
+  padding: 20px 30px;
+  background: rgba(255,255,255,0.02);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.aseptic-btn.danger {
+  background: rgba(255, 68, 68, 0.1);
+  color: #ff4444;
+  border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+.aseptic-btn.danger:hover {
+  background: rgba(255, 68, 68, 0.2);
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
 }
 
 .property-editor-modal {

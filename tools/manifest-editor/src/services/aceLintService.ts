@@ -47,7 +47,7 @@ export const translateAsepticError = (technicalError: any): AceLintError => {
     path,
     level: 'error',
     message: technicalError.message || 'Error de contrato.',
-    fix: 'Revisa la sintaxis del esquema Era 6.1.'
+    fix: 'Revisa la sintaxis del esquema Era 6.3.'
   };
 };
 

@@ -1,0 +1,37 @@
+/**
+ * OMEGA Era 7 - Aseptic ID Authority
+ * Centralized logic for ID generation and mapping.
+ */
+export class AsepticIdAuthority {
+    /**
+     * Generates a canonical parameter key for the RuntimeStore.
+     * Format: p.[instanceId].[paramId]
+     */
+    static mkParamKey(instanceId, paramId) {
+        return `p.${instanceId}.${paramId}`;
+    }
+    /**
+     * Generates a canonical telemetry pin key.
+     * Format: t.[instanceId].[sourceId]
+     */
+    static mkTelemetryKey(instanceId, sourceId) {
+        return `t.${instanceId}.${sourceId}`;
+    }
+    /**
+     * Generates a stable DOM ID for UI components.
+     * Format: omega-ui-[role]-[instanceId]-[entityId]
+     */
+    static mkDomId(role, instanceId, entityId) {
+        return `omega-ui-${role}-${instanceId}-${entityId}`;
+    }
+    /**
+     * Normalizes an incoming ID (string or number) to a numeric ParamId.
+     */
+    static normalizeParamId(id) {
+        if (typeof id === 'number')
+            return id;
+        const n = parseInt(id, 10);
+        return isNaN(n) ? 0 : n;
+    }
+}
+//# sourceMappingURL=AsepticIdAuthority.js.map

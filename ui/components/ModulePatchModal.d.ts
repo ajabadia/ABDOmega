@@ -14,10 +14,14 @@ export declare class ModulePatchModal {
     constructor();
     private init;
     open(instanceId: string, schema: any): Promise<void>;
+    private normalizeSchema;
     close(): void;
     private renderTabs;
     private getTabsFromSchema;
     private switchTab;
+    private renderRackTab;
+    private setModuleTheme;
+    private moveModule;
     private renderTabContent;
     private setupListeners;
     private renderParameterRow;

@@ -1,0 +1,256 @@
+schemaVersion: '7.2.3'
+id: midi_2_cv
+metadata:
+  name: MIDI-2-CV ADAPTER
+  family: control
+  tags:
+    - era7
+    - industrial
+    - architecture
+  rack:
+    slot: top
+    hp: 12
+  description: |
+    Flagship OMEGA Meta-Engine Adapter. Converters Polyphonic MIDI to high-resolution CV/Gate streams with Era 7.2.3 architectural layout.
+  status: stable
+registry:
+  - id: midi_channel
+    label: MIDI CHANNEL
+    type: int
+    roles:
+      - control
+  - id: transpose
+    label: TRANSPOSE
+    type: int
+    range:
+      min: -24
+      max: 24
+      default: 0
+    roles:
+      - control
+  - id: bend_range
+    label: BEND RANGE
+    type: int
+    range:
+      min: 0
+      max: 24
+      default: 2
+    roles:
+      - control
+      - mod_target
+  - id: mod_wheel
+    label: MODULATION
+    type: float
+    range:
+      min: 0
+      max: 1
+      default: 0
+    roles:
+      - control
+      - stream
+  - id: glide_time
+    label: GLIDE
+    type: float
+    range:
+      min: 0
+      max: 10
+      default: 0
+    roles:
+      - control
+      - mod_target
+  - id: cv_out
+    label: PITCH CV
+    type: float
+    roles:
+      - stream
+      - output
+  - id: gate_out
+    label: GATE
+    type: bool
+    roles:
+      - stream
+      - output
+  - id: vel_out
+    label: VELOCITY
+    type: float
+    roles:
+      - stream
+      - output
+  - id: at_out
+    label: AFTERTOUCH
+    type: float
+    roles:
+      - stream
+      - output
+  - id: gate_fade_in
+    label: FADE IN
+    type: float
+    range:
+      min: 0
+      max: 20
+      default: 2
+    roles:
+      - control
+      - expert
+ui:
+  dimensions:
+    width: 180
+    height: 420
+  skin: industrial
+  layout:
+    gridSnap: 5
+    containers:
+      - id: CONNECTIVITY
+        label: Connectivity
+        pos: { x: 0, y: 5 }
+        size: { w: "full", h: 80 }
+        variant: header
+        tab: MAIN
+      - id: VOICING
+        label: Voicing & Tuning
+        pos: { x: 0, y: 95 }
+        size: { w: "full", h: 100 }
+        variant: panel
+        tab: MAIN
+      - id: EXPRESSION
+        label: Performance
+        pos: { x: 0, y: 205 }
+        size: { w: "full", h: 120 }
+        variant: section
+        tab: MAIN
+      - id: PATCH_BAY
+        label: Signal Out
+        pos: { x: 0, y: 5 }
+        size: { w: "full", h: 320 }
+        variant: inset
+        tab: PATCHING
+  controls:
+    - id: ctrl_midi_channel
+      bind: midi_channel
+      pos: { x: 90, y: 40 }
+      presentation:
+        tab: MAIN
+        container: CONNECTIVITY
+        component: select
+        variant: industrial
+        attachments:
+          - type: label
+            position: top
+          - type: stepper
+            position: left
+            text: <
+            role: dec
+            amount: -1
+          - type: stepper
+            position: right
+            text: '>'
+            role: inc
+            amount: 1
+    - id: ctrl_transpose
+      bind: transpose
+      pos: { x: 45, y: 140 }
+      presentation:
+        tab: MAIN
+        container: VOICING
+        component: knob
+        variant: carbon
+        attachments:
+          - type: display
+            position: bottom
+            unit: ST
+            prefix: 'TR:'
+    - id: ctrl_bend_range
+      bind: bend_range
+      pos: { x: 135, y: 140 }
+      presentation:
+        tab: MAIN
+        container: VOICING
+        component: knob
+        variant: carbon
+        attachments:
+          - type: label
+            position: bottom
+    - id: ctrl_mod_wheel
+      bind: mod_wheel
+      pos: { x: 45, y: 250 }
+      presentation:
+        tab: MAIN
+        container: EXPRESSION
+        component: slider_v
+        variant: industrial
+        attachments:
+          - type: label
+            position: bottom
+    - id: ctrl_glide_time
+      bind: glide_time
+      pos: { x: 135, y: 250 }
+      presentation:
+        tab: MAIN
+        container: EXPRESSION
+        component: knob
+        variant: industrial
+        attachments:
+          - type: label
+            position: bottom
+    - id: ctrl_gate_fade_in
+      bind: gate_fade_in
+      pos: { x: 90, y: 50 }
+      presentation:
+        tab: EDIT
+        component: knob
+        variant: minimal
+        attachments:
+          - type: label
+            position: bottom
+  jacks:
+    - id: jack_cv_out
+      bind: cv_out
+      pos: { x: 45, y: 60 }
+      presentation:
+        tab: PATCHING
+        container: PATCH_BAY
+        component: port
+        variant: industrial
+        attachments:
+          - type: label
+            position: bottom
+            text: CV
+    - id: jack_gate_out
+      bind: gate_out
+      pos: { x: 135, y: 60 }
+      presentation:
+        tab: PATCHING
+        container: PATCH_BAY
+        component: port
+        variant: industrial
+        attachments:
+          - type: label
+            position: bottom
+            text: GATE
+    - id: jack_vel_out
+      bind: vel_out
+      pos: { x: 45, y: 160 }
+      presentation:
+        tab: PATCHING
+        container: PATCH_BAY
+        component: port
+        variant: industrial
+        attachments:
+          - type: label
+            position: bottom
+            text: VEL
+    - id: jack_at_out
+      bind: at_out
+      pos: { x: 135, y: 160 }
+      presentation:
+        tab: PATCHING
+        container: PATCH_BAY
+        component: port
+        variant: industrial
+        attachments:
+          - type: label
+            position: bottom
+            text: AT
+resources:
+  wasm: midi_2_cv.wasm
+  contract: midi_2_cv.contract.json

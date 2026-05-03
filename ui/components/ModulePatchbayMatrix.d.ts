@@ -1,6 +1,6 @@
 export declare class ModulePatchbayMatrix {
     private el;
-    private content;
+    private root;
     private options;
     private state;
     private sources;
@@ -27,6 +27,7 @@ export declare class ModulePatchbayMatrix {
     private addModulation;
     private renderInspector;
     private getNameForId;
+    private normalizeList;
     private generateOptions;
     private attachGridListeners;
     private attachInspectorListeners;

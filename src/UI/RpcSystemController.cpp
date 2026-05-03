@@ -15,6 +15,12 @@ namespace UI {
         
         // [Era 6] Service & Hardware Diagnostics
         dispatcher.registerHandler("serviceAction",      [this](const juce::var& rid, const juce::var& p) { return handleServiceAction(rid, p); });
+        
+        // [Era 6.3] Dynamic Schema Sync
+        dispatcher.registerHandler("getAceSchema",       [this, processor](const juce::var& rid, const juce::var& p) { return handleGetAceSchema(rid, processor); });
+        
+        // [Era 6.3] Generic System Action
+        dispatcher.registerHandler("systemAction",      [this, processor](const juce::var& rid, const juce::var& p) { return handleSystemAction(rid, p, processor); });
     }
 
     juce::var RpcSystemController::handleExit(const juce::var& requestId, const juce::var&) {
@@ -77,15 +83,33 @@ namespace UI {
     }
 
     juce::var RpcSystemController::handleServiceAction(const juce::var& requestId, const juce::var& payload) {
+        // ... (existing handleServiceAction)
         juce::String action = payload["action"].toString();
-        DBG("[RpcSystemController] Service Action: " << action);
-        
-        // Future: Pipe these to specialized HardwareCalibration or VoiceTester services
         juce::DynamicObject::Ptr result = new juce::DynamicObject();
         result->setProperty("status", "received");
         result->setProperty("action", action);
         return createResponse("SERVICE_ACK", requestId, juce::var(), juce::var(result.get()));
     }
 
+    juce::var RpcSystemController::handleGetAceSchema(const juce::var& requestId, Plugin::OmegaAudioProcessor* processor) {
+        if (!processor) return createError("NO_PROCESSOR", requestId, "Processor instance missing");
+        
+        juce::var schema = processor->getCatalog().generateSchema();
+        return createResponse("ACE_SCHEMA", requestId, juce::var(), schema);
+    }
+
+    juce::var RpcSystemController::handleSystemAction(const juce::var& requestId, const juce::var& payload, Plugin::OmegaAudioProcessor* processor) {
+        juce::String action = payload.hasProperty("action") ? payload["action"].toString() : payload["target"].toString();
+        DBG("[RpcSystemController] System Action: " << action);
+        
+        // Handle specific actions if needed
+        if (action == "undo") { /* ... */ }
+        else if (action == "redo") { /* ... */ }
+        else if (action == "save_preset") {
+            if (processor) processor->saveCurrentPreset();
+        }
+        
+        return createResponse("SYSTEM_ACTION_ACK", requestId, juce::var(), action);
+    }
 } // namespace UI
 } // namespace Omega

@@ -20,6 +20,16 @@
     width: 100%;
 }
 
+:root {
+    /* Brand Colors (Aligned with abd-ia_synths) */
+    --omega-cyan: #00f2ff;
+    --omega-red: #ff4444;
+    --omega-orange: #ff8800;
+    --omega-green: #00ff88;
+    --omega-white: #ffffff;
+    --omega-accent: #ff8c00;
+}
+
 .ctrl {
     display: flex;
     flex-direction: column;
@@ -97,9 +107,36 @@
     border-radius: 1px;
 }
 
-.variant-A .knob { height: 16px; transform-origin: center 24px; top: 12px; }
-.variant-B .knob { height: 8px; transform-origin: center 14px; top: 8px; }
-.variant-C .knob { height: 4px; transform-origin: center 4px; top: 2px; }
+/* [Era 7.1] Standardized Size/Color Variants (Aligned with abd-ia_synths) */
+/* KNOBS */
+.variant-A .knob, [class*="variant-A_"] .knob { width: 32px; height: 32px; }
+.variant-B .knob, [class*="variant-B_"] .knob { width: 24px; height: 24px; }
+.variant-C .knob, [class*="variant-C_"] .knob { width: 16px; height: 16px; }
+.variant-D .knob, [class*="variant-D_"] .knob { width: 12px; height: 12px; }
+
+/* LEDS */
+.variant-A .led, [class*="variant-A_"] .led { width: 12px; height: 12px; }
+.variant-B .led, [class*="variant-B_"] .led { width: 8px; height: 8px; }
+.variant-C .led, [class*="variant-C_"] .led { width: 5px; height: 5px; }
+.variant-D .led, [class*="variant-D_"] .led { width: 3px; height: 3px; }
+
+/* PORTS */
+.variant-A .port-socket, [class*="variant-A_"] .port-socket { width: 28px; height: 28px; }
+.variant-B .port-socket, [class*="variant-B_"] .port-socket { width: 24px; height: 24px; }
+.variant-C .port-socket, [class*="variant-C_"] .port-socket { width: 20px; height: 20px; }
+.variant-D .port-socket, [class*="variant-D_"] .port-socket { width: 16px; height: 16px; }
+
+/* SELECTS */
+.variant-A .industrial-select, [class*="variant-A_"] .industrial-select { width: 120px; }
+.variant-B .industrial-select, [class*="variant-B_"] .industrial-select { width: 100px; }
+.variant-C .industrial-select, [class*="variant-C_"] .industrial-select { width: 80px; }
+.variant-D .industrial-select, [class*="variant-D_"] .industrial-select { width: 60px; }
+
+/* DISPLAYS */
+.variant-A .mini-display, [class*="variant-A_"] .mini-display { width: 100px; height: 33px; }
+.variant-B .mini-display, [class*="variant-B_"] .mini-display { width: 80px; height: 26px; }
+.variant-C .mini-display, [class*="variant-C_"] .mini-display { width: 60px; height: 20px; }
+.variant-D .mini-display, [class*="variant-D_"] .mini-display { width: 40px; height: 14px; }
 
 /* SWITCHES */
 .sw-unit {
@@ -210,13 +247,16 @@
 .variant-C .led { width: 16px; height: 6px; border-radius: 1px; }  /* Rectangular */
 
 /* LED Colors & Glows */
-.led.active.led-red    { background: #ff0000; box-shadow: 0 0 12px #ff0000; }
-.led.active.led-green  { background: #00ff00; box-shadow: 0 0 12px #00ff00; }
-.led.active.led-blue   { background: #0066ff; box-shadow: 0 0 12px #0066ff; }
-.led.active.led-yellow { background: #ffff00; box-shadow: 0 0 12px #ffff00; }
-.led.active.led-white  { background: #ffffff; box-shadow: 0 0 12px #ffffff; }
-.led.active.led-orange { background: #ff9900; box-shadow: 0 0 12px #ff9900; }
-.led.active.led-cyan   { background: #00f2ff; box-shadow: 0 0 12px #00f2ff; }
+.led.active.led-cyan   { background: var(--omega-cyan); box-shadow: 0 0 12px var(--omega-cyan); }
+
+/* [Era 7.1] Pattern: [Size]_[Color] */
+[class*="_red"].led.active    { background: var(--omega-red); box-shadow: 0 0 12px var(--omega-red); }
+[class*="_green"].led.active  { background: var(--omega-green); box-shadow: 0 0 12px var(--omega-green); }
+[class*="_blue"].led.active   { background: #0066ff; box-shadow: 0 0 12px #0066ff; }
+[class*="_yellow"].led.active { background: #ffff00; box-shadow: 0 0 12px #ffff00; }
+[class*="_white"].led.active  { background: var(--omega-white); box-shadow: 0 0 12px var(--omega-white); }
+[class*="_orange"].led.active { background: var(--omega-orange); box-shadow: 0 0 12px var(--omega-orange); }
+[class*="_cyan"].led.active   { background: var(--omega-cyan); box-shadow: 0 0 12px var(--omega-cyan); }
 
 /* Compatibility with legacy assets if needed */
 .led.active {
@@ -520,4 +560,114 @@
     height: 40px;
     background: #111;
     border: 1px solid #333;
-}
+/* [Era 7.1] DISPLAY COMPONENT (With Integrated Steppers) */
+.mini-display {
+    background: #000;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 2px;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    box-shadow: inset 0 0 15px rgba(0,0,0,1);
+    font-family: 'Fragment Mono', monospace;
+}
+
+.display-btn {
+    width: 20%;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 10px;
+    transition: background 0.1s;
+}
+
+.display-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
+.display-btn:active { background: rgba(0,242,255,0.2); }
+
+.display-btn.minus { border-right: 1px solid rgba(255,255,255,0.1); }
+.display-btn.plus { border-left: 1px solid rgba(255,255,255,0.1); }
+
+.display-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.4);
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+/* [Era 7.1] INDUSTRIAL SELECT COMPONENT (Aligned) */
+.industrial-select-wrapper {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 24px;
+    overflow: hidden;
+}
+
+.industrial-select-wrapper:hover {
+    border-color: var(--omega-cyan);
+}
+
+.industrial-select-label {
+    flex: 1;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--omega-cyan);
+}
+
+.industrial-select-icon {
+    width: 10px;
+    height: 10px;
+    opacity: 0.3;
+}
+
+/* [Era 7.1] STEPPER ATTACHMENT (Legacy support / Fragment) */
+.stepper-attachment {
+    display: flex;
+    gap: 2px;
+    background: rgba(0,0,0,0.4);
+    padding: 2px;
+    border-radius: 2px;
+}
+
+.stepper-attachment .stepper-btn {
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    padding: 0;
+}
+
+/* [Governance ERA 4] Orphan Indicator */
+.control-cell.role-orphan {
+    outline: 1px dashed rgba(255, 0, 0, 0.3);
+    position: relative;
+}
+
+.control-cell.role-orphan::before {
+    content: 'ORPHAN';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 6px;
+    color: #ff4444;
+    font-weight: 900;
+}
+

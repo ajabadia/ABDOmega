@@ -1,9 +1,10 @@
+import {} from '../contracts/ModuleContract.js';
 export class ModuleOscilloscope {
     el;
     content;
     canvas;
     ctx;
-    descriptor;
+    options;
     isPowered = true;
     sourceA = 10; // Default DCO Main
     sourceB = 13; // Default VCF Out
@@ -23,10 +24,10 @@ export class ModuleOscilloscope {
     modalCanvas = null;
     modalCtx = null;
     modalTimebase = 1.0;
-    constructor(el, content, descriptor) {
+    constructor(el, content, options) {
         this.el = el;
         this.content = content;
-        this.descriptor = descriptor;
+        this.options = options;
         this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.render();
@@ -104,7 +105,7 @@ export class ModuleOscilloscope {
                 <div class="module-controls" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <button id="osc-power" class="juno-btn power-btn active" style="width:24px; height:24px; font-size:10px;" title="POWER">⏻</button>
-                        <span class="module-title" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">SCOPE ${this.descriptor.label || "MASTER"}</span>
+                        <span class="module-title" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">SCOPE ${this.options.label || "MASTER"}</span>
                     </div>
                     <div style="display: flex; gap: 5px;">
                         <button id="osc-modal-trigger" class="btn-scope-focus" style="width:24px; height:24px;" title="Advanced Analyzer">⛶</button>

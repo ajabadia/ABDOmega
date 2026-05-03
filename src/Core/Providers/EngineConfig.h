@@ -62,6 +62,8 @@ namespace Service {
     struct EngineConfig {
         VoiceConfig voices[16];
         float masterGainDb { 0.0f };
+        int globalMidiChannel { 0 }; // 0 = OMNI
+        int globalTranspose { 0 };
         float chorusMix { 0.0f };
         bool chorusEnabled { false };
         int chorusMode { 1 };

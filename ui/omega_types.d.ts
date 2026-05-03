@@ -23,21 +23,40 @@ export interface RpcErrorEnvelope extends RpcEnvelope<undefined> {
     error: string;
     originalType?: string;
 }
-export interface RuntimePresetInfo {
-    id: string;
-    name: string;
-    author?: string;
-}
-export interface StatePayloadV1 {
-    schemaVersion: SchemaVersion;
-    preset: RuntimePresetInfo;
+export interface PatchModuleV7 {
+    instanceId: number;
+    typeId: number;
+    componentId?: string;
+    rack?: string;
+    label?: string;
+    theme?: string;
+    parameters: Record<string, number>;
     params: Record<string, number>;
 }
-export interface StateResponse extends RpcEnvelope<StatePayloadV1> {
+export interface PatchDocumentV7 {
+    name: string;
+    author: string;
+    masterGainDb: number;
+    modules: PatchModuleV7[];
+}
+export interface StatePayloadV1 {
+    schemaVersion: '1.0' | string;
+    preset: any;
+    params?: Record<string, number>;
+    auxiliary?: any[];
+    mainChain?: any[];
+}
+export interface StatePayloadV7 {
+    schemaVersion: '7.0';
+    patch: PatchDocumentV7;
+}
+export interface StateResponse extends RpcEnvelope<StatePayloadV7 | StatePayloadV1> {
     type: 'state';
 }
 export interface ParamAckPayload {
-    target: string;
+    target?: string;
+    instanceId?: number;
+    paramId?: number;
     value: number;
 }
 export interface ParamAckResponse extends RpcEnvelope<ParamAckPayload> {
@@ -153,7 +172,9 @@ export interface UiSetParameterCommand {
     type: 'setParameter';
     requestId?: RequestId;
     payload: {
-        target: string;
+        target?: string;
+        instanceId?: number;
+        paramId?: number;
         value: number;
     };
 }

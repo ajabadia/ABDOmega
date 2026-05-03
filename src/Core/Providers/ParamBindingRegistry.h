@@ -95,6 +95,10 @@ namespace Service {
             regGlobal("layer.a.fx.space.echo.vol",  [](EngineConfig& c, float v) { c.spaceEchoEchoVol = v; });
             regGlobal("layer.a.fx.space.rev.vol",   [](EngineConfig& c, float v) { c.spaceEchoReverbVol = v; });
             regGlobal("layer.a.fx.space.mode",      [](EngineConfig& c, float v) { c.spaceEchoMode = (int)v; });
+            
+            // --- Global Utility / Adapters ---
+            regGlobal("midi_channel", [](EngineConfig& c, float v) { c.globalMidiChannel = (int)v; });
+            regGlobal("transpose",    [](EngineConfig& c, float v) { c.globalTranspose = (int)v; });
         }
 
         std::map<juce::String, BindingAction> mBindings;

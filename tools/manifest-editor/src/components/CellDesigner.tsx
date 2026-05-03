@@ -6,10 +6,25 @@ interface CellBlueprint {
   category: string;
   layout: {
     columns: number;
+    rows: number;
     hp: number;
     gap: number;
   };
-  items: any[];
+  items: CellItem[];
+}
+
+interface CellItem {
+  id: string;
+  look: string;
+  label: string;
+  row: number;
+  col: number;
+  variant: string;
+  attachments?: {
+    type: 'label' | 'display' | 'led';
+    position: 'top' | 'bottom' | 'left' | 'right';
+    role?: string;
+  }[];
 }
 
 interface CellDesignerProps {
@@ -21,7 +36,7 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
     id: 'new_cell',
     name: 'NEW CELL',
     category: 'packs',
-    layout: { columns: 2, hp: 10, gap: 12 },
+    layout: { columns: 2, rows: 6, hp: 10, gap: 12 },
     items: []
   });
 
@@ -34,7 +49,7 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
         id: 'new_cell',
         name: 'NEW CELL',
         category: 'packs',
-        layout: { columns: 2, hp: 10, gap: 12 },
+        layout: { columns: 2, rows: 6, hp: 10, gap: 12 },
         items: []
       });
       setActiveTool(null);
@@ -113,13 +128,14 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
       return;
     }
 
-    const newItem = {
+    const newItem: CellItem = {
       id: `${activeTool}_${Date.now()}`,
       look: activeTool,
       label: activeTool.toUpperCase(),
       row: row,
       col: col,
-      variant: 'default'
+      variant: 'default',
+      attachments: []
     };
 
     setBlueprint({
@@ -161,21 +177,40 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
         <aside className="designer-aside palette">
           <header className="aside-header">PALETTE</header>
           <div className="palette-grid">
-            {['knob', 'slider_v', 'slider_h', 'switch', 'port', 'led', 'display', 'meter', 'button'].map(type => (
-              <div 
-                key={type} 
-                className={`palette-item ${activeTool === type ? 'active' : ''}`} 
-                onClick={() => setActiveTool(activeTool === type ? null : type)}
-                title={`Select ${type}`}
-                style={{ borderColor: activeTool === type ? 'var(--neon-cyan)' : '' }}
-              >
-                <div className="item-icon">
-                  {type === 'knob' ? '🔘' : type === 'port' ? '🔌' : type === 'led' ? '🚨' : '🎛️'}
-                </div>
-                <span className="item-label">{type.toUpperCase()}</span>
-              </div>
-            ))}
+            <div className={`palette-item ${activeTool === 'knob' ? 'active' : ''}`} onClick={() => setActiveTool('knob')}>
+              <span className="item-icon">🔘</span>
+              <span className="item-label">KNOB</span>
+            </div>
+            <div className={`palette-item ${activeTool === 'slider_v' ? 'active' : ''}`} onClick={() => setActiveTool('slider_v')}>
+              <span className="item-icon">↕️</span>
+              <span className="item-label">SLIDER V</span>
+            </div>
+            <div className={`palette-item ${activeTool === 'slider_h' ? 'active' : ''}`} onClick={() => setActiveTool('slider_h')}>
+              <span className="item-icon">↔️</span>
+              <span className="item-label">SLIDER H</span>
+            </div>
+            <div className={`palette-item ${activeTool === 'port' ? 'active' : ''}`} onClick={() => setActiveTool('port')}>
+              <span className="item-icon">⭕</span>
+              <span className="item-label">PORT</span>
+            </div>
+            <div className={`palette-item ${activeTool === 'button' ? 'active' : ''}`} onClick={() => setActiveTool('button')}>
+              <span className="item-icon">⏹️</span>
+              <span className="item-label">BUTTON</span>
+            </div>
+            <div className={`palette-item ${activeTool === 'toggle' ? 'active' : ''}`} onClick={() => setActiveTool('toggle')}>
+              <span className="item-icon">🔘</span>
+              <span className="item-label">TOGGLE</span>
+            </div>
+            <div className={`palette-item ${activeTool === 'display' ? 'active' : ''}`} onClick={() => setActiveTool('display')}>
+              <span className="item-icon">📟</span>
+              <span className="item-label">DISPLAY</span>
+            </div>
+            <div className={`palette-item ${activeTool === 'led' ? 'active' : ''}`} onClick={() => setActiveTool('led')}>
+              <span className="item-icon">🟢</span>
+              <span className="item-label">LED</span>
+            </div>
           </div>
+          
           {activeTool && (
             <div className="tool-hint">
               <p>TAP A GRID CELL TO PLACE: <b>{activeTool.toUpperCase()}</b></p>
@@ -191,10 +226,21 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
               <input type="number" value={blueprint.layout.hp || 0} onChange={e => setBlueprint({...blueprint, layout: {...blueprint.layout, hp: parseInt(e.target.value) || 0}})} />
             </div>
             <div className="control-group">
-              <label>COLS:</label>
-              <input type="number" value={blueprint.layout.columns || 0} onChange={e => setBlueprint({...blueprint, layout: {...blueprint.layout, columns: parseInt(e.target.value) || 0}})} />
+              <label>COLS</label>
+              <input 
+                type="number" 
+                value={blueprint.layout.columns} 
+                onChange={(e) => setBlueprint({ ...blueprint, layout: { ...blueprint.layout, columns: parseInt(e.target.value) || 1 } })} 
+              />
             </div>
-          </div>
+            <div className="control-group">
+              <label>ROWS</label>
+              <input 
+                type="number" 
+                value={blueprint.layout.rows} 
+                onChange={(e) => setBlueprint({ ...blueprint, layout: { ...blueprint.layout, rows: parseInt(e.target.value) || 1 } })} 
+              />
+            </div>
           
           <div className="visual-canvas">
             <div 
@@ -207,7 +253,7 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
               }}
             >
               {/* GRID MESH */}
-              {Array.from({ length: blueprint.layout.columns * 6 }).map((_, i) => {
+              {Array.from({ length: blueprint.layout.columns * blueprint.layout.rows }).map((_, i) => {
                 const row = Math.floor(i / blueprint.layout.columns);
                 const col = i % blueprint.layout.columns;
                 const occupant = blueprint.items.find(item => item.row === row && item.col === col);
@@ -220,8 +266,20 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
                   >
                     {!occupant && <span className="zone-coord">{row}:{col}</span>}
                     {occupant && (
-                      <div className={`placed-component ${occupant.look}`}>
-                        <span className="comp-icon">{occupant.look === 'knob' ? '🔘' : '🎛️'}</span>
+                      <div className={`placed-component component-${occupant.look}`}>
+                        <div className="cell-core">
+                           <div className="core-symbol"></div>
+                           {occupant.attachments?.map((att, idx) => (
+                             <div key={idx} className={`mini-att att-${att.type}`} style={{ 
+                               position: 'absolute', 
+                               [att.position]: '-10px',
+                               fontSize: '6px'
+                             }}>
+                               {att.type === 'label' ? 'T' : att.type === 'led' ? '•' : '00'}
+                             </div>
+                           ))}
+                        </div>
+                        <span className="comp-id-label">{occupant.label}</span>
                         <button className="remove-btn" onClick={(e) => removeComponent(occupant.id, e)}>×</button>
                       </div>
                     )}
@@ -258,18 +316,48 @@ const CellDesigner: React.FC<CellDesignerProps> = ({ addLog }) => {
                           setBlueprint({...blueprint, items: newItems});
                         }} />
                      </div>
-                     <div className="form-group">
-                        <label>VARIANT</label>
-                        <select value={item.variant} onChange={e => {
-                          const newItems = blueprint.items.map(i => i.id === selectedElementId ? {...i, variant: e.target.value} : i);
-                          setBlueprint({...blueprint, items: newItems});
-                        }}>
-                          <option value="default">Default</option>
-                          <option value="A">Variant A</option>
-                          <option value="B">Variant B</option>
-                        </select>
-                     </div>
-                     <button className="aseptic-btn danger" style={{marginTop: '20px'}} onClick={(e) => removeComponent(item.id, e as any)}>DELETE ELEMENT</button>
+                      <div className="form-group" style={{marginTop: '10px'}}>
+                         <label>ATTACHMENTS</label>
+                         <div className="attachments-list">
+                            {item.attachments?.map((att, idx) => (
+                              <div key={idx} className="attachment-row">
+                                <select value={att.type} onChange={e => {
+                                  const newAtts = [...(item.attachments || [])];
+                                  newAtts[idx] = { ...newAtts[idx], type: e.target.value as any };
+                                  const newItems = blueprint.items.map(i => i.id === selectedElementId ? {...i, attachments: newAtts} : i);
+                                  setBlueprint({...blueprint, items: newItems});
+                                }}>
+                                  <option value="label">Label</option>
+                                  <option value="led">LED</option>
+                                  <option value="display">Display</option>
+                                </select>
+                                <select value={att.position} onChange={e => {
+                                  const newAtts = [...(item.attachments || [])];
+                                  newAtts[idx] = { ...newAtts[idx], position: e.target.value as any };
+                                  const newItems = blueprint.items.map(i => i.id === selectedElementId ? {...i, attachments: newAtts} : i);
+                                  setBlueprint({...blueprint, items: newItems});
+                                }}>
+                                  <option value="top">Top</option>
+                                  <option value="bottom">Bottom</option>
+                                  <option value="left">Left</option>
+                                  <option value="right">Right</option>
+                                </select>
+                                <button className="del-btn" onClick={() => {
+                                  const newAtts = item.attachments?.filter((_, i) => i !== idx);
+                                  const newItems = blueprint.items.map(i => i.id === selectedElementId ? {...i, attachments: newAtts} : i);
+                                  setBlueprint({...blueprint, items: newItems});
+                                }}>×</button>
+                              </div>
+                            ))}
+                            <button className="aseptic-btn" style={{fontSize: '8px', padding: '5px'}} onClick={() => {
+                              const newAtts = [...(item.attachments || []), { type: 'label', position: 'top' }];
+                              const newItems = blueprint.items.map(i => i.id === selectedElementId ? {...i, attachments: newAtts as any} : i);
+                              setBlueprint({...blueprint, items: newItems});
+                            }}>+ ADD ATTACHMENT</button>
+                         </div>
+                      </div>
+
+                      <button className="aseptic-btn danger" style={{marginTop: '20px'}} onClick={(e) => removeComponent(item.id, e as any)}>DELETE ELEMENT</button>
                    </div>
                  );
                })()

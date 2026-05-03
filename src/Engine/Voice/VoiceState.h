@@ -74,7 +74,8 @@ namespace Voice {
         } modularMidi;
 
         // Modulation Signal Space (Case 401: ADSR, LFO outputs)
-        float modSignals[64] = { 0.0f };
+        // Era 6.3: Expanded to 256 to support System Environment Pins (200+)
+        float modSignals[256] = { 0.0f };
         
         // Link to shared hardware/plan/config
         const CompiledVoicePlan* plan = nullptr;

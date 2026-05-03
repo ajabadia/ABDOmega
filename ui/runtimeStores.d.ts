@@ -1,20 +1,37 @@
-import type { ModMetadataPayloadV1, ParamChangeEvent, StatePayloadV1, TelemetryFramePayloadV1, TelemetrySample, UiCommand } from './omega_types.js';
+import type { ModMetadataPayloadV1, ParamChangeEvent, StatePayloadV1, StatePayloadV7, PatchDocumentV7, TelemetryFramePayloadV1, TelemetrySample, UiCommand } from './omega_types.js';
 export interface RuntimeStoreState {
+    patch: PatchDocumentV7 | null;
     preset: StatePayloadV1['preset'] | null;
     params: Record<string, number>;
     telemetry: Record<string, TelemetrySample>;
     modulation: ModMetadataPayloadV1 | null;
     schemaVersion: string | null;
+    systemInfo: {
+        version: string;
+        build: string;
+        lcdText: string;
+    };
 }
+export declare enum ChangeType {
+    Structure = 1,
+    Parameters = 2,
+    Telemetry = 4,
+    System = 8,
+    All = 15
+}
+export type StoreListener = (changeType: ChangeType) => void;
 export declare abstract class BaseStore {
-    protected listeners: Set<() => void>;
-    subscribe(callback: () => void): () => void;
-    protected notify(): void;
+    protected listeners: Set<StoreListener>;
+    subscribe(callback: StoreListener): () => void;
+    protected notify(type?: ChangeType): void;
 }
 export declare class RuntimeStore extends BaseStore {
     private state;
     getSnapshot(): RuntimeStoreState;
-    applyState(payload: StatePayloadV1): void;
+    getValue(paramKey: string, defaultValue?: number): number;
+    getTelemetry(paramKey: string): number;
+    applyState(payload: StatePayloadV7 | StatePayloadV1): void;
+    private syncLegacyParams;
     applyParamChange(event: ParamChangeEvent): void;
     applyTelemetryFrame(payload: TelemetryFramePayloadV1): void;
     applyModulation(payload: ModMetadataPayloadV1): void;
@@ -23,14 +40,6 @@ export declare class RuntimeStore extends BaseStore {
 export interface SchemaStoreState {
     schemaVersion: string | null;
     uiSchema: any | null;
-}
-export declare class SchemaStore extends BaseStore {
-    private state;
-    private loadPromise;
-    getSnapshot(): SchemaStoreState;
-    ensureLoaded(): Promise<boolean>;
-    setSchema(uiSchema: any, schemaVersion?: string): void;
-    getSchemaForComponent(componentId: string): any;
 }
 export interface GraphStoreState {
     schemaVersion: string | null;

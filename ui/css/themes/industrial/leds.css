@@ -8,7 +8,7 @@
 }
 
 /* Variation A: Large rectangular lamp */
-.theme-industrial .led.variant-A {
+.variant-A .led, [class*="variant-A_"] .led {
   width: 20px;
   height: 12px;
   background: var(--module-accent);
@@ -16,7 +16,7 @@
 }
 
 /* Variation B: Indicator dot (Square) */
-.theme-industrial .led.variant-B {
+.variant-B .led, [class*="variant-B_"] .led {
   width: 8px;
   height: 8px;
   background: var(--module-accent);
@@ -24,7 +24,7 @@
 }
 
 /* Variation C: Tiny grain of wheat */
-.theme-industrial .led.variant-C {
+.variant-C .led, [class*="variant-C_"] .led {
   width: 4px;
   height: 4px;
   border-radius: 50%;

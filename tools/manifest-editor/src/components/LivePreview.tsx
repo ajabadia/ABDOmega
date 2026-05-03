@@ -9,6 +9,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({ moduleData, onUpdate }) => {
   const currentTab = 'MAIN';
   const theme = moduleData.theme || 'default';
   const [missingRules, setMissingRules] = useState<string[]>([]);
+  const [blueprintMode, setBlueprintMode] = useState<'operator' | 'engineering'>('operator');
 
   // CSS Reflection: Check if a combination of component and variant exists in loaded stylesheets
   useEffect(() => {
@@ -137,11 +138,15 @@ const LivePreview: React.FC<LivePreviewProps> = ({ moduleData, onUpdate }) => {
     const size = ui.size || 'medium';
     const sizePx = getSizePx(size, type);
     const isMissing = missingRules.includes(`${type}.variant-${variant}`);
+    const isDisabled = ui.disabled || false;
+    const isReadOnly = ui.readOnly || false;
 
     const baseClass = `${type} variant-${variant} size-${size}`;
+    const opacity = isDisabled ? 0.3 : (isReadOnly ? 0.7 : 1);
+    const cursor = isDisabled ? 'not-allowed' : (isReadOnly ? 'default' : 'ns-resize');
 
     return (
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity, cursor }}>
         {isMissing && (
           <div 
              onClick={() => copyCssTemplate(`${type}.variant-${variant}`)}
@@ -284,6 +289,53 @@ const LivePreview: React.FC<LivePreviewProps> = ({ moduleData, onUpdate }) => {
         </select>
       </div>
 
+      {/* PERSPECTIVE SELECTOR (Era 6.3 Enforcement) */}
+      <div style={{ 
+        margin: '0 20px 20px 20px', 
+        display: 'flex',
+        background: 'rgba(0,0,0,0.3)',
+        borderRadius: '4px',
+        padding: '3px',
+        border: '1px solid rgba(255,120,0,0.2)'
+      }}>
+        <button 
+          onClick={() => setBlueprintMode('operator')}
+          style={{
+            flex: 1,
+            background: blueprintMode === 'operator' ? 'var(--neon-cyan)' : 'transparent',
+            color: blueprintMode === 'operator' ? '#000' : '#888',
+            border: 'none',
+            fontSize: '9px',
+            fontWeight: 800,
+            padding: '8px',
+            borderRadius: '2px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            letterSpacing: '1px'
+          }}
+        >
+          ● OPERATOR (FRONT)
+        </button>
+        <button 
+          onClick={() => setBlueprintMode('engineering')}
+          style={{
+            flex: 1,
+            background: blueprintMode === 'engineering' ? '#ff7800' : 'transparent',
+            color: blueprintMode === 'engineering' ? '#000' : '#888',
+            border: 'none',
+            fontSize: '9px',
+            fontWeight: 800,
+            padding: '8px',
+            borderRadius: '2px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            letterSpacing: '1px'
+          }}
+        >
+          ⌘ ENGINEER (BACK)
+        </button>
+      </div>
+
       {missingRules.length > 0 && (
          <div style={{ 
            margin: '0 20px 20px 20px', 
@@ -339,7 +391,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({ moduleData, onUpdate }) => {
           </div>
         </div>
 
-        {/* DYNAMIC REGISTRY RENDER */}
+        {/* DYNAMIC REGISTRY RENDER (Enforcement: front vs back) */}
         <div style={{ 
           flex: 1, 
           display: 'grid', 
@@ -348,7 +400,14 @@ const LivePreview: React.FC<LivePreviewProps> = ({ moduleData, onUpdate }) => {
           padding: '10px',
           alignContent: 'start'
         }}>
-          {(moduleData.registry || []).filter((i: any) => (i.presentation?.tab || 'MAIN') === currentTab).map((item: any, idx: number) => (
+          {(moduleData.registry || [])
+            .filter((i: any) => (i.presentation?.tab || 'MAIN') === currentTab)
+            .filter((i: any) => {
+              if (blueprintMode === 'operator') return i.front === true;
+              if (blueprintMode === 'engineering') return i.back === true;
+              return false;
+            })
+            .map((item: any, idx: number) => (
             <div key={`${item.id}-${idx}`} style={{ 
               display: 'flex', 
               flexDirection: 'column', 

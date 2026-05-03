@@ -25,41 +25,16 @@ namespace Omega {
                         .getChildFile("OmegaSynth_WebView2_V74_Diagnostic")))
                 .withNativeIntegrationEnabled(true)
                 .withInitialisationData("omega", createInitData())
-                .withNativeFunction("omegaNativeCall", (juce::WebBrowserComponent::NativeFunction) [this](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
-                    if (args.size() >= 3) {
-                         completion(this->mBridge.handleMessageFromUiAsVar(args[0].toString(), args[1], args[2]));
-                    } else {
-                        completion(juce::var::undefined());
-                    }
+                .withEventListener("omega_rpc_query", [this](juce::var p) {
+                    juce::Logger::writeToLog("!!! [BRIDGE] RPC QUERY RECEIVED via EVENT !!!");
+                    juce::var type = p["type"];
+                    juce::var rid = p["requestId"];
+                    juce::var payload = p["payload"];
+                    
+                    juce::var response = this->mBridge.handleMessageFromUiAsVar(type.toString(), rid, payload);
+                    // Send response back via the push channel
+                    mWebView.evaluateJavascript("if(window.handleOmegaMessage) window.handleOmegaMessage(" + juce::JSON::toString(response) + ")", nullptr);
                 })
-                .withNativeFunction("ping", (juce::WebBrowserComponent::NativeFunction) [](const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion completion) {
-                    completion(juce::var("pong"));
-                })
-                .withUserScript(R"(
-                    (function() {
-                        const setupBridge = () => {
-                            if (window.__JUCE__ && window.__JUCE__.backend && !window.omegaNativeCall) {
-                                window.__JUCE__.backend.omegaNativeCall = function(type, id, payload) {
-                                    return new Promise((resolve) => {
-                                        const token = window.__JUCE__.backend.addEventListener("__juce__complete", (data) => {
-                                            if (data && data.promiseId === id) {
-                                                window.__JUCE__.backend.removeEventListener(token);
-                                                resolve(data.result);
-                                            }
-                                        });
-                                        window.__JUCE__.backend.emitEvent("__juce__invoke", { name: "omegaNativeCall", params: [type, id, payload], resultId: id });
-                                    });
-                                };
-                                window.omegaNativeCall = window.__JUCE__.backend.omegaNativeCall;
-                                console.log("[BRIDGE] JUCE 8 Native Shim Injected");
-                            }
-                        };
-                        // Run immediately AND on events to be sure
-                        setupBridge();
-                        document.addEventListener('DOMContentLoaded', setupBridge);
-                        window.addEventListener('load', setupBridge);
-                    })();
-                )")
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
                 .withResourceProvider([this](const juce::String& url) -> std::optional<juce::WebBrowserComponent::Resource> {
                     juce::String path = url;

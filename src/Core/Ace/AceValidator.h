@@ -19,6 +19,7 @@ namespace Omega::Core::Ace {
         std::string scope;   // e.g. "LayerA.Osc1"
         std::string code;    // e.g. "UnknownComponent"
         std::string message;
+        juce::var metadata;  // Era 7.2.3: Architectural data (x, y, limits, etc.)
     };
 
     struct ValidationReport {
@@ -38,6 +39,12 @@ namespace Omega::Core::Ace {
          * @brief Valida un preset e intenta repararlo usando fallbacks si faltan componentes.
          */
         ValidationReport validateAndRepairPreset(Preset::OmegaPreset& preset) const;
+
+        /**
+         * @brief Valida estructuralmente un manifiesto ACE (ComponentInfo).
+         * [ERA 6.3]: Verifica presencia de flags de visibilidad y campos requeridos.
+         */
+        ValidationReport validateManifest(const ComponentInfo& info) const;
 
     private:
         const AceCatalog& mCatalog;

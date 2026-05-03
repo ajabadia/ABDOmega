@@ -22,7 +22,7 @@ All responses MUST include a `type` and the original `requestId`.
 
 | Response Type | Payload Shape | Description |
 | :--- | :--- | :--- |
-| `state` | `{ parameters: {}, preset: {}, telemetry: {} }` | Response to `getState`. MUST use `parameters`, NOT `params`. |
+| `state` | `{ params: {}, preset: {}, schemaVersion: "1.0" }` | Response to `getState`. `params` is current; `parameters` is future. |
 | `PARAM_ACK` | `{ target: string, value: float }` | Confirmation of a parameter change. |
 | `UISCHEMAS` | `{ schemas: [] }` | Response to `getUiSchemas`. |
 | `INVENTORY` | `{ components: [], registry: [] }` | Response to `getInventory`. |
@@ -34,7 +34,7 @@ Async events emitted from the engine.
 
 | Notification | Payload Shape | JS Event (DOM) |
 | :--- | :--- | :--- |
-| `PARAMCHANGE` | `{ target: string, value: float }` | `omega:PARAMCHANGE` |
+| `PARAM_CHANGE` | `{ target: string, value: float }` | `omega:PARAM_CHANGE` |
 | `onStateUpdate` | `{ parameters: { ... } }` | `omega:onStateUpdate` |
 | `telemetryUpdate` | `{ [pin]: value }` | `omega:telemetryUpdate` |
 

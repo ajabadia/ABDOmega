@@ -1,0 +1,93 @@
+{
+  "id": "dual_osc_aseptic",
+  "name": "Dual Oscillator (Era 6.3 Gold)",
+  "category": "oscillators",
+  "layout": {
+    "columns": 2,
+    "rows": 8,
+    "hp": 12,
+    "gap": 15
+  },
+  "items": [
+    {
+      "id": "freq_1",
+      "look": "knob",
+      "label": "FREQ A",
+      "row": 0,
+      "col": 0,
+      "variant": "default",
+      "attachments": [
+        { "type": "label", "position": "top" },
+        { "type": "led", "position": "right" }
+      ]
+    },
+    {
+      "id": "freq_2",
+      "look": "knob",
+      "label": "FREQ B",
+      "row": 0,
+      "col": 1,
+      "variant": "default",
+      "attachments": [
+        { "type": "label", "position": "top" },
+        { "type": "led", "position": "right" }
+      ]
+    },
+    {
+      "id": "pwm_a",
+      "look": "knob",
+      "label": "PWM A",
+      "row": 2,
+      "col": 0,
+      "variant": "default",
+      "attachments": [
+        { "type": "label", "position": "bottom" }
+      ]
+    },
+    {
+      "id": "pwm_b",
+      "look": "knob",
+      "label": "PWM B",
+      "row": 2,
+      "col": 1,
+      "variant": "default",
+      "attachments": [
+        { "type": "label", "position": "bottom" }
+      ]
+    },
+    {
+      "id": "pitch_in",
+      "look": "port",
+      "label": "V/OCT",
+      "row": 5,
+      "col": 0,
+      "variant": "default",
+      "attachments": [
+        { "type": "label", "position": "bottom" }
+      ]
+    },
+    {
+      "id": "fm_in",
+      "look": "port",
+      "label": "FM IN",
+      "row": 5,
+      "col": 1,
+      "variant": "default",
+      "attachments": [
+        { "type": "label", "position": "bottom" }
+      ]
+    },
+    {
+      "id": "out_mix",
+      "look": "port",
+      "label": "MIX OUT",
+      "row": 7,
+      "col": 0,
+      "variant": "default",
+      "attachments": [
+        { "type": "label", "position": "right" },
+        { "type": "led", "position": "left" }
+      ]
+    }
+  ]
+}

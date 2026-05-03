@@ -30,30 +30,27 @@ class OmegaApp {
         OmegaLog.info("APP", "App Readiness Achieved.");
     }
     setupEventListeners() {
-        // [Era 6] Nominal Event Listeners
-        window.addEventListener('omega:onLCDUpdate', (e) => this.updateLCD(e.detail, false));
-        window.addEventListener('omega:onVersionUpdate', (e) => {
-            const { version, build } = e.detail;
-            this.updateVersion(version, build);
-        });
-        // [Era 6] Phased Telemetry Push Handler (60Hz / 15Hz)
-        window.addEventListener('omega:telemetryUpdate', (e) => {
-            const { payload, tier } = e.detail;
-            if (!payload)
-                return;
-            // 1. DISCRETE Logic (PK/V) - Handled every frame
-            if (payload['activity']) {
-                const active = payload['activity'].v > 0.01;
-                document.querySelectorAll('.led[data-source="activity"]').forEach(led => {
-                    led.classList.toggle('active', active);
-                });
-            }
-            // 2. STREAMING Logic (History) - Handled only in streaming frames
-            if (tier === 'streaming') {
-                // Update Oscilloscopes, FFTs, etc.
-                // console.log("Streaming frame received", payload);
-            }
-        });
+        // Era 7: Reactive Subscription
+        if (window.runtimeStore) {
+            window.runtimeStore.subscribe((type) => {
+                const snapshot = window.runtimeStore.getSnapshot();
+                // 1. System Info Updates (LCD / Version)
+                if (type & 8 /* System */) {
+                    this.updateLCD(snapshot.systemInfo.lcdText, false);
+                    this.updateVersion(snapshot.systemInfo.version, snapshot.systemInfo.build);
+                }
+                // 2. Telemetry Updates (LEDs)
+                if (type & 4 /* Telemetry */) {
+                    const payload = snapshot.telemetry;
+                    if (payload['activity']) {
+                        const active = payload['activity'].v > 0.01;
+                        document.querySelectorAll('.led[data-source="activity"]').forEach(led => {
+                            led.classList.toggle('active', active);
+                        });
+                    }
+                }
+            });
+        }
     }
     hideSplash() {
         const doHide = () => {
@@ -66,6 +63,8 @@ class OmegaApp {
                     splash.style.display = 'none';
                     if (rack) {
                         rack.style.display = 'flex';
+                        rack.style.opacity = '1';
+                        rack.style.pointerEvents = 'auto';
                         rack.classList.add('visible');
                     }
                 }, 1000);
@@ -148,7 +147,12 @@ class OmegaApp {
                 this.showModal('modulation-modal');
                 break;
             case 'toggle_module_browser':
-                this.showModal('module-browser-modal');
+                if (window.moduleBrowser) {
+                    window.moduleBrowser.open();
+                }
+                else {
+                    this.showModal('module-browser-modal');
+                }
                 break;
             case 'about':
                 // [Era 6.1] Request Metadata before showing About
@@ -160,8 +164,15 @@ class OmegaApp {
                 }
                 this.showModal('about-modal');
                 break;
+            case 'save_preset':
+                window.rpcCommandDispatcher.dispatch({ type: 'savePreset', payload: {} });
+                break;
+            case 'undo':
+            case 'redo':
+                window.rpcCommandDispatcher.dispatch({ type: 'systemAction', payload: { action } });
+                break;
             default:
-                window.rpcCommandDispatcher.dispatch({ type: 'systemAction', target: action });
+                window.rpcCommandDispatcher.dispatch({ type: 'systemAction', payload: { target: action } });
                 break;
         }
     }
@@ -194,6 +205,10 @@ class OmegaApp {
             const el = document.getElementById('debug-console-content');
             if (el)
                 el.innerHTML = '';
+        });
+        bind('toggle-telemetry', () => {
+            if (window.OmegaLog)
+                window.OmegaLog.toggleTelemetry();
         });
         bind('copy-console', () => {
             const el = document.getElementById('debug-console-content');
@@ -262,7 +277,10 @@ class OmegaApp {
             btn.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 const isActive = btn.getAttribute('data-active') === 'true';
-                window.rpcCommandDispatcher.dispatch({ type: 'setParameter', target: paramID, value: isActive ? 0 : 1 });
+                window.rpcCommandDispatcher.dispatch({
+                    type: 'setParameter',
+                    payload: { target: paramID, value: isActive ? 0 : 1 }
+                });
             });
         });
         // [Era 6.1] Absolute Event Delegation for Dropdown Actions
@@ -290,13 +308,19 @@ class OmegaApp {
                 const rect = housing.getBoundingClientRect();
                 let x = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
                 stick.style.left = (x * 100) + '%';
-                window.rpcCommandDispatcher.dispatch({ type: 'setParameter', target: 'bender', value: x });
+                window.rpcCommandDispatcher.dispatch({
+                    type: 'setParameter',
+                    payload: { target: 'bender', value: x }
+                });
             };
             const onUp = () => {
                 housing.removeEventListener('pointermove', move);
                 housing.removeEventListener('pointerup', onUp);
                 stick.style.left = '50%';
-                window.rpcCommandDispatcher.dispatch({ type: 'setParameter', target: 'bender', value: 0.5 });
+                window.rpcCommandDispatcher.dispatch({
+                    type: 'setParameter',
+                    payload: { target: 'bender', value: 0.5 }
+                });
             };
             housing.addEventListener('pointermove', move);
             housing.addEventListener('pointerup', onUp);

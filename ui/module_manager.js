@@ -1,17 +1,44 @@
-// --- ERA 6: Multi-Store Aseptic Architecture ---
+import { OmegaLog } from './omega_log.js';
 import {} from './SchemaStore.js';
 import {} from './InventoryStore.js';
+import { ModuleRegistry } from './ModuleRegistry.js';
+import {} from './contracts/ModuleContract.js';
+import {} from './omega_types.js';
 export class ModuleManager {
     activeModules = new Map();
     oscilloscopes = [];
     midiViewer = null;
     lastState = null;
     isRendering = false;
-    lastModuleCount = 0;
+    lastFingerprint = "";
+    pendingState = null;
     constructor() {
         this.activeModules = new Map();
         this.oscilloscopes = [];
         this.midiViewer = null;
+        OmegaLog.info('MANAGER', "ModuleManager Constructor Initialized.");
+        // Era 7: Reactive Subscription
+        if (window.runtimeStore) {
+            OmegaLog.info('MANAGER', "Subscribing to RuntimeStore...");
+            window.runtimeStore.subscribe((type) => {
+                OmegaLog.debug('MANAGER', `Store Event Received. Type: ${type}`);
+                // Only trigger expensive rack rebuilds on structural changes
+                if (type & 1 /* Structure */) {
+                    OmegaLog.info('MANAGER', "Structural Change Detected -> updateRack()");
+                    this.updateRack(window.runtimeStore.getSnapshot());
+                }
+                else if (type & 2 /* Parameters */) {
+                    // Just propagate param updates to active modules
+                    this.activeModules.forEach(mod => {
+                        if (mod.onStateUpdate)
+                            mod.onStateUpdate(window.runtimeStore.getSnapshot());
+                    });
+                }
+            });
+        }
+        else {
+            OmegaLog.error('MANAGER', "CRITICAL: RuntimeStore not found in window during initialization!");
+        }
     }
     normalizeList(data) {
         if (!data)
@@ -25,34 +52,46 @@ export class ModuleManager {
         return list.map(item => Array.isArray(item) ? item[0] : item);
     }
     async updateRack(state) {
-        if (this.isRendering)
+        if (this.isRendering) {
+            OmegaLog.debug('MANAGER', "Render in progress. Queuing next update...");
+            this.pendingState = state;
             return;
+        }
         this.isRendering = true;
+        this.pendingState = null;
         try {
-            console.log("[ModuleManager] updateRack checking stability...");
+            OmegaLog.debug('MANAGER', "updateRack checking stability...");
             const safeState = state || {};
             this.lastState = safeState;
-            // @ts-ignore
-            await window.schemaStore.ensureLoaded();
-            // @ts-ignore
-            await window.inventoryStore.ensureLoaded();
-            const upper = document.getElementById('upper-rack');
-            const lower = document.getElementById('lower-rack');
-            // --- Structure Guard for Build #172 ---
-            const layerList = this.normalizeList(state.preset && state.preset.layers);
-            const auxList = this.normalizeList(safeState.preset?.auxiliary || safeState.auxiliary || []);
-            const mainChain = this.normalizeList(safeState.mainChain || []);
-            const totalModules = layerList.length + auxList.length + mainChain.length;
-            if (totalModules === this.lastModuleCount && totalModules > 0) {
-                console.log("[ModuleManager] Structure stable. Skipping full re-render, notifying active instances.");
+            // --- [Era 7] Pure Structural Pipeline ---
+            const patch = safeState.patch;
+            if (!patch) {
+                OmegaLog.debug('MANAGER', "No Era 7 patch found in state. Skipping structural update.");
+                this.isRendering = false;
+                return;
+            }
+            const patchModules = patch.modules || [];
+            const fingerprint = patchModules.map((m) => `${m.instanceId}:${m.componentId}:${m.theme || ''}`).join('|');
+            const isRackEmpty = patchModules.length === 0;
+            if (fingerprint === this.lastFingerprint && !isRackEmpty) {
+                OmegaLog.debug('MANAGER', "Structure stable (Fingerprint match). Skipping full re-render.");
                 this.activeModules.forEach(mod => {
                     if (mod.onStateUpdate)
                         mod.onStateUpdate(state);
                 });
+                this.isRendering = false;
                 return;
             }
-            this.lastModuleCount = totalModules;
-            console.log(`[ModuleManager] Structural change detected (${totalModules} modules). Rebuilding racks...`);
+            // [Era 7] Empty Rack Handshake Guard
+            if (isRackEmpty && this.activeModules.size > 0) {
+                OmegaLog.info('MANAGER', "Era 7 Patch is empty but racks are already populated. Holding current state for handshake.");
+                this.isRendering = false;
+                return;
+            }
+            this.lastFingerprint = fingerprint;
+            OmegaLog.info('MANAGER', `Structural change detected. Rebuilding racks... (Empty: ${isRackEmpty})`);
+            const upper = document.getElementById('upper-rack');
+            const lower = document.getElementById('lower-rack');
             if (upper)
                 upper.innerHTML = '';
             if (lower)
@@ -60,107 +99,53 @@ export class ModuleManager {
             this.activeModules.clear();
             this.oscilloscopes = [];
             this.midiViewer = null;
-            // 1. Core (Lower) - Dynamic from Preset Architecture
-            const layerData = layerList.length > 0 ? layerList[0] : null;
-            // 2. Auxiliary (Direct from Preset)
-            const aux = auxList;
-            if (aux.length === 0 && (!layerList || layerList.length === 0) && mainChain.length === 0) {
-                console.log("[ModuleManager] No modules found. Awaiting legitimate preset data.");
+            if (isRackEmpty) {
+                OmegaLog.info('MANAGER', "Rack is now officially empty.");
+                this.isRendering = false;
                 return;
             }
-            for (const item of aux) {
-                // Primary identity is instanceId (ensures uniqueness for multiple copies)
-                const id = item.instanceId || item.nodeId || item.id || item.slotName || "AUX";
-                const label = item.label || item.name || item.slotName || id;
-                const componentId = item.componentId || item.id || "";
-                // Era 6: Resolve schema from SchemaStore
-                // @ts-ignore
-                const schema = window.schemaStore.getSchema(componentId);
-                // --- Era 6 Absolute Aseptic Routing ---
-                // Routing must be explicit or derived from system graph. No silent fallbacks.
-                const rackValue = item.rack?.toString().toLowerCase();
-                const targetRack = rackValue === 'upper' ? upper : lower;
-                const rackType = rackValue === 'upper' ? 'aux' : 'main';
-                // System Guard: Matrix is managed as a singleton system overlay
-                if (componentId === "patchbay_matrix" || componentId === "system.matrix") {
-                    continue;
-                }
-                if (schema) {
-                    // Era 6: Class discovery should ideally be in schema, but we maintain minimal mapping for core adapters
-                    const className = (componentId === "midi_2_cv" || componentId === "midi_adapter") ? "ModuleMidiToCv" : "ModuleRenderer";
-                    await this.addModule(id, className, rackType, targetRack, {
-                        label,
-                        componentId,
-                        manifest: schema
-                    });
-                }
-                else {
-                    await this.renderContractError(id, rackType, targetRack, componentId, "MISSING_CONTRACT");
-                }
-            }
-            if (layerData) {
-                const arch = layerData.voiceArch || layerData.architecture || {};
-                const chain = layerData.voiceChain;
-                const layer = "A";
-                if (chain && chain.nodes && chain.nodes.length > 0) {
-                    const nodes = this.normalizeList(chain.nodes);
-                    for (const node of nodes) {
-                        const componentId = node.componentId || node.id;
-                        const descriptor = null; // Forced to null to trigger AceCatalog resolution
-                        let type = "core";
-                        const role = (node.role || "").toLowerCase();
-                        if (role === "source" || role === "oscillator")
-                            type = "osc";
-                        else if (role === "filter")
-                            type = "filter";
-                        else if (role === "amplifier")
-                            type = "amp";
-                        else if (role === "envelope" || role === "controller")
-                            type = "env";
-                        else if (role === "lfo")
-                            type = "lfo";
-                        else if (role === "fx")
-                            type = "fx";
-                        else if (role === "auxiliary" || role === "utility")
-                            type = "aux";
-                        if (descriptor && lower) {
-                            await this.addModule(node.nodeId || node.id || componentId, "ModuleRenderer", type, lower, {
-                                descriptor, componentId, layer, group: "MAIN"
-                            });
-                        }
-                        else if (lower) {
-                            await this.renderContractError(node.nodeId || node.id || componentId, type, lower, componentId, "UNRESOLVED_GRAPH_NODE");
+            // [Era 7] Pure Rendering Path
+            if (patch && patch.modules) {
+                const newActiveIds = new Set();
+                const lowerRack = document.getElementById('lower-rack');
+                OmegaLog.info('MANAGER', `Executing Era 7 Rendering Pipeline (${patch.modules.length} modules)`);
+                for (const mod of patch.modules) {
+                    const componentId = mod.componentId || "unknown";
+                    const instId = `v7_${mod.instanceId}`;
+                    newActiveIds.add(instId);
+                    if (!this.activeModules.has(instId)) {
+                        const manifest = window.schemaStore?.getSchema(componentId);
+                        // Era 7 Industrial Routing
+                        let rackValue = (mod.rack || manifest?.rack || 'lower').toLowerCase();
+                        const targetRack = rackValue === 'upper' ? document.getElementById('upper-rack') : document.getElementById('lower-rack');
+                        const rackType = rackValue === 'upper' ? 'aux' : 'main';
+                        const className = manifest?.ui_class || "ModuleRenderer";
+                        await this.addModule(instId, className, rackType, targetRack, {
+                            label: mod.label || componentId.toUpperCase(),
+                            componentId: componentId,
+                            instanceId: mod.instanceId,
+                            typeId: mod.typeId,
+                            params: mod.parameters || mod.params || {},
+                            manifest: manifest || {
+                                id: componentId,
+                                name: componentId,
+                                ui: { dimensions: { width: 60, height: 420 }, controls: [], jacks: [], skin: 'industrial' },
+                                registry: []
+                            }
+                        });
+                    }
+                    else {
+                        // Update existing module parameters
+                        const module = this.activeModules.get(instId);
+                        if (module && module.onStateUpdate) {
+                            module.onStateUpdate(window.runtimeStore.getSnapshot());
                         }
                     }
                 }
-                else if (arch) {
-                    const categories = [
-                        { list: this.normalizeList(arch.oscillators || arch.oscillatorList), type: "osc" },
-                        { list: this.normalizeList(arch.filters || arch.filterList), type: "filter" },
-                        { list: this.normalizeList(arch.envelopes || arch.envelopeList), type: "env" },
-                        { list: this.normalizeList(arch.amplifiers || arch.amplifierList), type: "amp" },
-                        { list: this.normalizeList(arch.lfos || arch.lfoList), type: "lfo" },
-                        { list: this.normalizeList(arch.fxSlots || arch.fxList), type: "fx" }
-                    ];
-                    for (const cat of categories) {
-                        if (!cat.list || cat.list.length === 0)
-                            continue;
-                        for (const item of cat.list) {
-                            const componentId = item.componentId || item.id || item.type;
-                            // @ts-ignore
-                            const schema = window.schemaStore.getSchema(componentId);
-                            const layer = "A";
-                            if (schema && lower) {
-                                await this.addModule(item.slotName || componentId, "ModuleRenderer", cat.type, lower, {
-                                    componentId, layer, group: "MAIN", manifest: schema
-                                });
-                            }
-                            else if (lower) {
-                                await this.renderContractError(item.slotName || componentId, cat.type, lower, componentId, "ASEPTIC_SCHEMA_MISSING");
-                            }
-                        }
-                    }
-                }
+                // Cleanup removed modules
+                this.cleanupModules(newActiveIds);
+                this.isRendering = false;
+                return;
             }
             // [VISION 2.1.8 - Aseptic Architecture] We no longer assume an empty lower rack is an emergency. 
             // The Minimal Preset purposely leaves the lower rack empty. The top-level aux/layer checks handle true empty states.
@@ -170,12 +155,67 @@ export class ModuleManager {
             });
         }
         catch (e) {
-            console.error("[ModuleManager] Error during rack update:", e);
+            OmegaLog.error('MANAGER', "Error during rack update:", e);
             if (e && e.stack)
-                console.error("[ModuleManager] Stack trace:", e.stack);
+                OmegaLog.error('MANAGER', "Stack trace:", e.stack);
         }
         finally {
             this.isRendering = false;
+            // If an update arrived while we were rendering, process it now
+            if (this.pendingState) {
+                const next = this.pendingState;
+                this.pendingState = null;
+                this.updateRack(next);
+            }
+        }
+    }
+    async renderModuleItem(item, upper, lower) {
+        // Primary identity is instanceId (ensures uniqueness for multiple copies)
+        const id = item.instanceId || item.nodeId || item.id || item.slotName || "AUX";
+        const label = item.label || item.name || item.slotName || id;
+        const componentId = item.componentId || item.id || "";
+        // --- Ghost Filtering ---
+        if (!componentId)
+            return;
+        // Era 6: Resolve schema from SchemaStore
+        // @ts-ignore
+        const schema = window.schemaStore.getSchema(componentId);
+        // --- Era 6 Absolute Aseptic Routing ---
+        // [Era 6.3] Pure Data-Driven Routing
+        let rackValue = item.rack?.toString().toLowerCase();
+        // If the preset item doesn't specify a rack, use the schema default
+        if (!rackValue && schema?.rack) {
+            rackValue = schema.rack.toLowerCase();
+        }
+        const targetRack = rackValue === 'upper' ? upper : lower;
+        const rackType = rackValue === 'upper' ? 'aux' : 'main';
+        // System Guard: Matrix is managed as a singleton system overlay
+        if (componentId === "patchbay_matrix" || componentId === "system.matrix") {
+            return;
+        }
+        if (schema) {
+            // Era 6.3: Clone schema and override ID with instance ID for correct RPC routing
+            const manifest = { ...schema, id };
+            // [Era 6.3] Industrial Data-Driven Class Resolution
+            let className = schema.ui_class || "ModuleRenderer";
+            // [Era 6.3] Instance Theme Override
+            if (item.theme) {
+                manifest.theme = item.theme;
+            }
+            if (!schema.ui_class) {
+                if (schema.tags?.includes("midi_to_cv") || schema.tags?.includes("utility")) {
+                    className = "ModuleMidiToCv";
+                }
+            }
+            await this.addModule(id, className, rackType, targetRack, {
+                label,
+                componentId,
+                instanceId: id,
+                manifest: manifest
+            });
+        }
+        else {
+            await this.renderContractError(id, rackType, targetRack, componentId, "MISSING_CONTRACT");
         }
     }
     async renderContractError(id, type, container, componentId, reason) {
@@ -194,33 +234,108 @@ export class ModuleManager {
         `;
         container.appendChild(el);
     }
-    async addModule(id, className, type, container, options = {}) {
+    async addModule(id, className, type, container, options) {
         if (!container)
             return;
         const el = document.createElement('div');
         el.id = `mod-${id}`;
-        el.className = `module module-${type} ${className} ${options.descriptor?.panelClass || ''}`;
+        el.className = `module module-${type} ${className} ${options.manifest.panelClass || ''}`;
         const header = document.createElement('div');
         header.className = 'module-header';
+        // 1. Reordering Controls (Era 6.3 - Unified Patch Hub)
+        const moveLeft = document.createElement('div');
+        moveLeft.className = 'module-header-action move-btn';
+        moveLeft.innerHTML = '◀';
+        moveLeft.title = `Move ${id} left`;
+        moveLeft.onclick = (e) => {
+            e.stopPropagation();
+            // @ts-ignore
+            window.rpcCommandDispatcher.dispatch({ type: 'moveModule', payload: { instanceId: id, direction: -1 } });
+        };
+        header.appendChild(moveLeft);
+        const moveRight = document.createElement('div');
+        moveRight.className = 'module-header-action move-btn';
+        moveRight.innerHTML = '▶';
+        moveRight.title = `Move ${id} right`;
+        moveRight.onclick = (e) => {
+            e.stopPropagation();
+            // @ts-ignore
+            window.rpcCommandDispatcher.dispatch({ type: 'moveModule', payload: { instanceId: id, direction: 1 } });
+        };
+        header.appendChild(moveRight);
+        const spacer = document.createElement('div');
+        spacer.style.flex = '1';
+        header.appendChild(spacer);
+        // 2. Config & Close
+        const configBtn = document.createElement('div');
+        configBtn.className = 'module-header-action config-btn';
+        configBtn.innerHTML = '⚙';
+        configBtn.title = `Configure ${id}`;
+        configBtn.onclick = (e) => {
+            e.stopPropagation();
+            // @ts-ignore
+            if (window.modulePatchModal) {
+                // @ts-ignore
+                window.modulePatchModal.open(id, options.manifest);
+            }
+        };
+        header.appendChild(configBtn);
+        const closeBtn = document.createElement('div');
+        closeBtn.className = 'module-header-action close-btn';
+        closeBtn.innerHTML = '×';
+        closeBtn.title = `Remove ${id}`;
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (window.confirm(`Are you sure you want to remove ${id}?`)) {
+                // @ts-ignore
+                window.rpcCommandDispatcher.dispatch({
+                    type: 'removeModule',
+                    payload: { instanceId: id }
+                });
+            }
+        };
+        header.appendChild(closeBtn);
         el.appendChild(header);
         const content = document.createElement('div');
         content.className = 'module-content';
         el.appendChild(content);
         container.appendChild(el);
-        // @ts-ignore
-        if (window[className]) {
-            // @ts-ignore
-            const instance = new window[className](el, content, options.manifest);
+        const Factory = ModuleRegistry.getConstructor(className);
+        if (Factory) {
+            // Era 6.3: ModuleRenderer expects descriptor directly, others expect full options object
+            const instance = (className === "ModuleRenderer")
+                ? new Factory(el, content, options.manifest)
+                : new Factory(el, content, options);
             this.activeModules.set(id, instance);
             if (instance.init)
                 await instance.init();
             if (instance.onStateUpdate && this.lastState)
                 instance.onStateUpdate(this.lastState);
+            // Specialized registration
             if (className === "ModuleOscilloscope")
                 this.oscilloscopes.push(instance);
             if (className === "ModuleMidiViewer")
                 this.midiViewer = instance;
         }
+        else {
+            console.error(`[ModuleManager] Module class not found in registry: ${className}`);
+        }
+    }
+    cleanupModules(activeIds) {
+        this.activeModules.forEach((mod, id) => {
+            if (!activeIds.has(id)) {
+                const el = document.getElementById(`mod-${id}`);
+                if (el)
+                    el.remove();
+                if (mod.dispose)
+                    mod.dispose();
+                this.activeModules.delete(id);
+                // Specialized cleanup
+                this.oscilloscopes = this.oscilloscopes.filter(o => o !== mod);
+                if (this.midiViewer === mod)
+                    this.midiViewer = null;
+            }
+        });
     }
     getCanonicalId(id) {
         if (!id)

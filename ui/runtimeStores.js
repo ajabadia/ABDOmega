@@ -1,34 +1,75 @@
+import { OmegaLog } from './omega_log.js';
+export var ChangeType;
+(function (ChangeType) {
+    ChangeType[ChangeType["Structure"] = 1] = "Structure";
+    ChangeType[ChangeType["Parameters"] = 2] = "Parameters";
+    ChangeType[ChangeType["Telemetry"] = 4] = "Telemetry";
+    ChangeType[ChangeType["System"] = 8] = "System";
+    ChangeType[ChangeType["All"] = 15] = "All";
+})(ChangeType || (ChangeType = {}));
 export class BaseStore {
     listeners = new Set();
     subscribe(callback) {
         this.listeners.add(callback);
         return () => this.listeners.delete(callback);
     }
-    notify() {
-        this.listeners.forEach(cb => cb());
+    notify(type = ChangeType.All) {
+        this.listeners.forEach(cb => cb(type));
     }
 }
 export class RuntimeStore extends BaseStore {
     state = {
+        patch: null,
         preset: null,
         params: {},
         telemetry: {},
         modulation: null,
         schemaVersion: null,
+        systemInfo: {
+            version: "0.0.0",
+            build: "0",
+            lcdText: "INITIALIZING..."
+        }
     };
     getSnapshot() {
         return this.state;
     }
+    getValue(paramKey, defaultValue = 0) {
+        return this.state.params[paramKey] ?? defaultValue;
+    }
+    getTelemetry(paramKey) {
+        const sample = this.state.telemetry[paramKey];
+        return sample ? (sample.v ?? 0) : 0;
+    }
     applyState(payload) {
         if (!payload)
             return;
-        this.state = {
-            ...this.state,
-            schemaVersion: payload.schemaVersion || this.state.schemaVersion,
-            preset: payload.preset || this.state.preset,
-            params: payload.params ? { ...payload.params } : this.state.params,
-        };
-        this.notify();
+        const isV7 = payload.schemaVersion === '7.0';
+        if (isV7) {
+            const v7 = payload;
+            OmegaLog.info('STORE', `Applying Era 7 Patch: ${v7.patch.name || 'Untitled'}`);
+            this.state = {
+                ...this.state,
+                schemaVersion: '7.0',
+                patch: v7.patch,
+                params: this.syncLegacyParams(v7.patch)
+            };
+            this.notify(ChangeType.Structure | ChangeType.Parameters);
+        }
+        else {
+            OmegaLog.warn('STORE', `REJECTED: Non-Era 7 payload received (Version: ${payload.schemaVersion}). Pure Era 7 environment enforced.`);
+        }
+    }
+    syncLegacyParams(patch) {
+        const legacy = {};
+        const modules = patch.modules || [];
+        for (const mod of modules) {
+            const params = mod.parameters || mod.params || {};
+            for (const [id, val] of Object.entries(params)) {
+                legacy[`${mod.instanceId}.${id}`] = val;
+            }
+        }
+        return legacy;
     }
     applyParamChange(event) {
         this.state = {
@@ -38,7 +79,7 @@ export class RuntimeStore extends BaseStore {
                 [event.id]: event.value,
             },
         };
-        this.notify();
+        this.notify(ChangeType.Parameters);
     }
     applyTelemetryFrame(payload) {
         if (!payload)
@@ -56,76 +97,49 @@ export class RuntimeStore extends BaseStore {
             schemaVersion: payload.schemaVersion || this.state.schemaVersion,
             telemetry: nextTelemetry,
         };
-        this.notify();
+        this.notify(ChangeType.Telemetry);
     }
     applyModulation(payload) {
         this.state = {
             ...this.state,
             modulation: payload,
         };
-        this.notify();
+        this.notify(ChangeType.Structure);
     }
     reduceEvent(event) {
+        if (!event)
+            return;
         switch (event.type) {
             case 'PARAMCHANGE':
                 this.applyParamChange(event);
                 return;
             case 'onStateUpdate':
-                this.applyState(event.payload);
+            case 'state':
+                this.applyState(event.payload || event);
                 return;
             case 'telemetryUpdate':
-                this.applyTelemetryFrame(event.payload);
+                this.applyTelemetryFrame(event.payload || event);
+                return;
+            case 'onLCDUpdate':
+                this.state = {
+                    ...this.state,
+                    systemInfo: { ...this.state.systemInfo, lcdText: event.detail || event.payload || event }
+                };
+                this.notify(ChangeType.System);
+                return;
+            case 'onVersionUpdate':
+                const vData = event.detail || event.payload || event;
+                this.state = {
+                    ...this.state,
+                    systemInfo: {
+                        ...this.state.systemInfo,
+                        version: vData.version || this.state.systemInfo.version,
+                        build: vData.build || this.state.systemInfo.build
+                    }
+                };
+                this.notify(ChangeType.System);
                 return;
         }
-    }
-}
-export class SchemaStore extends BaseStore {
-    state = {
-        schemaVersion: null,
-        uiSchema: null,
-    };
-    loadPromise = null;
-    getSnapshot() {
-        return this.state;
-    }
-    async ensureLoaded() {
-        if (this.state.uiSchema)
-            return true;
-        if (this.loadPromise)
-            return this.loadPromise;
-        this.loadPromise = (async () => {
-            try {
-                const rpc = window.omegaRPC;
-                if (!rpc)
-                    return false;
-                const response = await rpc.getUiSchemas();
-                if (response) {
-                    this.setSchema(response.schemas || response, response.schemaVersion || '1.0');
-                    return true;
-                }
-            }
-            catch (e) {
-                console.error("[SchemaStore] Load error:", e);
-            }
-            finally {
-                this.loadPromise = null;
-            }
-            return false;
-        })();
-        return this.loadPromise;
-    }
-    setSchema(uiSchema, schemaVersion) {
-        this.state = {
-            schemaVersion: schemaVersion ?? this.state.schemaVersion,
-            uiSchema,
-        };
-        this.notify();
-    }
-    getSchemaForComponent(componentId) {
-        if (!this.state.uiSchema)
-            return null;
-        // Búsqueda flexible en el mapa de esquemas
-        return this.state.uiSchema[componentId] || null;
     }
 }
 export class GraphStore extends BaseStore {

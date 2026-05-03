@@ -1,6 +1,10 @@
 #include "RpcPresetController.h"
 #include "../Core/OmegaIdentifiers.h"
+#include "../Core/Providers/EngineConfigManager.h"
+#include "../Core/Model/PatchIdentifiers.h"
+#include "../Core/Model/PatchDocument.h"
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <algorithm>
 
 namespace Omega {
 namespace UI {
@@ -19,6 +23,9 @@ namespace UI {
         dispatcher.registerHandler("loadLibraryPreset",  [this, onLoad](const juce::var& rid, const juce::var& p) { return handleLoadLibraryPreset(rid, p, onLoad); });
         dispatcher.registerHandler("setFavorite",        [this](const juce::var& rid, const juce::var& p) { return handleSetFavorite(rid, p); });
         dispatcher.registerHandler("addModule",          [this, onLoad](const juce::var& rid, const juce::var& p) { return handleAddModule(rid, p, onLoad); });
+        dispatcher.registerHandler("removeModule",       [this, onLoad](const juce::var& rid, const juce::var& p) { return handleRemoveModule(rid, p, onLoad); });
+        dispatcher.registerHandler("moveModule",         [this, onLoad](const juce::var& rid, const juce::var& p) { return handleMoveModule(rid, p, onLoad); });
+        dispatcher.registerHandler("setModuleTheme",     [this, onLoad](const juce::var& rid, const juce::var& p) { return handleSetModuleTheme(rid, p, onLoad); });
     }
 
 
@@ -121,40 +128,137 @@ namespace UI {
     
     juce::var RpcPresetController::handleAddModule(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
         auto componentId = payload["componentId"].toString();
-        auto info = mCatalog.getComponent(componentId.toStdString());
-        if (!info) return createError("ADD_MODULE_ACK", requestId, "Component not found: " + componentId);
-
-        auto& state = mPreset.getState();
-        using IDs = Core::Preset::OmegaPreset::IDs;
-
-        auto aux = state.getChildWithName(IDs::auxiliary);
-        if (!aux.isValid()) {
-            aux = juce::ValueTree(IDs::auxiliary);
-            state.addChild(aux, -1, nullptr);
-        }
-
-        juce::ValueTree cn(IDs::COMPONENT);
-        cn.setProperty(IDs::slotName,    juce::String(info->name), nullptr);
-        cn.setProperty(IDs::componentId, juce::String(info->id),   nullptr);
+        auto typeId = Core::Model::mapIdToType(componentId.toStdString());
         
-        int count = 0;
-        for (int i = 0; i < aux.getNumChildren(); ++i) {
-            if (aux.getChild(i).getProperty(IDs::componentId).toString() == juce::String(info->id))
-                count++;
+        if (typeId == Core::Model::ModuleTypeId::None) {
+            return createError("ADD_MODULE_ACK", requestId, "Component not Era 7 compatible or not found: " + componentId);
         }
-        juce::String uniqueId = juce::String(info->id) + "_" + juce::String(count + 1);
-        cn.setProperty(IDs::instanceId, uniqueId, nullptr);
 
-        juce::ValueTree cp(IDs::params);
-        for (const auto& p : info->parameters) {
-            cp.setProperty(juce::Identifier(p.id), p.defaultValue, nullptr);
+        // [Era 7] Update PatchDocument directly
+        auto doc = mEngineConfig.getPatchDocument();
+        
+        Core::Model::ModuleInstance ni;
+        ni.typeId = typeId;
+        
+        // Generate InstanceId
+        uint32_t maxId = 0;
+        for (const auto& m : doc.modules) if (m.instanceId > maxId) maxId = m.instanceId;
+        ni.instanceId = maxId + 1;
+        
+        // Default Position
+        ni.position.rack = 0;
+        ni.position.slot = (int16_t)doc.modules.size();
+        
+        // Default Parameters from Catalog
+        auto info = mCatalog.getComponent(componentId.toStdString());
+        if (info) {
+            for (const auto& p : info->parameters) {
+                // Map string ID to numeric ParamId (placeholder logic for now)
+                try {
+                    uint16_t pid = (uint16_t)std::stoi(p.id);
+                    ni.parameters.push_back({(Core::Model::ParamId)pid, p.defaultValue});
+                } catch(...) {}
+            }
         }
-        cn.addChild(cp, -1, nullptr);
-        aux.addChild(cn, -1, nullptr);
 
-        if (onLoad) onLoad(mPreset);
+        doc.modules.push_back(ni);
+        mEngineConfig.applyPatch(doc);
+        
+        if (mOnConfigChanged) mOnConfigChanged();
         
         return createResponse("ADD_MODULE_ACK", requestId, juce::var(), true);
+    }
+
+    juce::var RpcPresetController::handleRemoveModule(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
+        juce::String idStr = payload["instanceId"].toString();
+        uint32_t instanceId = 0;
+        
+        if (idStr.startsWith("v7_")) {
+            instanceId = (uint32_t)idStr.substring(3).getLargeIntValue();
+        } else {
+            instanceId = (uint32_t)payload["instanceId"].operator int();
+        }
+        
+        // [Era 7] Update PatchDocument directly
+        auto doc = mEngineConfig.getPatchDocument();
+        auto it = std::find_if(doc.modules.begin(), doc.modules.end(), 
+                               [instanceId](const Core::Model::ModuleInstance& m) { return m.instanceId == instanceId; });
+        
+        if (it != doc.modules.end()) {
+            doc.modules.erase(it);
+            mEngineConfig.applyPatch(doc);
+            if (mOnConfigChanged) mOnConfigChanged();
+            return createResponse("REMOVE_MODULE_ACK", requestId, juce::var(), true);
+        }
+        
+        return createError("REMOVE_MODULE_ACK", requestId, "Module not found (Era 7): " + idStr);
+    }
+    juce::var RpcPresetController::handleMoveModule(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
+        juce::String idStr = payload["instanceId"].toString();
+        int direction = (int)payload["direction"];
+        uint32_t instanceId = 0;
+        
+        if (idStr.startsWith("v7_")) {
+            instanceId = (uint32_t)idStr.substring(3).getLargeIntValue();
+            
+            auto doc = mEngineConfig.getPatchDocument();
+            auto it = std::find_if(doc.modules.begin(), doc.modules.end(), 
+                                   [instanceId](const Core::Model::ModuleInstance& m) { return m.instanceId == instanceId; });
+            
+            if (it != doc.modules.end()) {
+                int oldIdx = (int)std::distance(doc.modules.begin(), it);
+                int newIdx = oldIdx + direction;
+                
+                if (newIdx >= 0 && newIdx < (int)doc.modules.size()) {
+                    auto mod = *it;
+                    doc.modules.erase(it);
+                    doc.modules.insert(doc.modules.begin() + newIdx, mod);
+                    
+                    // Re-calculate slots to maintain order
+                    for (int i = 0; i < (int)doc.modules.size(); ++i) {
+                        doc.modules[i].position.slot = (int16_t)i;
+                    }
+                    
+                    mEngineConfig.applyPatch(doc);
+                    if (mOnConfigChanged) mOnConfigChanged();
+                    return createResponse("MOVE_MODULE_ACK", requestId, juce::var(), true);
+                }
+            }
+            return createError("MOVE_MODULE_ACK", requestId, "Module move invalid or out of bounds: " + idStr);
+        }
+
+        // Legacy Fallback (optional, but keep for safety during transition)
+        auto& state = mPreset.getState();
+        using IDs = Core::Preset::OmegaPreset::IDs;
+        // ... (rest of legacy logic if needed)
+        return createError("MOVE_MODULE_ACK", requestId, "Legacy move not supported in Era 7 Mode");
+    }
+
+    juce::var RpcPresetController::handleSetModuleTheme(const juce::var& requestId, const juce::var& payload, std::function<void(const Core::Preset::OmegaPreset&)> onLoad) {
+        auto instanceId = payload["instanceId"].toString();
+        auto theme = payload["theme"].toString();
+        
+        auto& state = mPreset.getState();
+        using IDs = Core::Preset::OmegaPreset::IDs;
+        auto aux = state.getChildWithName(IDs::auxiliary);
+        
+        if (aux.isValid()) {
+            for (int i = 0; i < aux.getNumChildren(); ++i) {
+                auto child = aux.getChild(i);
+                if (child.getProperty(IDs::instanceId).toString() == instanceId) {
+                    child.setProperty("theme", theme, nullptr);
+                    
+                    if (onLoad) {
+                        Core::Preset::OmegaPreset presetCopy = mPreset;
+                        juce::MessageManager::callAsync([onLoad, presetCopy]() {
+                            onLoad(presetCopy);
+                        });
+                    }
+                    return createResponse("SET_THEME_ACK", requestId, juce::var(), true);
+                }
+            }
+        }
+        return createError("SET_THEME_ACK", requestId, "Module not found: " + instanceId);
     }
 
     juce::var RpcPresetController::handleGetHistory(const juce::var& requestId, const juce::var& payload) {
@@ -217,7 +321,7 @@ namespace UI {
         return createResponse("BRANCH_ACK", requestId, juce::var(), ok);
     }
 
-    static juce::var valueTreeToVar(const juce::ValueTree& tree) {
+    juce::var RpcPresetController::valueTreeToVar(const juce::ValueTree& tree) {
         if (!tree.isValid()) return juce::var();
         auto tag = tree.getType().toString();
 

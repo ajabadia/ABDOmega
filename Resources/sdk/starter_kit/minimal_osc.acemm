@@ -1,0 +1,48 @@
+schemaVersion: '7.2.3'
+id: minimal_osc
+metadata:
+  name: MINIMAL SAW OSC
+  family: oscillator
+  tags: [starter, sdk, era7]
+  rack:
+    hp: 4
+ui:
+  dimensions:
+    width: 60
+    height: 420
+  skin: industrial
+  layout:
+    containers:
+      - id: CONTROLS
+        label: Engine
+        pos: { x: 0, y: 40 }
+        size: { w: "full", h: 200 }
+        variant: panel
+  controls:
+    - id: knob_freq
+      bind: freq
+      pos: { x: 30, y: 80 }
+      presentation:
+        container: CONTROLS
+        component: knob
+        variant: industrial
+        attachments: [{ type: label, position: bottom }]
+    - id: knob_gain
+      bind: gain
+      pos: { x: 30, y: 160 }
+      presentation:
+        container: CONTROLS
+        component: knob
+        variant: carbon
+        attachments: [{ type: label, position: bottom }]
+  jacks:
+    - id: port_out
+      bind: out
+      pos: { x: 30, y: 350 }
+      presentation:
+        component: port
+        variant: industrial
+        attachments: [{ type: label, position: bottom, text: OUT }]
+resources:
+  wasm: minimal_osc.wasm
+  contract: minimal_osc.contract.json

@@ -1,0 +1,93 @@
+{
+  "id": "neutron_lfo",
+  "name": "Neutron LFO",
+  "version": "6.3",
+  "family": "lfo",
+  "description": "High-fidelity digital LFO with WASM-powered wavetable synthesis and external sync capabilities.",
+  "engine": "WASM",
+  "blueprint": "neutron_lfo_layout",
+  "tags": ["LFO", "Modulator", "WASM", "Sync"],
+  "registry": [
+    {
+      "id": "rate",
+      "label": "LFO Rate",
+      "type": "float",
+      "roles": ["control", "mod_target"],
+      "range": { "min": 0.01, "max": 20.0, "default": 1.0 },
+      "unit": "Hz",
+      "precision": 2,
+      "front": true,
+      "back": false,
+      "presentation": {
+        "tab": "MAIN",
+        "group": "OSC",
+        "order": 1,
+        "ui": { "component": "knob", "variant": "A" }
+      }
+    },
+    {
+      "id": "waveform",
+      "label": "Waveform",
+      "type": "list",
+      "roles": ["control"],
+      "lookup": {
+        "id": "waves",
+        "items": [
+          { "value": 0, "label": "Sine" },
+          { "value": 1, "label": "Triangle" },
+          { "value": 2, "label": "Saw" },
+          { "value": 3, "label": "Square" },
+          { "value": 4, "label": "Random" }
+        ]
+      },
+      "front": true,
+      "back": false,
+      "presentation": {
+        "tab": "MAIN",
+        "group": "OSC",
+        "order": 2,
+        "ui": { "component": "knob", "variant": "B" }
+      }
+    },
+    {
+      "id": "sync_in",
+      "label": "Hard Sync",
+      "type": "gate",
+      "roles": ["input"],
+      "front": true,
+      "back": false,
+      "presentation": {
+        "tab": "MAIN",
+        "group": "IO",
+        "order": 3,
+        "ui": { "component": "port" }
+      }
+    },
+    {
+      "id": "lfo_out",
+      "label": "LFO Output",
+      "type": "audio",
+      "roles": ["output", "mod_source"],
+      "front": true,
+      "back": false,
+      "presentation": {
+        "tab": "MAIN",
+        "group": "IO",
+        "order": 4,
+        "ui": { "component": "port" }
+      }
+    },
+    {
+      "id": "system.cpu_load",
+      "label": "CPU Usage",
+      "type": "float",
+      "roles": ["telemetry", "system"],
+      "front": false,
+      "back": true,
+      "presentation": {
+        "tab": "SETUP",
+        "ui": { "component": "display" }
+      }
+    }
+  ]
+}

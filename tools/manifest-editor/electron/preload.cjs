@@ -10,4 +10,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanWasm: (path) => ipcRenderer.invoke('scan-wasm', path),
   deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
   readCells: () => ipcRenderer.invoke('read-cells'),
+  syncSchema: () => ipcRenderer.invoke('sync-schema'),
+  scanRepo: () => ipcRenderer.invoke('scan-repo'),
 });

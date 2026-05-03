@@ -40,6 +40,11 @@ namespace Voice {
         // Internal Routing (240-254)
         static constexpr uint8_t kMidiLink        = 250; 
 
+        // --- Era 6.3 System Environment Signals (200-209) ---
+        static constexpr uint8_t kSystemSampleRate  = 200;
+        static constexpr uint8_t kSystemBlockSize   = 201;
+        static constexpr uint8_t kSystemMidiProtocol = 202;
+
         // Common Semantic Aliases
 
         static constexpr uint8_t compiledLfo1()    { return lfo(0); }

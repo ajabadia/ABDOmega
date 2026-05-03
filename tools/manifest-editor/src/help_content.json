@@ -18,5 +18,21 @@
   "semantic_variant": {
     "title": "Style Variant",
     "content": "Key de diseño (A, B, C...) que selecciona una variación estética dentro del tema activo. Permite diferenciar visualmente controles de distintas jerarquías."
+  },
+  "precision": {
+    "title": "DSP & UI Precision",
+    "content": "Define el número de decimales para el procesamiento interno (DSP) y la visualización (UI). Una precisión alta es vital para parámetros críticos como la frecuencia de corte o la afinación."
+  },
+  "layout_hp": {
+    "title": "HP Width",
+    "content": "Ancho físico del módulo en unidades de rack (Horizontal Pitch). 1 HP equivale aproximadamente a 5.08mm. OMEGA usa este valor para el auto-layout del Rack."
+  },
+  "rack_zone": {
+    "title": "Rack Zone",
+    "content": "Determina si el módulo se renderiza en el rack superior (foco en síntesis) o en el inferior (utilidades, hubs de parcheo e interfaces de entrada/salida)."
+  },
+  "attachments": {
+    "title": "Cell Attachments",
+    "content": "Componentes secundarios que 'orbitan' al widget principal. Permiten añadir etiquetas dinámicas, LEDs de actividad o displays de valor sin ocupar espacio extra en el grid."
   }
 }

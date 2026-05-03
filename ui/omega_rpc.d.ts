@@ -15,9 +15,13 @@ export declare class OmegaRPC {
     private updateHealthUI;
     private _waitForBackend;
     /**
-     * Centralized Send Method with Timeout Protection
+     * Centralized Send Method: Uses Event-Based Bridge for Maximum Reliability
      */
     send(type: string, payload?: any): Promise<any>;
+    /**
+     * Era 7 Handshake
+     */
+    ensureReady(timeout?: number): Promise<boolean>;
     call(type: string, payload?: any): Promise<any>;
     getState(): Promise<any>;
     getUiSchemas(): Promise<any>;

@@ -1,9 +1,10 @@
-export declare class ModuleOscilloscope {
+import { type ModuleOptions, type IModuleInstance } from '../contracts/ModuleContract.js';
+export declare class ModuleOscilloscope implements IModuleInstance {
     private el;
     private content;
     private canvas;
     private ctx;
-    private descriptor;
+    private options;
     private isPowered;
     private sourceA;
     private sourceB;
@@ -22,7 +23,7 @@ export declare class ModuleOscilloscope {
     private modalCanvas;
     private modalCtx;
     private modalTimebase;
-    constructor(el: HTMLElement, content: HTMLElement, descriptor: any);
+    constructor(el: HTMLElement, content: HTMLElement, options: ModuleOptions);
     init(): Promise<void>;
     private generateGroupedOptions;
     private setupResizeObserver;

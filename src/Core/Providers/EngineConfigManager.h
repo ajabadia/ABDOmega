@@ -5,125 +5,99 @@
 #include <memory>
 #include <atomic>
 
-#include "EngineConfig.h"
+#include "../Model/PatchDocument.h"
+#include "../Model/RuntimeSnapshot.h"
+#include "../Compiler/RuntimeCompiler.h"
 #include "../Preset/OmegaPreset.h"
-#include "../Ace/AceValidator.h"
-/** [BUILD_FORCE_15] Absolute Aseptic Restoration of Config Manager. **/
+
+#include "../Ace/AceCatalog.h"
 #include "../../Engine/Modular/VirtualAnalogEngine.h"
 
-// New Mappers
-#include "PresetToVoiceArchMapper.h"
-#include "VoiceArchToEngineConfigMapper.h"
-#include "ParamBindingRegistry.h"
-#include "PatchbayMatrixService.h"
-
-namespace Omega {
-namespace Core {
-namespace Service {
+namespace Omega::Core::Service {
 
     /**
-     * @brief Refactored Orchestrator for DSP engine configuration.
-     * Delegates extraction and mapping to specialized components.
-     * [Architecture]: Synchronized with Omega::Engine::Modular::VirtualAnalogEngine.
+     * @brief [Era 7] Centralized Store for the Engine State.
+     * Replaces the legacy EngineConfigManager.
      */
     class EngineConfigManager {
     public:
         EngineConfigManager(::Omega::Engine::Modular::VirtualAnalogEngine& engine, const Ace::AceCatalog& catalog)
-            : mEngine(engine), mCatalog(catalog), mValidator(catalog) {
-            mSnapshots[0] = std::make_unique<EngineConfig>();
-            mSnapshots[1] = std::make_unique<EngineConfig>();
-            mCurrentSnapshot.store(mSnapshots[0].get());
-            mEngine.setConfigProvider(&mCurrentSnapshot);
+            : mEngine(engine), mCatalog(catalog) {
+            mCurrentSnapshot.store(&mSnapshots[0]);
         }
 
         /**
-         * @brief Aplica un preset completo al motor.
+         * @brief Aplica un patch completo al motor.
          */
-        void applyPreset(Preset::OmegaPreset& preset) {
-            using IDs = Preset::OmegaPreset::IDs;
+        void applyPatch(const Model::PatchDocument& doc) {
+            mPatchDocument = doc;
+            recompile();
+        }
 
-            // 1. Validar ACE
-            auto report = mValidator.validateAndRepairPreset(preset);
-            if (report.status == Ace::ValidationStatus::Invalid) return;
+        /**
+         * @brief [Legacy] Adaptador para el sistema de presets Era 6.
+         */
+        void applyPreset(const Preset::OmegaPreset& preset) {
+            // Conversión mínima: metadata y gain
+            mPatchDocument.metadata.name = preset.getName().toStdString();
+            mPatchDocument.metadata.author = preset.getAuthor().toStdString();
+            mPatchDocument.masterGainDb = preset.getMasterGainDb();
+            
+            // TODO: Mapear módulos desde el ValueTree del preset si es necesario.
+            // Por ahora, solo mantenemos la estructura básica para evitar cuelgues.
+            
+            recompile();
+        }
 
-            // 2. Preparar back buffer
-            EngineConfig* next = (mCurrentSnapshot.load() == mSnapshots[0].get()) ? mSnapshots[1].get() : mSnapshots[0].get();
-            *next = EngineConfig(); // Reset to defaults
-
-            // 3. Extraer Arquitectura y Mapear a Voces
-            if (preset.getNumLayers() > 0) {
-                auto layer = preset.getLayerTree(0);
-                auto voiceArch = PresetToVoiceArchMapper::map(layer);
+        /**
+         * @brief Actualiza un parÃ¡metro individual y recompila el snapshot.
+         */
+        void updateParameter(uint32_t instanceId, Model::ParamId paramId, float value) {
+            auto* mod = const_cast<Model::ModuleInstance*>(mPatchDocument.findModule(instanceId));
+            if (mod) {
+                bool found = false;
+                for (auto& p : mod->parameters) {
+                    if (p.id == paramId) { p.value = value; found = true; break; }
+                }
+                if (!found) mod->parameters.push_back({paramId, value});
                 
-                // Aplicar estructura modular a todas las voces
-                for (int i = 0; i < 16; ++i) {
-                    VoiceArchToEngineConfigMapper::mapArchitecture(voiceArch, next->voices[i]);
-                }
-
-                // Aplicar ParÃ¡metros (vÃ­a Registry para consistencia)
-                auto params = layer.getChildWithName(IDs::params);
-                for (int p = 0; p < params.getNumProperties(); ++p) {
-                    auto pid = params.getPropertyName(p).toString();
-                    juce::String fullId = "LAYER:A:" + pid.toUpperCase();
-                    float val = params.getProperty(pid);
-                    
-                    for (int i = 0; i < 16; ++i) {
-                        ParamBindingRegistry::getInstance().apply(fullId, val, next->voices[i]);
-                    }
-                }
-
-                // 4. Voice Architecture 2.0 (Batch 4) - Compile dynamic topology
-                auto compileResult = Voice::VoiceArchitectureCompiler::compile(layer, mCatalog);
-                if (compileResult.success) {
-                    // Modulation Matrix 2.0 - Inject matrix routes into the plan using dynamic limits
-                    PatchbayMatrixService::compileMatrix(preset, compileResult.plan, mEngine.getMaxPatchbaySlots());
-                    
-                    mEngine.setVoicePlan(compileResult.plan);
-                }
-
-                next->masterGainDb = preset.getMasterGainDb();
+                recompile();
             }
-
-            // 4. Swap AtÃ³mico
-            mCurrentSnapshot.store(next);
-            mEngine.pushConfigUpdate(); 
         }
 
         /**
-         * @brief Actualiza un parÃ¡metro en tiempo real.
+         * @brief [Legacy] Soporte para parÃ¡metros por nombre.
          */
-        void updateParameter(const std::string& paramId, float value) {
-            auto* current = mCurrentSnapshot.load();
-            juce::String pid = paramId;
-
-            // 1. Direct Engine Hooks (High Priority)
-            if (pid == "LAYERAMAINVCAGAIN") {
-                mEngine.setVcaGain(value);
-            } 
-            else {
-                // 2. Global Registry (Era 6 Aseptic)
-                ParamBindingRegistry::getInstance().applyGlobal(pid, value, *current);
-
-                // 3. Per-Voice Parameters (Registry)
-                for (int i = 0; i < 16; ++i) {
-                    ParamBindingRegistry::getInstance().apply(pid, value, current->voices[i]);
-                }
+        void updateParameter(const juce::String& paramName, float value) {
+            if (paramName == "LAYERAMAINVCAGAIN") {
+                mPatchDocument.masterGainDb = value;
+                recompile();
+                return;
             }
-
-            mEngine.pushConfigUpdate();
+            // Otros mapeos legacy aquÃ­...
         }
 
-        const EngineConfig* getCurrentConfig() const { return mCurrentSnapshot.load(); }
+        /**
+         * @brief [Critical Path] Recompila el snapshot atÃ³micamente.
+         */
+        void recompile() {
+            auto nextIdx = (mCurrentSnapshot.load() == &mSnapshots[0]) ? 1 : 0;
+            mSnapshots[nextIdx] = Compiler::RuntimeCompiler::compile(mPatchDocument, mCatalog);
+            
+            mCurrentSnapshot.store(&mSnapshots[nextIdx]);
+            mEngine.pushConfigUpdate(); // Notify audio thread
+        }
+
+        const Model::RuntimeSnapshot* getCurrentSnapshot() const { return mCurrentSnapshot.load(); }
+        const Model::PatchDocument& getPatchDocument() const { return mPatchDocument; }
 
     private:
         ::Omega::Engine::Modular::VirtualAnalogEngine& mEngine;
         const Ace::AceCatalog& mCatalog;
-        Ace::AceValidator mValidator;
         
-        std::unique_ptr<EngineConfig> mSnapshots[2];
-        std::atomic<EngineConfig*> mCurrentSnapshot;
+        Model::PatchDocument mPatchDocument;
+        Model::RuntimeSnapshot mSnapshots[2];
+        std::atomic<Model::RuntimeSnapshot*> mCurrentSnapshot;
     };
 
-} // namespace Service
-} // namespace Core
-} // namespace Omega
+} // namespace Omega::Core::Service

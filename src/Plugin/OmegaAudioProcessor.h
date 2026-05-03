@@ -56,10 +56,12 @@ namespace Omega::Plugin {
 
         // --- Omega Specific ---
         void loadPreset(const Core::Preset::OmegaPreset& preset);
+        void saveCurrentPreset();
         static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
         // ACE System
         const Core::Ace::AceCatalog& getCatalog() const noexcept { return mCatalog; }
+        Core::Service::EngineConfigManager& getEngineConfigManager() noexcept { return mEngineConfig; }
 
         // MIDI Triggering (Thread-safe)
         void triggerNote(int midiNote, int velocity, bool isOn);

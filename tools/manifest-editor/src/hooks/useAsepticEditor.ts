@@ -13,25 +13,58 @@ const ajv = new AJV({
   strict: false 
 });
 addFormats(ajv);
-const validateEra6 = ajv.compile(era6Schema);
 
 export const useAsepticEditor = (addLog: (msg: string) => void) => {
+  const [validator, setValidator] = useState<any>(() => ajv.compile(era6Schema));
+  
+  const syncContract = useCallback(async () => {
+    // @ts-ignore
+    if (!window.electronAPI) {
+      addLog("Schema Sync is only available in Desktop/Electron mode.");
+      return;
+    }
+
+    try {
+      addLog("Starting Aseptic Schema Sync...");
+      // @ts-ignore
+      const result = await window.electronAPI.syncSchema();
+      
+      if (result.success) {
+        // Re-read the file to get the new content
+        // @ts-ignore
+        const newSchemaRaw = await window.electronAPI.readFile('tools/manifest-editor/src/schema.json');
+        const newSchema = JSON.parse(newSchemaRaw);
+        
+        // Re-compile AJV
+        setValidator(() => ajv.compile(newSchema));
+        addLog("Sync Success: ACE Contract updated and re-validated.");
+      } else {
+        addLog(`Sync Failed: ${result.error}`);
+      }
+    } catch (err: any) {
+      addLog(`Sync Error: ${err.message}`);
+    }
+  }, [addLog]);
+
   const [moduleData, setModuleData] = useState({
     id: 'midi_in',
     name: 'MIDI IN',
-    description: 'Canonical MIDI Input Bridge for the OMEGA Rack (Era 6.2 Absolute).',
+    description: 'Canonical MIDI Input Bridge for the OMEGA Rack (Era 6.3 Absolute).',
     modelId: 'ACE-UTIL-MIDI-IN',
     implementationId: 601,
     engine: 'WASM' as any,
-    family: 'UTILITY',
+    family: 'midi',
     theme: 'aseptic' as any,
-    version: '6.2',
+    version: '6.3',
     tags: [] as string[],
     registry: [] as any[],
     _user_edits: {} as Record<string, boolean> 
   });
 
   const [isDirty, setIsDirty] = useState(false);
+  const [dirtyItems, setDirtyItems] = useState<Set<string>>(new Set());
+  const [healedCount, setHealedCount] = useState(0);
+  const [createdCount, setCreatedCount] = useState(0);
 
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -173,14 +206,26 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
       const exports = scanResult.exports as { name: string, kind: string }[];
       const exportNames = exports.filter(e => e.kind === 'function').map(e => e.name);
       
+      const imports = (scanResult.imports || []) as { module: string, name: string, kind: string }[];
+      
       const newRegistry = [...moduleData.registry];
-      let healedCount = 0;
-      let createdCount = 0;
+      let hCount = 0;
+      let cCount = 0;
 
-      // Analizar exportaciones para extraer posibles parámetros/puertos
+      // 1. ANALIZAR IMPORTACIONES (Dependencias del sistema)
+      imports.forEach(imp => {
+        if (imp.name === 'omega_get_system_buffer') {
+          // Si el módulo importa acceso a buffers de sistema, 
+          // probablemente necesite pins de sistema.
+          // Por ahora marcamos que el módulo es "System Aware"
+          addLog(`[HEAL] Module depends on Host Environment: ${imp.name}`);
+        }
+      });
+
+      // 2. ANALIZAR EXPORTACIONES (Parámetros y Puertos)
       exportNames.forEach(rawName => {
         // Ignorar funciones internas obvias
-        if (rawName.startsWith('__') || rawName.startsWith('memory') || rawName === 'ace_dsp_process') return;
+        if (rawName.startsWith('__') || rawName.startsWith('memory') || rawName === 'ace_dsp_process' || rawName === 'omega_process') return;
 
         // Normalizar nombre (quitar ace_..._set, ace_port_..., etc)
         let cleanId = rawName
@@ -195,34 +240,40 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
           // Crear nueva entidad inferida
           const isPort = rawName.includes('port') || rawName.includes('_out') || rawName.includes('_in');
           const isStream = rawName.includes('stream') || rawName.includes('audio') || rawName.includes('cv');
+          const isSystem = rawName.includes('system') || rawName.includes('host_');
           
           const newItem: any = {
             id: cleanId,
             label: cleanId.toUpperCase().replace(/_/g, ' '),
             type: isStream ? (rawName.includes('cv') ? 'cv' : 'audio') : 'float',
-            roles: isPort ? ['output'] : ['control'],
-            front: !isPort, 
-            back: false
+            roles: isSystem ? ['system'] : (isPort ? ['output'] : ['control']),
+            front: !isPort && !isSystem, 
+            back: isSystem
           };
 
-          // Inferencia proactiva de roles
+          // Inferencia proactiva de roles y tipos (Era 6.3)
           if (rawName.includes('_in')) newItem.roles = ['input'];
           if (rawName.includes('_out')) newItem.roles = ['output'];
-          if (rawName.includes('param')) {
-             newItem.roles = ['control'];
-             newItem.type = 'float';
+          if (rawName.includes('expert')) newItem.roles.push('expert');
+          
+          if (isSystem) {
+             newItem.roles = ['system'];
+             if (cleanId.includes('audio')) newItem.type = 'audio';
+             if (cleanId.includes('midi')) newItem.type = 'midi';
           }
 
           newRegistry.push(newItem);
-          createdCount++;
+          cCount++;
         } else {
           // Si ya existe, podríamos intentar "aseptizar" su tipo si es legacy
-          healedCount++;
+          hCount++;
         }
       });
 
       setModuleData(prev => ({ ...prev, registry: newRegistry }));
-      addLog(`Healing Complete: Injected ${createdCount} missing entities, verified ${healedCount} existing.`);
+      setHealedCount(hCount);
+      setCreatedCount(cCount);
+      addLog(`Healing Complete: Injected ${cCount} missing entities, verified ${hCount} existing.`);
       
       // Re-verificar integridad después del healing
       checkWasmIntegrity(currentFilePath, moduleData.id, newRegistry);
@@ -244,9 +295,12 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
   const updateModuleMetadata = (updates: any) => {
     setModuleData(prev => ({ ...prev, ...updates }));
     setIsDirty(true);
+    setDirtyItems(prev => new Set(prev).add('_module_root'));
   };
 
   const updateRegistryItem = (id: string, updates: any) => {
+    setIsDirty(true);
+    setDirtyItems(prev => new Set(prev).add(id));
     setModuleData(prev => {
       const newRegistry = prev.registry.map(item => {
         if (item.id === id) {
@@ -340,10 +394,10 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
 
   const validateManifest = useCallback(() => {
     const sanitized = sanitizeManifest(moduleData);
-    const valid = validateEra6(sanitized);
+    const valid = validator(sanitized);
     
     if (!valid) {
-      const technicalErrors = validateEra6.errors || [];
+      const technicalErrors = validator.errors || [];
       const pedagogicalErrors = technicalErrors.map(translateAsepticError);
       const heuristicErrors = runHeuristicChecks(moduleData);
       
@@ -388,15 +442,17 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
           modelId: parsed.modelId || parsed.ModelId || 'ACE-GENERIC',
           implementationId: parsed.implementationId ?? parsed.ImplementationId ?? 0,
           engine: parsed.engine || parsed.Engine || 'WASM',
-          family: parsed.family || 'OSCILLATOR',
+          family: (parsed.family || 'osc').toLowerCase(),
           theme: parsed.theme || parsed.Theme || 'aseptic',
-          version: parsed.version || "6.1",
+          version: parsed.version || "6.3",
           tags: parsed.tags || [],
           registry: (parsed.registry || []).map(normalizeItem),
           _user_edits: { '_root': true } // Al cargar, marcamos como editado para que no se auto-pise el ID
         });
         setCurrentFilePath(filePath);
         setSelectedId(null);
+        setIsDirty(false);
+        setDirtyItems(new Set());
         addLog(`Loaded: ${filePath}`);
       } catch (err: any) {
         addLog(`Parse Error: ${err.message}`);
@@ -457,6 +513,8 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
       if (isValid) {
         setCurrentFilePath(finalPath);
         setValidationErrors([]);
+        setIsDirty(false);
+        setDirtyItems(new Set());
         
         // HIGIENE ASÉPTICA: Si existía un .working y acabamos de salvar el oficial, ofrecer borrar el old
         if (finalPath && finalPath.endsWith('.acemm')) {
@@ -484,9 +542,9 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
         modelId: 'ACE-GENERIC',
         implementationId: 0,
         engine: 'WASM',
-        family: 'OSCILLATOR',
+        family: 'osc',
         theme: 'aseptic',
-        version: '6.1',
+        version: '6.3',
         tags: [],
         registry: [],
         _user_edits: {}
@@ -494,6 +552,8 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
       setCurrentFilePath(null);
       setWasmStatus('none');
       setWasmDetails(null);
+      setIsDirty(false);
+      setDirtyItems(new Set());
       addLog("State reset to Aseptic Default.");
     }
   }, [addLog]);
@@ -505,9 +565,13 @@ export const useAsepticEditor = (addLog: (msg: string) => void) => {
     validationErrors, setValidationErrors,
     wasmStatus, wasmDetails,
     idMismatch, suggestedId,
-    handleAsepticHealing, applyAsepticSuggestion,
+    handleAsepticHealing,
+    healedCount,
+    createdCount,
+    applyAsepticSuggestion,
+    syncContract,
     updateModuleMetadata, updateRegistryItem,
     handleOpen, handleSave, handleNew, validateManifest,
-    isDirty
+    isDirty, dirtyItems
   };
 };

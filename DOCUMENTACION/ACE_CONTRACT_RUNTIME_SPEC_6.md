@@ -45,7 +45,10 @@ Toda interacción se realiza mediante un bus de comandos nominales y eventos de 
 - **Mutaciones**: `setParameter` (requiere campo `target`), `addModule`, `loadPreset`.
 - **Notificaciones**: `PARAM_CHANGE` (notificación de cambio de parámetro), `telemetryUpdate`, `onStateUpdate`.
 
-### E. Universal Routing Authority
+### E. System Reserved Pins (Host-Injected)
+Metadatos del entorno (`sample_rate`, `midi_protocol`) inyectados por el host en el espacio de señales del módulo mediante el namespace reservado `system.*`. Permiten optimización dinámica del DSP.
+
+### F. Universal Routing Authority
 
 En la Era 6 Absolute, el **RpcCommandDispatcher** es el único punto de entrada para los mensajes de la UI. El bridge actúa exclusivamente como una pasarela aséptica que delega el enrutamiento a controladores de dominio especializados.
 

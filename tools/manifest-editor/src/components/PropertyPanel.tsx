@@ -48,14 +48,23 @@ interface PropertyPanelProps {
   isRoot: boolean;
   onUpdate: (item: RegistryItem) => void;
   onClose?: () => void;
+  onDelete?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
+  errors?: any[];
+  assetStates?: any;
   isModal?: boolean;
-  errors: any[];
-  assetStates?: {
-    exists: boolean | null;
-    loading: boolean;
-    fullPath: string;
-  };
+  cells?: any[];
 }
+
+const LegacyFieldWarning: React.FC<{ field: string, alternative?: string }> = ({ field, alternative }) => (
+  <div className="legacy-field-warning">
+    <span className="warning-icon">⚠️</span>
+    <span className="warning-text">
+      <b>{field.toUpperCase()}</b> is a legacy field. 
+      {alternative && ` Migration target: ${alternative}`}
+    </span>
+  </div>
+);
 
 const AsepticTooltip: React.FC<{ topic: string }> = ({ topic }) => {
   const content = (helpData as any)[topic];
@@ -69,6 +78,40 @@ const AsepticTooltip: React.FC<{ topic: string }> = ({ topic }) => {
   );
 };
 
+import { NORMATIVE_PINS } from '../constants';
+
+const SystemPinInfo: React.FC<{ pin: any }> = ({ pin }) => (
+  <div className="system-pin-info">
+    <span className="info-icon">🏢</span>
+    <div className="info-content">
+      <span className="info-title">SYSTEM RESERVED PIN</span>
+      <span className="info-desc">{pin.description}</span>
+    </div>
+  </div>
+);
+
+const PinSuggestions: React.FC<{ 
+  term: string, 
+  onSelect: (pin: any) => void 
+}> = ({ term, onSelect }) => {
+  const matches = term.length > 0 
+    ? NORMATIVE_PINS.filter(p => p.id.toLowerCase().includes(term.toLowerCase()))
+    : [];
+    
+  if (matches.length === 0) return null;
+
+  return (
+    <div className="pin-suggestions">
+      {matches.map(p => (
+        <div key={p.id} className="pin-suggestion-item" onClick={() => onSelect(p)}>
+          <span className="pin-id">{p.id}</span>
+          <span className="pin-label">{p.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const PropertyPanel: React.FC<PropertyPanelProps> = ({ 
   item, 
   isRoot, 
@@ -76,7 +119,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onClose,
   isModal,
   errors, 
-  assetStates 
+  assetStates,
+  onDelete,
+  onDuplicate,
+  cells
 }) => {
   const [showImageModal, setShowImageModal] = React.useState(false);
   const [activeHelp, setActiveHelp] = React.useState<string | null>(null);
@@ -102,12 +148,16 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     return errors.find(err => err.path.includes(fieldName));
   };
 
+  const isSystemPin = !isRoot && (item?.roles?.includes('system') || NORMATIVE_PINS.some(p => p.id === item?.id));
+  const normativeData = !isRoot ? NORMATIVE_PINS.find(p => p.id === item?.id) : null;
+
   const panelContent = (
-    <div className={`property-panel-evolution ${isModal ? 'as-modal' : ''}`}>
+    <div className={`property-panel-evolution ${isModal ? 'as-modal' : ''} ${isSystemPin ? 'system-pin-mode' : ''}`}>
       {isModal && (
         <header className="modal-top-bar">
           <h3>
-             {isRoot ? 'MODULE DNA & IDENTITY' : `PARAMETER: ${item.label}`}
+             {isRoot ? 'MODULE DNA & IDENTITY' : `PARAMETER: ${item?.label}`}
+             {isSystemPin && <span className="system-badge">HOST INJECTED</span>}
           </h3>
           <button className="close-btn" onClick={onClose}>×</button>
         </header>
@@ -164,7 +214,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               )}
             </div>
 
-            <div className="control-group">
+            <div className="control-group" style={{ position: 'relative' }}>
               <label>
                 🔑 Technical ID
                 <span 
@@ -177,19 +227,30 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               <input 
                 className={`aseptic-input id-field ${getFieldError('id') ? 'error-border' : ''}`} 
                 style={{ 
-                  color: (!item.front && item.back) ? 'var(--neon-amber)' : 'inherit',
-                  borderColor: (!item.front && item.back) ? 'rgba(255, 170, 0, 0.3)' : ''
+                  color: (!item!.front && item!.back) ? 'var(--neon-amber)' : 'inherit',
+                  borderColor: (!item!.front && item!.back) ? 'rgba(255, 170, 0, 0.3)' : ''
                 }}
-                value={isRoot ? (item as any).id || '' : item.id} 
-                onChange={(e) => onUpdate({ ...item, id: e.target.value })}
-                title="Module Canonical ID (snake_case)"
+                disabled={isSystemPin}
+                value={isRoot ? (item as any).id || '' : item!.id} 
+                onChange={(e) => onUpdate({ ...item!, id: e.target.value })}
+                title={isSystemPin ? "System IDs are read-only" : "Module Canonical ID (snake_case)"}
               />
-              {getFieldError('id') ? (
+              {!isSystemPin && !isRoot && (
+                <PinSuggestions 
+                  term={item!.id} 
+                  onSelect={(p) => onUpdate({ ...item!, id: p.id, label: p.label, roles: p.roles, type: p.type })} 
+                />
+              )}
+              {isSystemPin && <span className="field-hint system-lock">🔒 System ID is host-managed.</span>}
+              {!isSystemPin && getFieldError('id') && (
                  <span className="ace-lint-msg error">{getFieldError('id').message}</span>
-              ) : (
+              )}
+              {!isSystemPin && !getFieldError('id') && (
                 <span className="field-hint">{isRoot ? "Canonical Module ID (Aseptic Authority)." : "Internal contract key. Follows snake_case."}</span>
               )}
             </div>
+
+            {normativeData && <SystemPinInfo pin={normativeData} />}
 
             {isRoot && (
                <>
@@ -220,9 +281,26 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   <span className="field-hint">Comma-separated classification tags.</span>
                 </div>
 
+                <div className="control-group">
+                  <label>⚙️ Engine (Legacy)</label>
+                  <select 
+                    className="aseptic-input"
+                    value={(item as any).engine || 'Modular'}
+                    onChange={(e) => onUpdate({ ...item, engine: e.target.value } as any)}
+                  >
+                    <option value="Modular">Modular (C++)</option>
+                    <option value="WASM">WASM (Sandbox)</option>
+                  </select>
+                  <LegacyFieldWarning field="engine" alternative="Family-based routing" />
+                </div>
+
                 <div className="layout-horizontal-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                   <div className="control-group">
-                    <label>📐 HP Width</label>
+                    <label>
+                      📐 HP Width
+                      <span className="help-trigger" onMouseEnter={() => setActiveHelp('layout_hp')} onMouseLeave={() => setActiveHelp(null)}>?</span>
+                      {activeHelp === 'layout_hp' && <AsepticTooltip topic="layout_hp" />}
+                    </label>
                     <input 
                       type="number"
                       className="aseptic-input" 
@@ -232,7 +310,11 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     <span className="field-hint">Horizontal Pitch.</span>
                   </div>
                   <div className="control-group">
-                    <label>🏗️ Rack Zone</label>
+                    <label>
+                      🏗️ Rack Zone
+                      <span className="help-trigger" onMouseEnter={() => setActiveHelp('rack_zone')} onMouseLeave={() => setActiveHelp(null)}>?</span>
+                      {activeHelp === 'rack_zone' && <AsepticTooltip topic="rack_zone" />}
+                    </label>
                     <select 
                       className="aseptic-input"
                       value={item.layout?.rack || 'lower'}
@@ -243,6 +325,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </select>
                   </div>
                 </div>
+                <LegacyFieldWarning field="layout" alternative="Automatic Grid" />
               </>
             )}
 
@@ -294,6 +377,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </div>
               </div>
             )}
+
+            {!isRoot && item.direction && (
+              <LegacyFieldWarning field="direction" alternative="Roles (Input/Output)" />
+            )}
           </div>
         )}
       </section>
@@ -339,12 +426,17 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     value={(item as any).family} 
                     onChange={(e) => onUpdate({ ...item, family: e.target.value } as any)}
                   >
-                    <option value="OSCILLATOR">〰️ OSCILLATOR</option>
-                    <option value="FILTER">📐 FILTER</option>
-                    <option value="ENVELOPE">📈 ENVELOPE</option>
-                    <option value="IO">🔌 IO</option>
-                    <option value="FX">✨ FX</option>
-                    <option value="UTILITY">🛠️ UTILITY</option>
+                    <option value="osc">〰️ OSCILLATOR</option>
+                    <option value="filter">📐 FILTER</option>
+                    <option value="env">📈 ENVELOPE</option>
+                    <option value="io">🔌 IO</option>
+                    <option value="fx">✨ FX</option>
+                    <option value="lfo">🌊 LFO</option>
+                    <option value="mixer">🎚️ MIXER</option>
+                    <option value="utility">🛠️ UTILITY</option>
+                    <option value="clock">⏱️ CLOCK</option>
+                    <option value="midi">🎹 MIDI</option>
+                    <option value="sequencer">🎼 SEQUENCER</option>
                   </select>
                 </div>
                 <div className="control-group">
@@ -369,7 +461,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {isRoot && (
         <section className="form-section">
           <header className="section-divider">
-             <span className="divider-label">EXECUTION ENGINE</span>
+             <span className="divider-label">EXECUTION & VISUAL SPEC</span>
           </header>
           <div className="grid-2-col">
             <div className="control-group">
@@ -391,6 +483,21 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 onChange={(e) => onUpdate({ ...item, version: e.target.value } as any)} 
               />
             </div>
+          </div>
+
+          <div className="control-group" style={{ marginTop: '15px' }}>
+            <label>🎨 Visual Blueprint (.acell)</label>
+            <select 
+              className="aseptic-input" 
+              value={(item as any).blueprint || ''} 
+              onChange={(e) => onUpdate({ ...item, blueprint: e.target.value } as any)}
+            >
+              <option value="">-- No Blueprint Linked --</option>
+              {cells?.map((cell: any) => (
+                <option key={cell.id} value={cell.id}>{cell.name || cell.id} ({cell.category})</option>
+              ))}
+            </select>
+            <span className="field-hint">Select a specialized layout from the Resources/Cells library.</span>
           </div>
         </section>
       )}
@@ -421,8 +528,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     <option value="float">FLOAT (0..1)</option>
                     <option value="int">INT (Discrete)</option>
                     <option value="bool">BOOL</option>
+                    <option value="string">STRING</option>
                     <option value="list">LIST / LOOKUP</option>
-                    <option value="text">TEXT / STRING</option>
                     <option value="audio">AUDIO STREAM</option>
                     <option value="cv">CV / VOLTAGE</option>
                     <option value="midi">MIDI BRIDGE</option>
@@ -437,7 +544,11 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
               <div className="grid-2-col" style={{ marginTop: '10px' }}>
                 <div className="control-group">
-                  <label>🎯 DSP Precision</label>
+                  <label>
+                    🎯 DSP Precision
+                    <span className="help-trigger" onMouseEnter={() => setActiveHelp('precision')} onMouseLeave={() => setActiveHelp(null)}>?</span>
+                    {activeHelp === 'precision' && <AsepticTooltip topic="precision" />}
+                  </label>
                   <input 
                     type="number"
                     className="aseptic-input" 
@@ -447,7 +558,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   <span className="field-hint">Decimal places for processing.</span>
                 </div>
                 <div className="control-group">
-                  <label>👁️ UI Precision</label>
+                  <label>
+                    👁️ UI Precision
+                    <span className="help-trigger" onMouseEnter={() => setActiveHelp('precision')} onMouseLeave={() => setActiveHelp(null)}>?</span>
+                  </label>
                   <input 
                     type="number"
                     className="aseptic-input" 
@@ -480,6 +594,27 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     <span>BACK PANEL (TRIMMER)</span>
                   </label>
                   <span className="field-hint">Fine adjustment (PCB/ROM level).</span>
+                </div>
+              </div>
+
+              <div className="control-group" style={{ marginTop: '15px' }}>
+                <label>🎭 Roles</label>
+                <div className="roles-pill-container">
+                  {['control', 'stream', 'input', 'output', 'mod_source', 'mod_target', 'telemetry', 'expert', 'system'].map(role => (
+                    <button 
+                      key={role}
+                      className={`role-pill ${item.roles?.includes(role) ? 'active' : ''} ${role === 'system' ? 'system-role' : ''}`}
+                      onClick={() => {
+                        const roles = item.roles || [];
+                        const newRoles = roles.includes(role) 
+                          ? roles.filter(r => r !== role)
+                          : [...roles, role];
+                        onUpdate({ ...item, roles: newRoles });
+                      }}
+                    >
+                      {role.toUpperCase()}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -563,10 +698,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     <option value="slider_v">🎚️ FADER (Vertical)</option>
                     <option value="slider_h">↔️ FADER (Horizontal)</option>
                     <option value="switch">⏻ SWITCH (Toggle)</option>
+                    <option value="toggle">🔘 TOGGLE</option>
                     <option value="port">🔌 PORT (Jack)</option>
                     <option value="button">🔘 BUTTON (Trigger)</option>
                     <option value="led">🚨 LED (Status)</option>
                     <option value="display">📊 DISPLAY (Value)</option>
+                    <option value="hidden">👻 HIDDEN</option>
                   </select>
                 </div>
                 <div className="control-group">
@@ -583,7 +720,39 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     <option value="PATCHING">PATCHING MATRIX</option>
                     <option value="SETUP">SETUP / REAR</option>
                     <option value="MIDI">MIDI / EXTERNAL</option>
+                    <option value="ADVANCED">ADVANCED / EXPERT</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid-2-col" style={{ marginTop: '15px' }}>
+                <div className="control-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={item.presentation?.ui?.disabled || false} 
+                      onChange={(e) => {
+                        const p = item.presentation || {};
+                        const ui = p.ui || {};
+                        onUpdate({...item, presentation: {...p, ui: {...ui, disabled: e.target.checked}}});
+                      }} 
+                    />
+                    <span>DISABLED</span>
+                  </label>
+                </div>
+                <div className="control-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={item.presentation?.ui?.readOnly || false} 
+                      onChange={(e) => {
+                        const p = item.presentation || {};
+                        const ui = p.ui || {};
+                        onUpdate({...item, presentation: {...p, ui: {...ui, readOnly: e.target.checked}}});
+                      }} 
+                    />
+                    <span>READ ONLY</span>
+                  </label>
                 </div>
               </div>
 
@@ -675,7 +844,11 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               {/* ATTACHMENTS EDITOR (VEM-493) */}
               <div className="attachments-editor-section" style={{ marginTop: '20px', borderTop: '1px border rgba(255,255,255,0.05)', paddingTop: '15px' }}>
                 <div className="label-with-badge">
-                  <label>📎 Attachments (Cell Accessories)</label>
+                  <label>
+                    📎 Attachments (Cell Accessories)
+                    <span className="help-trigger" onMouseEnter={() => setActiveHelp('attachments')} onMouseLeave={() => setActiveHelp(null)}>?</span>
+                    {activeHelp === 'attachments' && <AsepticTooltip topic="attachments" />}
+                  </label>
                   <button 
                     className="aseptic-button mini" 
                     onClick={() => {
@@ -805,6 +978,30 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </div>
           )}
         </section>
+      )}
+
+      {/* GOVERNANCE ACTIONS (Era 6.3 Recovery) */}
+      {!isRoot && (
+        <footer className="property-footer-actions">
+          <button 
+            className="aseptic-btn" 
+            onClick={() => onDuplicate && onDuplicate(item.id)}
+            title="Create a clone of this parameter"
+          >
+            📋 DUPLICATE
+          </button>
+          <div style={{ flex: 1 }}></div>
+          <button 
+            className="aseptic-btn danger" 
+            onClick={() => {
+              if (confirm(`Delete parameter ${item.id}?`)) {
+                onDelete && onDelete(item.id);
+              }
+            }}
+          >
+            🗑️ DELETE PARAMETER
+          </button>
+        </footer>
       )}
 
       {/* IMAGE MODAL POPUP */}

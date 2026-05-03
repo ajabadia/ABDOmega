@@ -1,7 +1,7 @@
 id: osc_va
 name: JUNO DCO
-family: Oscillator
-version: 1
+family: osc
+version: "6.3"
 registry:
   - id: layer.a.osc.saw.on
     label: SAW-TEST
@@ -11,6 +11,8 @@ registry:
       min: 0
       max: 1
       default: 0
+    front: true
+    back: false
   - id: layer.a.osc.pulse.on
     label: PULSE
     roles:
@@ -19,6 +21,8 @@ registry:
       min: 0
       max: 1
       default: 1
+    front: true
+    back: false
   - id: layer.a.osc.sub.level
     label: SUB
     roles:
@@ -28,6 +32,8 @@ registry:
       min: 0
       max: 1
       default: 0.5
+    front: true
+    back: false
   - id: layer.a.osc.noise.level
     label: NOISE
     roles:
@@ -37,6 +43,8 @@ registry:
       min: 0
       max: 1
       default: 0
+    front: true
+    back: false
   - id: layer.a.osc.lfo.depth
     label: LFO
     roles:
@@ -46,9 +54,13 @@ registry:
       min: 0
       max: 1
       default: 0
+    front: true
+    back: false
   - id: v_out
     label: V_OUT
     type: audio
     roles:
       - output
       - stream
+    front: true
+    back: false

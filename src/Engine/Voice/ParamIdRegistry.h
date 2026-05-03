@@ -80,6 +80,11 @@ namespace Core {
             getStableId("trigger");
             getStableId("pwm");
             getStableId("gate");
+
+            // --- Era 6.3 Environment Awareness ---
+            getStableId("system.audio.sample_rate");
+            getStableId("system.audio.block_size");
+            getStableId("system.midi.protocol");
         }
 
     private:

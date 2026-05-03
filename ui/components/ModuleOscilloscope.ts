@@ -1,9 +1,11 @@
-export class ModuleOscilloscope {
+import { type ModuleOptions, type IModuleInstance } from '../contracts/ModuleContract.js';
+
+export class ModuleOscilloscope implements IModuleInstance {
     private el: HTMLElement;
     private content: HTMLElement;
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
-    private descriptor: any;
+    private options: ModuleOptions;
 
     private isPowered: boolean = true;
     private sourceA: number = 10; // Default DCO Main
@@ -28,10 +30,10 @@ export class ModuleOscilloscope {
     private modalCtx: CanvasRenderingContext2D | null = null;
     private modalTimebase: number = 1.0;
 
-    constructor(el: HTMLElement, content: HTMLElement, descriptor: any) {
+    constructor(el: HTMLElement, content: HTMLElement, options: ModuleOptions) {
         this.el = el;
         this.content = content;
-        this.descriptor = descriptor;
+        this.options = options;
         
         this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext('2d')!;
@@ -117,7 +119,7 @@ export class ModuleOscilloscope {
                 <div class="module-controls" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <button id="osc-power" class="juno-btn power-btn active" style="width:24px; height:24px; font-size:10px;" title="POWER">⏻</button>
-                        <span class="module-title" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">SCOPE ${this.descriptor.label || "MASTER"}</span>
+                        <span class="module-title" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">SCOPE ${this.options.label || "MASTER"}</span>
                     </div>
                     <div style="display: flex; gap: 5px;">
                         <button id="osc-modal-trigger" class="btn-scope-focus" style="width:24px; height:24px;" title="Advanced Analyzer">⛶</button>

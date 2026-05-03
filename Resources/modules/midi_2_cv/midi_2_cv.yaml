@@ -5,8 +5,9 @@ id: "midi_2_cv"
 modelId: "ACE-MIDI-ADAPTER-ULTIMATE"
 implementationId: 502
 version: "5.2.0"
-family: "Utility"
+family: "utility"
 engine: "Modular"
+tags: ["midi_to_cv", "adapter"]
 description: "Flagship OMEGA Meta-Engine Adapter. Converters Polyphonic MIDI to high-resolution CV/Gate streams with Era 5.2 aseptic precision."
 
 # --- Definición Física (CAD) ---
@@ -14,19 +15,31 @@ layout:
   hp: 8                # Ancho dinámico (Living YAML)
   min_hp: 6
   rack: "upper"        # Utility global (Rack Superior)
+  ui_class: "ModuleMidiToCv"
   columns: 2           # Referencia para auto-layout
+  uiLayout:
+    columns: 2
+    gap: 15
+    items:
+      - { paramId: "midi_channel", row: 0, col: 0, look: "select" }
+      - { paramId: "transpose", row: 0, col: 1, look: "knob" }
+      - { paramId: "bend_range", row: 1, col: 0, look: "knob" }
+      - { paramId: "glide_time", row: 1, col: 1, look: "knob" }
+      - { paramId: "mod_wheel", row: 2, col: 0, colSpan: 2, look: "slider-h" }
 
 registry:
   # ===========================================================================
   # TUNING & CONNECTIVITY (Pestaña MAIN)
   # ===========================================================================
   
-  - id: "midi_chan"
+  - id: "midi_channel"
     label: "MIDI CHANNEL"
     type: int
     direction: input
     import: "core.midi.channels"
     roles: [control]
+    front: true
+    back: false
     presentation:
       tab: "MAIN"
       group: "CONNECTIVITY"
@@ -39,6 +52,8 @@ registry:
     direction: input
     range: { min: -24, max: 24, default: 0 }
     roles: [control]
+    front: true
+    back: false
     presentation:
       tab: "MAIN"
       group: "TUNING"

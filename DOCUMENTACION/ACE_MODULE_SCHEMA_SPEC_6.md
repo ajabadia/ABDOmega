@@ -75,6 +75,7 @@ El esquema incluye pistas sobre la ocupación física y sugerencias de represent
 ### A. Layout Hints (Chasis)
 - `layout.hp`: Ancho sugerido en unidades HP (Horizontal Pitch).
 - `layout.rack`: Ubicación sugerida en el chasis (`upper`, `lower`).
+- `layout.ui_class`: Clase de renderizado UI personalizada (opcional).
 
 ### B. Zonificación (Agrupación)
 Se elimina la noción de pestañas fijas en el core. Se usan hints para agrupar:
@@ -113,10 +114,60 @@ El frontend debe transformar el `Registry` en un modelo visual resolviendo:
 
 ---
 
-## 5. Aseptismo de Layout
+## 6. Environment Awareness (Era 6.3)
 
-- **Prohibición de Jacks Físicos**: Los puertos de entrada/salida no se dibujan en el panel principal ("Aseptismo Radical"). Se gestionan exclusivamente en la pestaña de `PATCHING` o mediante menús contextuales de modulación.
-- **Dynamic HP**: El ancho del módulo en el rack (`hp`) se deriva de la densidad de controles y el layout resuelto, no es necesariamente un valor estático en el manifiesto.
+Para permitir optimizaciones de rendimiento y adaptabilidad técnica sin romper el aseptismo, el host puede inyectar metadatos del entorno directamente en el espacio de señales del módulo.
+
+### A. System Reserved Namespace
+Cualquier entidad en el `registry` con el prefijo **`system.`** se considera un **System Pin**. Estos pines son de solo lectura para el módulo y su valor es gestionado exclusivamente por el host.
+
+### B. Standard Environment Pins (Normativos)
+| ID | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `system.audio.sample_rate` | float | Frecuencia de muestreo actual (ej: 44100.0, 96000.0). |
+| `system.audio.block_size` | int | Tamaño del bloque de procesamiento (ej: 256, 512). |
+| `system.audio.bit_depth` | int | Resolución de bits del motor (normalmente 32 para float). |
+| `system.midi.protocol` | float | Protocolo activo: `1.0` (Legacy) o `2.0` (UMP/MIDI 2.0). |
+
+### C. Uso en el Módulo
+El módulo puede declarar estos pines en su manifiesto para "suscribirse" a la información. El host garantiza la actualización de estos valores antes de cada llamada a `process`.
 
 ---
-*OMEGA — Documento de Referencia de Esquema Era 6*
+## 7. Era 7 Addendum: Numeric Authority Mapping
+
+En la **Era 7 (Industrialización)**, el manifiesto `.acemm` sigue siendo la herramienta de autoría, pero el motor de ejecución opera exclusivamente sobre **IDs numéricos (uint16_t)**.
+
+### A. Mapeo Automático de Parámetros
+Cada entrada en el `registry` con rol `control` o `mod_target` recibe un **ParamId** numérico autogenerado basado en:
+1. **Posición en el Registry**: (Index + 1).
+2. **IDs Reservados**: Parámetros globales (Gain, Transpose) usan IDs fijos predefinidos en `PatchIdentifiers.h`.
+
+### B. Mapeo de Puertos
+Los puertos de audio/CV reciben un **PortId** numérico siguiendo el mismo orden del registry, permitiendo al `RuntimeCompiler` construir el grafo de síntesis sin realizar búsquedas por string durante la compilación.
+
+### C. Consecuencia para la UI
+La UI debe usar preferentemente el `instanceId` (numérico) y el `paramId` (numérico) al emitir comandos `setParameter` para garantizar latencia mínima y paridad total con el `PatchDocument`.
+
+---
+*OMEGA — Documento de Referencia de Esquema Era 7 Industrial*
+
+---
+## 8. Era 7.1 Addendum: Industrial Synchronization
+
+En la **Era 7.1 (Sincronización)**, se endurece el contrato para garantizar la convergencia total entre el Editor de Manifiestos y el Motor de Renderizado.
+
+### A. El Campo `role` Obligatorio
+Cada entidad en el `registry` debe declarar un `role` primario que define su comportamiento semántico en el motor WASM:
+- `control`: Entrada interactiva del usuario.
+- `telemetry`: Feedback visual pasivo (Meters, LEDs).
+- `stream`: Datos de audio/CV continuos.
+- `mod_target`: Destino elegible para modulación.
+
+### B. Precisión Dual (Offsets X/Y)
+Los **Attachments** abandonan el desplazamiento unidimensional. Se utilizan `offsetX` y `offsetY` para posicionamiento sub-píxel de serigrafía, LEDs adjuntos y displays de telemetría.
+
+### C. Arquitectura Multi-Tab
+Los módulos industriales pueden distribuir sus controles en múltiples paneles virtuales mediante la propiedad `tab`. Los nombres canónicos son: `MAIN`, `FX`, `EDIT`, `MIDI`, `MOD`.
+
+---
+*OMEGA — Especificación de Ingeniería Era 7.1 Industrial*

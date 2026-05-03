@@ -5,14 +5,17 @@
 
 namespace {
     /**
-     * @brief Host Import: get_bus_ptr
-     * Returns a pointer to a specific bus in the current voice.
+     * @brief Host Import: get_system_buffer
+     * [Era 6.3] Returns a pointer to a global system stream (e.g. system.audio.main_l)
      */
-    void* omega_get_bus_ptr(wasm_exec_env_t exec_env, int busIdx) {
-        wasm_module_inst_t inst = wasm_runtime_get_module_inst(exec_env);
-        // In OMEGA, we associate the instance with a VoiceState.
-        // For now, we'll map the global bus pool.
-        return nullptr; // Placeholder for real mapping
+    void* omega_get_system_buffer(wasm_exec_env_t exec_env, const char* systemId) {
+        auto& wasm = Omega::Core::Wasm::WasmModuleService::getInstance();
+        std::string id = systemId;
+        if (id == "system.audio.main_l") return (void*)wasm.getMainL();
+        if (id == "system.audio.main_r") return (void*)wasm.getMainR();
+        if (id == "system.audio.in_l")   return (void*)wasm.getInL();
+        if (id == "system.audio.in_r")   return (void*)wasm.getInR();
+        return nullptr;
     }
 
     /**
@@ -38,37 +41,90 @@ namespace {
      * @brief Host Import: set_voice_freq
      */
     void omega_set_voice_freq(wasm_exec_env_t exec_env, float hz) {
-        // TODO: Mapear a la instancia de VoiceState adecuada
+        auto& wasm = Omega::Core::Wasm::WasmModuleService::getInstance();
+        wasm_module_inst_t inst = wasm_runtime_get_module_inst(exec_env);
+        int idx = wasm.findVoiceIdxByInst(inst);
+        if (idx != -1) {
+            auto* state = (Omega::Core::Voice::VoiceState*)wasm.getVoiceState(idx);
+            if (state) state->frequencyHz = hz;
+        }
     }
 
     /**
      * @brief Host Import: set_voice_gate
      */
     void omega_set_voice_gate(wasm_exec_env_t exec_env, float gate) {
-        // TODO: Mapear a la instancia de VoiceState adecuada
+        auto& wasm = Omega::Core::Wasm::WasmModuleService::getInstance();
+        wasm_module_inst_t inst = wasm_runtime_get_module_inst(exec_env);
+        int idx = wasm.findVoiceIdxByInst(inst);
+        if (idx != -1) {
+            auto* state = (Omega::Core::Voice::VoiceState*)wasm.getVoiceState(idx);
+            if (state) {
+                state->triggerRequested = (gate > 0.5f && state->velocity <= 0.0f);
+                state->velocity = gate; // Simplified mapping
+                if (gate > 0.5f) state->isActive = true;
+            }
+        }
     }
 
     /**
      * @brief Host Import: set_voice_vel
      */
     void omega_set_voice_vel(wasm_exec_env_t exec_env, float vel) {
-        // TODO: Mapear a la instancia de VoiceState adecuada
+        auto& wasm = Omega::Core::Wasm::WasmModuleService::getInstance();
+        wasm_module_inst_t inst = wasm_runtime_get_module_inst(exec_env);
+        int idx = wasm.findVoiceIdxByInst(inst);
+        if (idx != -1) {
+            auto* state = (Omega::Core::Voice::VoiceState*)wasm.getVoiceState(idx);
+            if (state) state->velocity = vel;
+        }
     }
 
     /**
      * @brief Host Import: set_voice_at (Aftertouch)
      */
     void omega_set_voice_at(wasm_exec_env_t exec_env, float pressure) {
-        // TODO: Mapear a la instancia de VoiceState adecuada
+        // [ERA 6.3] Mapping to modSignals[1] for standard AT routing
+        auto& wasm = Omega::Core::Wasm::WasmModuleService::getInstance();
+        wasm_module_inst_t inst = wasm_runtime_get_module_inst(exec_env);
+        int idx = wasm.findVoiceIdxByInst(inst);
+        if (idx != -1) {
+            auto* state = (Omega::Core::Voice::VoiceState*)wasm.getVoiceState(idx);
+            if (state) state->modSignals[1] = pressure; 
+        }
+    }
+
+    /**
+     * @brief Host Import: get_sample_rate
+     */
+    float omega_get_sample_rate(wasm_exec_env_t exec_env) {
+        return (float)Omega::Core::Wasm::WasmModuleService::getInstance().getSampleRate();
+    }
+
+    /**
+     * @brief Host Import: get_block_size
+     */
+    int omega_get_block_size(wasm_exec_env_t exec_env) {
+        return Omega::Core::Wasm::WasmModuleService::getInstance().getBlockSize();
+    }
+
+    /**
+     * @brief Host Import: get_midi_protocol
+     */
+    int omega_get_midi_protocol(wasm_exec_env_t exec_env) {
+        return Omega::Core::Wasm::WasmModuleService::getInstance().getMidiProtocol();
     }
 
     static NativeSymbol g_omega_native_symbols[] = {
-        { "omega_get_bus_ptr", (void*)omega_get_bus_ptr, "(i)i", nullptr },
+        { "omega_get_system_buffer", (void*)omega_get_system_buffer, "($)i", nullptr },
         { "omega_publish_telemetry", (void*)omega_publish_telemetry, "(f)", nullptr },
         { "omega_set_voice_freq", (void*)omega_set_voice_freq, "(f)", nullptr },
         { "omega_set_voice_gate", (void*)omega_set_voice_gate, "(f)", nullptr },
         { "omega_set_voice_vel", (void*)omega_set_voice_vel, "(f)", nullptr },
-        { "omega_set_voice_at", (void*)omega_set_voice_at, "(f)", nullptr }
+        { "omega_set_voice_at", (void*)omega_set_voice_at, "(f)", nullptr },
+        { "omega_get_sample_rate", (void*)omega_get_sample_rate, "()f", nullptr },
+        { "omega_get_block_size", (void*)omega_get_block_size, "()i", nullptr },
+        { "omega_get_midi_protocol", (void*)omega_get_midi_protocol, "()i", nullptr }
     };
 }
 

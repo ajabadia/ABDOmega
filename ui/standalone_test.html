@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OMEGA Render Validation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/controls.css">
+    <link rel="stylesheet" href="css/themes/industrial.css">
+    <style>
+        body { background: #050505; color: #fff; padding: 20px; font-family: 'Inter', sans-serif; }
+        #test-container { margin-top: 40px; display: flex; justify-content: center; gap: 40px; }
+        .test-header { border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .status { color: #00f2ff; font-family: monospace; font-size: 12px; font-weight: 900; }
+        .module-wrapper { border: 1px solid #333; padding: 10px; background: #000; border-radius: 4px; }
+        .label-tag { font-size: 10px; color: #555; margin-bottom: 8px; text-transform: uppercase; font-weight: 900; }
+    </style>
+</head>
+<body>
+    <div class="test-header">
+        <h1>OMEGA ERA 7.1 VALIDATION</h1>
+        <div class="status">ASEPTIC_CORE_V7.1 | SCALE: 1.5X</div>
+    </div>
+    
+    <div id="test-container">
+        <div class="module-wrapper">
+            <div class="label-tag">Module: midi_in (MAIN Tab)</div>
+            <div id="module-anchor-main"></div>
+        </div>
+        <div class="module-wrapper">
+            <div class="label-tag">Module: midi_in (MIDI Tab)</div>
+            <div id="module-anchor-midi"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // FULL MODULE RENDERER SOURCE (JS VERSION)
+        class ModuleRenderer {
+            constructor(el, content, descriptor) {
+                this.el = el;
+                this.content = content;
+                this.descriptor = descriptor;
+                this.values = {};
+                this.activeTab = 'MAIN';
+                this.RENDER_SCALE = 1.5;
+
+                const allItems = [...(descriptor.ui?.controls || []), ...(descriptor.ui?.jacks || [])];
+                const firstWithTab = allItems.find(i => i.presentation?.tab);
+                if (firstWithTab && firstWithTab.presentation?.tab) {
+                    this.activeTab = firstWithTab.presentation.tab;
+                }
+            }
+
+            init() {
+                this.render();
+                this.bind();
+            }
+
+            getRegistryEntity(id) {
+                if (!this.descriptor.registry) return null;
+                return this.descriptor.registry.find(e => e.id === id) || null;
+            }
+
+            render() {
+                const desc = this.descriptor;
+                const skinClass = `skin-${desc.ui?.skin || 'default'}`;
+                const themeClass = `theme-${desc.theme || 'default'}`;
+                const classes = ["aseptic-module", skinClass, themeClass];
+                const width = (desc.ui?.dimensions?.width || 120) * this.RENDER_SCALE;
+                const height = (desc.ui?.dimensions?.height || 420) * this.RENDER_SCALE;
+                const allItems = [...(desc.ui?.controls || []), ...(desc.ui?.jacks || [])];
+                const tabs = [...new Set(allItems.map(i => i.presentation?.tab || 'MAIN'))].sort();
+
+                this.content.innerHTML = `
+                    <div class="${classes.join(' ')}" style="width: ${width}px; height: ${height}px; position: relative; overflow: hidden; background: #1a1a1a; border: 1px solid #333;">
+                        ${tabs.length > 1 ? `
+                        <div class="module-tabs" style="display: flex; gap: 4px; padding: 10px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            ${tabs.map(t => `
+                                <button class="tab-btn ${this.activeTab === t ? 'active' : ''}" data-tab="${t}" style="font-size: 9px; font-weight: 900; letter-spacing: 1px; background: ${this.activeTab === t ? '#00f2ff' : 'transparent'}; color: ${this.activeTab === t ? '#000' : 'rgba(255,255,255,0.4)'}; border: none; border-radius: 20px; padding: 4px 12px; cursor: pointer;">
+                                    ${t}
+                                </button>
+                            `).join('')}
+                        </div>
+                        ` : ''}
+                        <div class="module-canvas" style="position: absolute; inset: 0; padding-top: ${tabs.length > 1 ? '40px' : '0'}">
+                            ${allItems.filter(item => (item.presentation?.tab || 'MAIN') === this.activeTab).map(item => this.renderItem(item)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderItem(item) {
+                const id = item.bind || item.id;
+                const entity = id ? this.getRegistryEntity(id) : null;
+                const label = item.label || (entity ? entity.label : (id || ""));
+                const x = (item.pos?.x || 0) * this.RENDER_SCALE;
+                const y = (item.pos?.y || 0) * this.RENDER_SCALE;
+                const style = `position: absolute; left: ${x}px; top: ${y}px; transform: translate(-50%, -50%);`;
+                const cellClass = `control-cell variant-${item.presentation?.variant || 'default'} ${!entity?.role ? 'role-orphan' : ''}`;
+                const attachments = item.presentation?.attachments || [];
+
+                return `
+                    <div class="${cellClass}" style="${style}" data-id="${id}">
+                        ${this.renderAttachmentGroup(attachments, 'top', label, entity, id)}
+                        <div class="cell-row-middle" style="display: flex; align-items: center; justify-content: center;">
+                            ${this.renderAttachmentGroup(attachments, 'left', label, entity, id)}
+                            <div class="cell-main">${this.renderComponent(item, entity, label)}</div>
+                            ${this.renderAttachmentGroup(attachments, 'right', label, entity, id)}
+                        </div>
+                        ${this.renderAttachmentGroup(attachments, 'bottom', label, entity, id)}
+                    </div>
+                `;
+            }
+
+            renderAttachmentGroup(all, pos, fallbackLabel, entity, parentId) {
+                const filtered = all.filter(a => a.position === pos);
+                if (filtered.length === 0) return '';
+                return `
+                    <div class="attachment-stack stack-${pos}" style="display: flex; flex-direction: ${pos === 'top' || pos === 'bottom' ? 'column' : 'row'}; align-items: center; justify-content: center;">
+                        ${filtered.map(att => {
+                            const offX = (att.offsetX || 0) * this.RENDER_SCALE;
+                            const offY = (att.offsetY || 0) * this.RENDER_SCALE;
+                            const transform = `transform: translate(${offX}px, ${offY}px);`;
+                            const margin = pos === 'top' ? `margin-bottom: 6px` : pos === 'bottom' ? `margin-top: 6px` : pos === 'left' ? `margin-right: 6px` : `margin-left: 6px`;
+                            if (att.type === 'label') return `<label class="cell-label" style="${margin}; ${transform}; font-size: 8px; color: rgba(255,255,255,0.4); font-weight: 900;">${att.text || fallbackLabel}</label>`;
+                            if (att.type === 'led') return `<div class="led active led-cyan" style="${margin}; ${transform}; width: 8px; height: 8px;"></div>`;
+                            return '';
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            renderComponent(item, entity, label) {
+                const look = item.presentation?.component || 'knob';
+                const id = item.bind || '';
+                const val = 0.5;
+
+                switch(look) {
+                    case 'knob':
+                        return `<div class="knob" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #333; background: #111; position: relative;"><div style="position: absolute; top: 2px; left: 50%; width: 2px; height: 8px; background: #00f2ff; transform: translateX(-50%);"></div></div>`;
+                    case 'port':
+                        return `<div class="port-socket" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #444; background: #000; display: flex; align-items: center; justify-content: center;"><div style="width: 12px; height: 12px; border-radius: 50%; background: #111; border: 1px solid rgba(255,255,255,0.1);"></div></div>`;
+                    case 'display':
+                        return `
+                            <div class="mini-display" style="width: 80px; height: 26px; background: #000; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; display: flex; align-items: stretch; overflow: hidden;">
+                                <button class="display-btn" style="width: 20%; background: transparent; border: none; color: #555;">-</button>
+                                <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #00f2ff; font-family: monospace; font-weight: 900; font-size: 10px;">0.50</div>
+                                <button class="display-btn" style="width: 20%; background: transparent; border: none; color: #555;">+</button>
+                            </div>
+                        `;
+                    case 'led':
+                        return `<div class="led active led-red" style="width: 8px; height: 8px; border-radius: 50%; background: #ff4444; box-shadow: 0 0 10px #ff4444;"></div>`;
+                    case 'select':
+                        return `
+                            <div class="industrial-select-wrapper" style="width: 100px; height: 24px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; display: flex; align-items: center; padding: 0 8px; gap: 8px;">
+                                <div style="flex: 1; font-size: 9px; font-weight: 900; color: #00f2ff; letter-spacing: 1px;">POLY</div>
+                                <div style="font-size: 8px; opacity: 0.3;">▼</div>
+                            </div>
+                        `;
+                    default: return `<div>${look}</div>`;
+                }
+            }
+
+            bind() {}
+        }
+
+        // TEST MANIFEST (midi_in 7.1)
+        const manifest = {
+          id: "midi_in",
+          registry: [
+            { id: "cv_out", label: "Pitch CV", type: "cv", role: "stream" },
+            { id: "mode_select", label: "MIDI Mode", type: "int", role: "control", range: { min: 0, max: 2, default: 0 }, options: [{label: 'POLY', value: 0}, {label: 'MONO', value: 1}, {label: 'MPE', value: 2}] }
+          ],
+          ui: {
+            dimensions: { width: 120, height: 420 },
+            skin: "carbon",
+            controls: [
+              { id: "disp_mode", bind: "mode_select", pos: { x: 60, y: 140 }, presentation: { tab: "MAIN", component: "display", variant: "B_cyan", attachments: [{ type: "label", position: "top", text: "OPERATING MODE", offsetX: 0, offsetY: -4 }] } },
+              { id: "ctrl_mode_select", bind: "mode_select", pos: { x: 60, y: 220 }, presentation: { tab: "MIDI", component: "select", variant: "B_cyan" } }
+            ],
+            jacks: [
+              { id: "port_cv_out", bind: "cv_out", pos: { x: 30, y: 80 }, presentation: { tab: "PATCHING", variant: "A_cyan", component: "port" } }
+            ]
+          }
+        };
+
+        const render = (anchorId, tab) => {
+            const anchor = document.getElementById(anchorId);
+            const renderer = new ModuleRenderer(anchor, anchor, manifest);
+            renderer.activeTab = tab;
+            renderer.init();
+        };
+
+        render('module-anchor-main', 'MAIN');
+        render('module-anchor-midi', 'MIDI');
+
+    </script>
+</body>
+</html>

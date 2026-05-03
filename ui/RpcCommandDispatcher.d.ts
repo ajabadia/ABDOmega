@@ -7,6 +7,9 @@ import { type UiCommand } from './omega_types.js';
 export declare class RpcCommandDispatcher {
     private rpc;
     constructor();
+    private static readonly CORE_COMMANDS;
     dispatch(cmd: UiCommand): Promise<any>;
+    private handleCoreCommand;
+    private handleDynamicCommand;
 }
 //# sourceMappingURL=RpcCommandDispatcher.d.ts.map

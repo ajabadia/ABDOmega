@@ -4,12 +4,15 @@ export declare class ModuleManager {
     private midiViewer;
     private lastState;
     private isRendering;
-    private lastModuleCount;
+    private lastFingerprint;
+    private pendingState;
     constructor();
     private normalizeList;
     updateRack(state: any): Promise<void>;
+    private renderModuleItem;
     private renderContractError;
     private addModule;
+    private cleanupModules;
     private getCanonicalId;
 }
 export default ModuleManager;

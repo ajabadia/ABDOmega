@@ -16,7 +16,8 @@
 #include "../../Core/Util/PerformanceMonitor.h"
 #include "../../Core/Input/OmegaInput.h"
 #include "../../Core/Input/ModSource.h"
-#include "../../Core/Providers/EngineConfig.h"
+#include "../../Core/Model/PatchDocument.h"
+#include "../../Core/Model/RuntimeSnapshot.h"
 #include "../../Core/Providers/SystemSettingsManager.h"
 
 // Corrected DSP Paths (Pass 5.20)
@@ -98,7 +99,17 @@ namespace Modular {
             mSlotActivity = reg.registerPin("engine", "activity", TelemetryType::Discrete, "Signal Activity");
 
             for (auto& v : mVoices) v.prepare(sampleRate, samplesPerBlock);
+            mSampleRate = sampleRate;
+            mBlockSize = samplesPerBlock;
             mModRuntime.reset();
+            
+            // Initial injection
+            mModRuntime.setSourceValue(::Omega::Core::Voice::CompiledSignalSpace::kSystemSampleRate, (float)mSampleRate);
+            mModRuntime.setSourceValue(::Omega::Core::Voice::CompiledSignalSpace::kSystemBlockSize, (float)mBlockSize);
+            mModRuntime.setSourceValue(::Omega::Core::Voice::CompiledSignalSpace::kSystemMidiProtocol, 1.0f); // Default to MIDI 1.0
+
+            // Bridge to WASM Runtime
+            ::Omega::Core::Wasm::WasmModuleService::getInstance().setEnvironment(mSampleRate, mBlockSize, 1);
         }
 
         void reset() override {
@@ -159,8 +170,21 @@ namespace Modular {
                     }
                 }
 
+                // --- Era 6.3 Environment Awareness Injection ---
+                mModRuntime.setSourceValue(::Omega::Core::Voice::CompiledSignalSpace::kSystemSampleRate, (float)mSampleRate);
+                mModRuntime.setSourceValue(::Omega::Core::Voice::CompiledSignalSpace::kSystemBlockSize, (float)mBlockSize);
+                mModRuntime.setSourceValue(::Omega::Core::Voice::CompiledSignalSpace::kSystemMidiProtocol, 1.0f);
+
                 mModRuntime.processBlock(1);
                 float mixedL = 0.0f, mixedR = 0.0f;
+                
+                // Capture system inputs (Era 6.3 Host Injection)
+                float inL = buffer.getSample(0, s);
+                float inR = numChannels > 1 ? buffer.getSample(1, s) : inL;
+
+                // Bind for WASM host imports (system.audio.*)
+                ::Omega::Core::Wasm::WasmModuleService::getInstance().bindSystemBuffers(&mixedL, &mixedR, &inL, &inR);
+                
                 float totalDcoSum = 0.0f;
                 const float blockLfoVal = mModRuntime.getSignalValue(0);
 
@@ -172,6 +196,9 @@ namespace Modular {
                             state.isActive = mVoices[v].isActive();
                             state.ampEnvelope = mVoices[v].getAmpEnvelopeLevel();
                             
+                            // Bind voice state for WASM callbacks (Era 6.3 Hardening)
+                            ::Omega::Core::Wasm::WasmModuleService::getInstance().bindVoiceState(v, &state);
+
                             ::Omega::Core::Voice::TelemetrySnapshot voiceTelemetry;
                             ::Omega::Core::Voice::EngineVoiceRuntime::renderSample(
                                 v, mVoicePlan, state, blockLfoVal, vL, vR, 
@@ -183,21 +210,18 @@ namespace Modular {
                                 hub.pushSignal(mSlotVcf, voiceTelemetry.rawFilter);
                             }
                             mixedL += vL; mixedR += vR; 
-                        } else {
-                            float vDco = 0.0f; auto& vc = mCurrentConfig.voices[v];
-                            mVoices[v].renderNextBlock(vL, vR, vDco, v, blockLfoVal, vc, mChannelModStates, mOscPool, mJpOscPool, mJunoFlt, mKorg35Flt, mJpFilterPool, mJpFormantFlt, mMs20Esp, mResBankFlt, mPluckOsc, mBrassOsc, mReedOsc, mVpmOsc, mNoiseCombOsc, mJpFeedbackOsc, mJpDualOsc, mElectricPianoOsc, mOrganOsc, mBowedOsc, mProphecyWaveshaper, mVcaMainGain, 0.0f);
-                            mixedL += vL; mixedR += vR; totalDcoSum += vDco;
                         }
                     }
                 }
                 
-                if (mCurrentConfig.chorusEnabled) {
-                    mChorusPool.setMode(mCurrentConfig.chorusMode);
-                    mChorusPool.setMix(mCurrentConfig.chorusMix);
+                // Global FX (Era 7: Indexed by GlobalParamId)
+                if (mCurrentSnapshot.globalParams[101] > 0.5f) { // Chorus Enabled
+                    mChorusPool.setMode((int)mCurrentSnapshot.globalParams[102]);
+                    mChorusPool.setMix(mCurrentSnapshot.globalParams[103]);
                     mChorusPool.process(mixedL, mixedR);
                 }
 
-                float masterGain = std::pow(10.0f, mCurrentConfig.masterGainDb / 20.0f);
+                float masterGain = std::pow(10.0f, mCurrentSnapshot.globalParams[0] / 20.0f);
                 mixedL *= masterGain; mixedR *= masterGain;
 
                 if (s % 32 == 0) {
@@ -228,7 +252,7 @@ namespace Modular {
         }
 
         void onOscillatorModesChanged() noexcept { pushConfigUpdate(); }
-        void setConfigProvider(std::atomic<::Omega::Core::Service::EngineConfig*>* provider) noexcept { mConfigProvider = provider; }
+        void setConfigProvider(std::atomic<::Omega::Core::Model::RuntimeSnapshot*>* provider) noexcept { mConfigProvider = provider; }
         
         int getMaxPatchbaySlots() const noexcept { 
             return (int)mSettings.getSettingValue("maxPatchbaySlots"); 
@@ -236,21 +260,16 @@ namespace Modular {
 
     private:
         void applyConfigUpdate() noexcept {
-            if (mPendingPlanUpdate.load()) { mVoicePlan = mNextVoicePlan; mPendingPlanUpdate.store(false); }
             if (!mConfigProvider) return;
-            auto* cfg = mConfigProvider->load();
-            if (!cfg) return;
-            mCurrentConfig = *cfg;
-            for (int i = 0; i < mNumVoices; ++i) {
-                std::array<::Omega::Core::Service::OscillatorMode, 4> modes;
-                for (int m = 0; m < 4; m++) modes[m] = mCurrentConfig.voices[i].oscModes[m];
-                mVoices[i].setOscillatorModes(modes, mCurrentConfig.voices[i].numActiveOscillators);
-                mVoices[i].setAmpAdsr(mCurrentConfig.voices[i].attack, mCurrentConfig.voices[i].decay, mCurrentConfig.voices[i].sustain, mCurrentConfig.voices[i].release);
-                mVoices[i].setJunoParams(mCurrentConfig.voices[i].sawOn, mCurrentConfig.voices[i].pulseOn, mCurrentConfig.voices[i].subLevel, mCurrentConfig.voices[i].noiseLevel, mCurrentConfig.voices[i].pwmAmount, mCurrentConfig.voices[i].pwmModeLfo);
-            }
+            auto* snapshot = mConfigProvider->load();
+            if (!snapshot || !snapshot->isValid) return;
+
+            mCurrentSnapshot = *snapshot;
+            mVoicePlan = mCurrentSnapshot.voicePlan;
         }
 
         double mSampleRate = 44100.0;
+        int mBlockSize = 256;
         ::Omega::DSP::Engines::Roland::Juno::OscillatorPoolJunoDco mOscPool;
         ::Omega::DSP::Engines::Roland::JP::OscillatorPoolJp8080 mJpOscPool;
         ::Omega::DSP::Engines::Roland::Juno::FilterPoolJunoIr3109 mJunoFlt;
@@ -289,8 +308,8 @@ namespace Modular {
         int mNumVoices = 16;
         float mVcaMainGain = 0.8f;
         std::atomic<bool> mPendingConfigUpdate { false };
-        std::atomic<::Omega::Core::Service::EngineConfig*>* mConfigProvider = nullptr;
-        ::Omega::Core::Service::EngineConfig mCurrentConfig;
+        std::atomic<::Omega::Core::Model::RuntimeSnapshot*>* mConfigProvider = nullptr;
+        ::Omega::Core::Model::RuntimeSnapshot mCurrentSnapshot;
         ::Omega::Core::Util::PerformanceMonitor mPerfMonitor{"VirtualAnalogEngine"};
 
         // Telemetry Cache Slots (Era 4.1 Logic)

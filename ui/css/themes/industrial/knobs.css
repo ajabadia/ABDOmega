@@ -9,11 +9,11 @@
 }
 
 /* Variation A: Large Pointer Dial */
-.theme-industrial .knob.variant-A {
+.variant-A .knob, [class*="variant-A_"] .knob {
   width: 50px;
   height: 50px;
 }
-.theme-industrial .knob.variant-A::after {
+.variant-A .knob::after, [class*="variant-A_"] .knob::after {
   content: '';
   position: absolute;
   top: 5px;
@@ -26,11 +26,11 @@
 }
 
 /* Variation B: Standard Grip */
-.theme-industrial .knob.variant-B {
+.variant-B .knob, [class*="variant-B_"] .knob {
   width: 34px;
   height: 34px;
 }
-.theme-industrial .knob.variant-B::after {
+.variant-B .knob::after, [class*="variant-B_"] .knob::after {
   content: '';
   position: absolute;
   top: 4px;
@@ -42,13 +42,13 @@
 }
 
 /* Variation C: Tiny Screw-head */
-.theme-industrial .knob.variant-C {
+.variant-C .knob, [class*="variant-C_"] .knob {
   width: 20px;
   height: 20px;
   background: #222;
   border: 1px dashed #4d3a00;
 }
-.theme-industrial .knob.variant-C::after {
+.variant-C .knob::after, [class*="variant-C_"] .knob::after {
   content: '';
   position: absolute;
   top: 50%;

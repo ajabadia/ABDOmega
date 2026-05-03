@@ -11,6 +11,7 @@ import SourceViewer from './components/SourceViewer';
 import PatchingSanctuary from './components/PatchingSanctuary';
 import TemplateGallery from './components/TemplateGallery';
 import CellDesigner from './components/CellDesigner';
+import RepoDashboard from './components/RepoDashboard';
 import era6Schema from './schema.json';
 import './index.css';
 
@@ -24,7 +25,7 @@ function App() {
     wasmStatus, wasmDetails,
     handleAsepticHealing,
     updateModuleMetadata, updateRegistryItem,
-    isDirty
+    isDirty, dirtyItems, syncContract
   } = useAsepticEditor(addLog);
 
   const { assetStates } = useAssets(moduleData.id);
@@ -33,7 +34,7 @@ function App() {
   const [appMode, setAppMode] = useState<'manifest' | 'cell'>('manifest');
   
   // View State (Centralized Navigation)
-  const [activeView, setActiveView] = useState<'editor' | 'preview' | 'source' | 'patching_hub'>('editor');
+  const [activeView, setActiveView] = useState<'editor' | 'preview' | 'source' | 'patching_hub' | 'repo_health'>('editor');
   
   // Collapse States
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
@@ -42,6 +43,20 @@ function App() {
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [cells, setCells] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load available cells for blueprint selection
+    const loadCells = async () => {
+      // @ts-ignore
+      if (window.electronAPI) {
+        // @ts-ignore
+        const availableCells = await window.electronAPI.readCells();
+        setCells(availableCells);
+      }
+    };
+    loadCells();
+  }, []);
 
   // Partial handlers for local UI elements
   const openPropertyModal = (id: string | null) => {
@@ -51,11 +66,37 @@ function App() {
   
   const handleUpdateParam = (updatedItem: any) => {
     if (editingItemId === '_module_root') {
-       // Root update
        updateModuleMetadata(updatedItem);
        return;
     }
     updateRegistryItem(editingItemId!, updatedItem);
+  };
+
+  const handleDeleteParam = (id: string) => {
+    const newRegistry = moduleData.registry.filter(p => p.id !== id);
+    setModuleData({ ...moduleData, registry: newRegistry });
+    setIsPropertyModalOpen(false);
+    addLog(`Deleted parameter: ${id}`);
+  };
+
+  const handleDuplicateParam = (id: string) => {
+    const original = moduleData.registry.find(p => p.id === id);
+    if (!original) return;
+
+    const newItem = JSON.parse(JSON.stringify(original));
+    newItem.id = `${original.id}_copy`;
+    newItem.label = `${original.label} (COPY)`;
+    
+    // Ensure uniqueness
+    let counter = 1;
+    while (moduleData.registry.some(p => p.id === newItem.id)) {
+      newItem.id = `${original.id}_copy_${counter++}`;
+    }
+
+    const newRegistry = [...moduleData.registry, newItem];
+    setModuleData({ ...moduleData, registry: newRegistry });
+    setEditingItemId(newItem.id);
+    addLog(`Duplicated parameter: ${newItem.id}`);
   };
 
   const handleAddParam = () => {
@@ -133,6 +174,28 @@ function App() {
     await handleSave(forceNewPath);
   };
 
+  const safeNew = () => {
+    if (isDirty && !confirm("You have unsaved changes. Resetting will lose them. Continue?")) return;
+    handleNew();
+  };
+
+  const safeOpen = () => {
+    if (isDirty && !confirm("You have unsaved changes. Opening a new file will lose them. Continue?")) return;
+    handleOpen();
+  };
+
+  // Prevent accidental close
+  useState(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  });
+
   return (
     <div className="aseptic-app-shell">
       {/* MODE SWITCHER */}
@@ -165,8 +228,8 @@ function App() {
               <span className="version-tag">v{moduleData.version}</span>
             </div>
             <div className="main-actions">
-              <button className="aseptic-btn" onClick={handleNew}>NEW</button>
-              <button className="aseptic-btn" onClick={handleOpen}>OPEN...</button>
+              <button className="aseptic-btn" onClick={safeNew}>NEW</button>
+              <button className="aseptic-btn" onClick={safeOpen}>OPEN...</button>
               <button className="aseptic-btn" onClick={validateManifest}>VALIDATE</button>
               
               <div className="save-container">
@@ -190,6 +253,14 @@ function App() {
               </div>
 
               <WasmHeartbeat status={wasmStatus} details={wasmDetails} onHeal={handleAsepticHealing} />
+              
+              <button 
+                className="aseptic-btn icon-only sync-btn" 
+                onClick={syncContract} 
+                title="Sync ACE Contract from Engine (↻)"
+              >
+                ↻
+              </button>
             </div>
           </header>
 
@@ -219,6 +290,7 @@ function App() {
                   openPropertyModal(id);
                 }}
                 selectedId={selectedId}
+                dirtyItems={dirtyItems}
               />
             </aside>
 
@@ -248,6 +320,12 @@ function App() {
                  </div>
               )}
 
+              {activeView === 'repo_health' && (
+                 <div className="workspace-view repo-view-container">
+                    <RepoDashboard addLog={addLog} />
+                 </div>
+              )}
+
               {/* Errores de Registro / Validación - Solo Manifest Editor */}
               {validationErrors.length > 0 && (
                 <div className="terminal-stack manifest-errors">
@@ -261,9 +339,29 @@ function App() {
                     </div>
                     {!errorsMinimized && (
                       <div className="validation-body">
-                        {validationErrors.map((err, i) => (
-                          <div key={i} className="error-log"><b>{err.instancePath}</b>: {err.message}</div>
-                        ))}
+                        {validationErrors.map((err, i) => {
+                          let readablePath = err.instancePath;
+                          // Map /registry/N/field to "Parameter Label > Field"
+                          const match = err.instancePath.match(/\/registry\/(\d+)\/(.*)/);
+                          if (match) {
+                            const index = parseInt(match[1]);
+                            const field = match[2];
+                            const param = moduleData.registry[index];
+                            readablePath = `${param?.label || `Item #${index}`} ➔ ${field.toUpperCase()}`;
+                          } else if (err.instancePath === "") {
+                            readablePath = "MODULE ROOT";
+                          } else {
+                            readablePath = err.instancePath.replace(/^\//, '').replace(/\//g, ' ➔ ').toUpperCase();
+                          }
+
+                          return (
+                            <div key={i} className="error-log">
+                              <span className="error-path-tag">{readablePath}</span>
+                              <span className="error-sep">:</span>
+                              <span className="error-text">{err.message}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -297,12 +395,16 @@ function App() {
           errors={validationErrors}
           assetStates={assetStates}
           isModal={true}
+          cells={cells}
           onClose={() => setIsPropertyModalOpen(false)}
           onUpdate={handleUpdateParam}
+          onDelete={handleDeleteParam}
+          onDuplicate={handleDuplicateParam}
         />
       )}
 
           <footer className="aseptic-status-bar">
+            {/* ... left part remains same ... */}
             <div className="status-left">
               <div className="status-item">
                 <span className="status-label">FILE:</span>
@@ -314,16 +416,13 @@ function App() {
             </div>
             <div className="status-right">
               <div className="status-item">
-                <span className="status-label">SCHEMA:</span>
-                <b>Era 6.2</b>
-              </div>
-              <div className="status-item">
-                <span className="status-label">BUILD:</span>
-                <b>{(era6Schema as any)._metadata?.build_id || 'unknown'}</b>
+                <span className="status-label">CONTRACT:</span>
+                <b>6.3 (Dynamic)</b>
               </div>
               <div className="status-item">
                 <span className="status-label">GEN:</span>
-                <b>{new Date((era6Schema as any)._metadata?.generated_at).toLocaleString() || 'unknown'}</b>
+                <b>{new Date().toLocaleTimeString()}</b>
+                <span className="aseptic-badge" style={{marginLeft: '8px'}}>SYNCED</span>
               </div>
             </div>
           </footer>

@@ -1,6 +1,7 @@
 #include "OmegaUiBridge.h"
 #include "../Plugin/OmegaAudioProcessor.h"
 #include <juce_core/juce_core.h>
+#include "../Core/Model/PatchIdentifiers.h"
 
 namespace Omega {
 namespace UI {
@@ -13,13 +14,15 @@ namespace UI {
                                  Core::Service::SystemSettingsManager& settings)
         : mProcessor(processor), mPreset(preset), mApvts(apvts)
     {
-        mPresetController = std::make_unique<RpcPresetController>(mPreset, catalog, repository);
+        mPresetController = std::make_unique<RpcPresetController>(mPreset, catalog, repository, mProcessor->getEngineConfigManager());
         mTelemetryController = std::make_unique<RpcTelemetryController>(settings);
         mSystemController = std::make_unique<RpcSystemController>(settings, repository);
         mMetadataController = std::make_unique<RpcMetadataController>(mProcessor);
         mInputController = std::make_unique<RpcInputController>(mProcessor);
         mModulationController = std::make_unique<RpcModulationController>(mPreset);
         mParameterController = std::make_unique<RpcParameterController>(mProcessor, mApvts, mPreset);
+        
+        mPresetController->setOnConfigChangedCallback([this]() { forceRepaint(); });
 
         // --- CONTEXTUAL COMMAND REGISTRATION ---
         mPresetController->registerCommands(mDispatcher, mOnLoadPreset);
@@ -79,7 +82,8 @@ namespace UI {
     }
 
     juce::var OmegaUiBridge::handleMessageFromUiAsVar(const juce::String& type, const juce::var& requestId, const juce::var& payload) {
-        DBG("[RPC] RECV: " << type << " [ID: " << requestId.toString() << "]");
+        DBG("[BRIDGE] CRITICAL: handleMessageFromUiAsVar CALLED - Type: " + type);
+        juce::Logger::writeToLog("[BRIDGE] RECV: " + type + " [ID: " + requestId.toString() + "]");
         // [Era 6 Absolute] Universal Routing via Dispatcher
         return mDispatcher.dispatch(type, requestId, payload);
     }
@@ -140,15 +144,39 @@ namespace UI {
     void OmegaUiBridge::setOnLoadCallback(std::function<void(const Core::Preset::OmegaPreset&)> callback) { mOnLoadPreset = callback; }
 
     void OmegaUiBridge::forceRepaint() {
+        DBG("[OmegaUiBridge] forceRepaint triggered - Broadcasting onStateUpdate");
         juce::DynamicObject::Ptr push = new juce::DynamicObject();
         push->setProperty("type", "onStateUpdate");
         
         juce::var payload = mPresetController->presetToVar(mPreset);
-        // Ensure schemaVersion is present in the payload (if presetToVar doesn't add it)
-        if (!payload.hasProperty("schemaVersion")) {
-            if (auto* obj = payload.getDynamicObject()) {
-                obj->setProperty("schemaVersion", "1.0");
+        
+        // [Era 7] Inject the actual PatchDocument into the payload
+        auto& config = mProcessor->getEngineConfigManager();
+        auto doc = config.getPatchDocument();
+        
+        juce::DynamicObject::Ptr patchObj = new juce::DynamicObject();
+        patchObj->setProperty("masterGainDb", doc.masterGainDb);
+        
+        juce::Array<juce::var> modules;
+        for (const auto& m : doc.modules) {
+            juce::DynamicObject::Ptr mo = new juce::DynamicObject();
+            mo->setProperty("instanceId", (int)m.instanceId);
+            mo->setProperty("typeId", (int)m.typeId);
+            mo->setProperty("componentId", juce::String(Core::Model::mapTypeToId(m.typeId)));
+            mo->setProperty("rack", m.position.rack);
+            mo->setProperty("slot", m.position.slot);
+            
+            juce::DynamicObject::Ptr params = new juce::DynamicObject();
+            for (const auto& p : m.parameters) {
+                params->setProperty(juce::String((int)p.id), p.value);
             }
+            mo->setProperty("parameters", params.get());
+            modules.add(mo.get());
+        }
+        patchObj->setProperty("modules", modules);
+        if (auto* root = payload.getDynamicObject()) {
+            root->setProperty("patch", patchObj.get());
+            root->setProperty("schemaVersion", "7.0");
         }
         
         push->setProperty("payload", payload);

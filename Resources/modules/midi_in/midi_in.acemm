@@ -1,37 +1,99 @@
+schemaVersion: 7.2.3
 id: midi_in
-name: MIDI IN
-description: Canonical MIDI Input Bridge for the OMEGA Rack (Era 5.2 Gold).
-modelId: ACE-UTIL-MIDI-IN
-implementationId: 601
-engine: WASM
-family: UTILITY
-theme: aseptic
-version: '6.1'
-registry:
-  - id: omega_on_midi
-    label: OMEGA ON MIDI
-    type: float
-    roles:
-      - control
-    range:
-      min: 0
-      max: 1
-      default: 0
-  - id: omega_process
-    label: OMEGA PROCESS
-    type: float
-    roles:
-      - control
-    range:
-      min: 0
-      max: 1
-      default: 0
-  - id: omega_on_param
-    label: OMEGA ON PARAM
-    type: float
-    roles:
-      - control
-    range:
-      min: 0
-      max: 1
-      default: 0
+metadata:
+  name: MIDI IN
+  family: io
+  tags:
+    - era7
+    - industrial
+    - infrastructure
+  rack:
+    slot: top
+    hp: 4
+    height_mode: compact
+  status: beta
+ui:
+  dimensions:
+    width: 60
+    height: 420
+  controls:
+    - id: led_activity
+      type: knob
+      role: telemetry
+      bind: led_activity
+      label: MIDI ACT
+      pos:
+        x: 26
+        'y': 107
+      presentation:
+        tab: MAIN
+        variant: red_3mm
+        component: led
+        offsetX: 0
+        offsetY: 0
+        container: MONITORING
+        attachments:
+          - type: label
+            position: bottom
+            offsetX: 0
+            offsetY: -12
+            variant: B_cyan
+            text: MIDI ACT
+        precision: 6
+        ui_precision: 2
+  jacks:
+    - id: port_midi_out
+      type: string
+      role: stream
+      bind: midi_out
+      label: MIDI OUT
+      pos:
+        x: 30
+        'y': 102
+      presentation:
+        tab: MAIN
+        variant: industrial
+        component: port
+        offsetX: 0
+        offsetY: 0
+        container: OUTPUT_BUS
+        attachments:
+          - type: label
+            position: bottom
+            offsetX: 0
+            offsetY: -12
+            variant: B_cyan
+            text: MIDI DATA
+        precision: 6
+        ui_precision: 2
+  skin: industrial
+  layout:
+    containers:
+      - id: MONITORING
+        label: MIDI IN
+        pos:
+          x: 0
+          'y': 34
+        size:
+          w: full
+          h: 119
+        variant: header
+        tab: MAIN
+        collapsed: false
+      - id: OUTPUT_BUS
+        label: MIDI Bus
+        pos:
+          x: 0
+          'y': 60
+        size:
+          w: full
+          h: 120
+        variant: inset
+        tab: MIDI
+        collapsed: false
+    gridSnap: 5
+    activeTab: MIDI
+resources:
+  wasm: midi_in.wasm
+  contract: midi_in.contract.json
+modulations: []

@@ -239,7 +239,11 @@
     <div id="modulation-modal" class="modal">
         <div class="modal-content modulation-modal-content">
             <span class="close-btn" onclick="document.getElementById('modulation-modal').style.display='none'">&times;</span>
-            <h2 class="modal-title">PATCHBAY HUB</h2>
+            <h2 class="modal-title">
+                PATCHBAY HUB 
+                <span id="matrix-active-count" class="status-count">00</span>
+                <div id="matrix-activity-led" class="activity-led"></div>
+            </h2>
             <div id="modulation-workspace" class="modulation-workspace">
                 <div id="matrix-grid-container" class="matrix-grid-container">
                     <!-- 8x4 Grid injected here -->
@@ -339,6 +343,7 @@
         <div class="debug-console-header">
             <span>CONSOLE</span>
             <div class="debug-console-controls">
+                <button id="toggle-telemetry" title="Toggle Telemetry (T)" class="icon-btn" style="background: #331111; color: #555;">T</button>
                 <button id="copy-console" title="Copy (C)" class="icon-btn">C</button>
                 <button id="clear-console" title="Clear (L)" class="icon-btn">L</button>
                 <button id="close-console" title="Close (X)" class="icon-btn">X</button>
@@ -347,6 +352,6 @@
         <div id="debug-console-content"></div>
     </div>
     <!-- OMEGA Unified Entry Point (Aseptic Runtime) -->
-    <script src="index.js" type="module"></script>
+    <script src="bundle.js" type="module"></script>
 </body>
 </html>

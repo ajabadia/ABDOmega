@@ -1,13 +1,13 @@
 /* 
-   OMEGA Modulation Matrix 2.0 (Era 4)
-   Premium Glassmorphism & High-Density Routing Workspace
+   OMEGA Patchbay Matrix 6.3 (Aseptic Industrial)
+   Premium High-Density Routing Workspace
 */
 
 :root {
-    --glass-bg: rgba(10, 10, 15, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-glow: rgba(0, 242, 255, 0.15);
-    --matrix-inactive: rgba(255, 255, 255, 0.03);
+    --matrix-bg: #050505;
+    --matrix-border: rgba(255, 255, 255, 0.05);
+    --matrix-glow: rgba(0, 242, 255, 0.1);
+    --matrix-inactive: rgba(255, 255, 255, 0.02);
 }
 
 /* Base Modal Overlay Refinement */
@@ -15,20 +15,19 @@
     width: 90vw !important;
     height: 85vh !important;
     max-width: 1300px !important;
-    background: var(--glass-bg) !important;
-    backdrop-filter: blur(25px) saturate(150%) !important;
-    -webkit-backdrop-filter: blur(25px) saturate(150%) !important;
-    border: 1px solid var(--glass-border) !important;
-    border-radius: 12px !important;
+    background: var(--matrix-bg) !important;
+    backdrop-filter: blur(40px) !important;
+    -webkit-backdrop-filter: blur(40px) !important;
+    border: 1px solid var(--matrix-border) !important;
+    border-radius: 8px !important;
     padding: 30px !important;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 50px 100px rgba(0,0,0,0.8), 
-                inset 0 0 80px rgba(0, 242, 255, 0.03),
-                0 0 0 1px rgba(255,255,255,0.05);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.9), 
+                inset 0 0 100px rgba(255,255,255,0.01);
     position: relative;
     overflow: hidden;
-    animation: modal-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: modal-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes modal-slide-up {
@@ -43,6 +42,40 @@
     top: 0; left: 0; right: 0; height: 1px;
     background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
     opacity: 0.3;
+}
+
+/* Header Status Indicators */
+.status-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--neon-amber);
+    background: rgba(255, 170, 0, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 15px;
+    vertical-align: middle;
+}
+
+.activity-led {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #222;
+    border-radius: 50%;
+    margin-left: 10px;
+    vertical-align: middle;
+    transition: all 0.1s;
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+}
+
+.activity-led.activity-general {
+    background: var(--neon-cyan);
+    box-shadow: 0 0 10px var(--neon-cyan);
+}
+
+.activity-led.activity-manual {
+    background: var(--neon-amber);
+    box-shadow: 0 0 15px var(--neon-amber);
 }
 
 .modulation-workspace {
@@ -60,87 +93,111 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     grid-auto-rows: 110px;
-    gap: 15px;
+    gap: 12px;
     height: 100%;
-    background: rgba(0,0,0,0.2);
-    padding: 20px;
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 8px;
+    background: rgba(0,0,0,0.3);
+    padding: 15px;
+    border: 1px solid rgba(255,255,255,0.03);
+    border-radius: 4px;
     overflow-y: auto;
     align-content: start;
 }
 
 /* Matrix Card 2.0 */
 .matrix-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
+    background: #0a0a0c;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    transition: all 0.2s ease-out;
     cursor: pointer;
     position: relative;
     user-select: none;
 }
 
 .matrix-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(0, 242, 255, 0.4);
-    transform: translateY(-4px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.4), 0 0 15px rgba(0, 242, 255, 0.1);
+    background: #111115;
+    border-color: rgba(0, 242, 255, 0.3);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5), 0 0 10px rgba(0, 242, 255, 0.05);
 }
 
 .matrix-card.active {
-    background: rgba(0, 242, 255, 0.03);
-    border-color: rgba(0, 242, 255, 0.2);
+    background: rgba(0, 242, 255, 0.02);
+    border-color: rgba(0, 242, 255, 0.15);
 }
 
 .matrix-card.selected {
-    background: rgba(0, 242, 255, 0.08);
+    background: rgba(0, 242, 255, 0.05);
     border-color: var(--neon-cyan);
-    box-shadow: 0 0 25px rgba(0, 242, 255, 0.2), inset 0 0 10px rgba(0,242,255,0.1);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15), inset 0 0 5px rgba(0,242,255,0.05);
+}
+
+.matrix-card.add-card {
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0.5;
+}
+
+.matrix-card.add-card:hover {
+    opacity: 1;
+    border-color: var(--neon-cyan);
+    background: rgba(0, 242, 255, 0.02);
+}
+
+.add-icon {
+    font-size: 24px;
+    font-weight: 300;
+    color: var(--neon-cyan);
 }
 
 /* Inspector Refinement */
 .matrix-inspector-container {
     flex: 1;
-    background: rgba(255, 255, 255, 0.01);
-    backdrop-filter: blur(10px);
+    background: #0d0d0f;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    padding: 25px;
+    border-radius: 4px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px;
 }
 
 .inspector-title {
     font-family: 'Outfit', sans-serif;
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: 3px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 2.5px;
     color: var(--neon-cyan);
-    text-shadow: 0 0 10px rgba(0,242,255,0.3);
-    margin-bottom: 5px;
+    text-shadow: 0 0 10px rgba(0,242,255,0.2);
+    margin-bottom: 10px;
+    text-transform: uppercase;
 }
 
 /* Custom Controls for Modals */
 .inspector-select {
     width: 100%;
     background: #000;
-    color: #fff;
-    border: 1px solid #333;
+    color: #eee;
+    border: 1px solid #222;
     padding: 10px;
     font-size: 11px;
     border-radius: 4px;
     font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s;
 }
 
 .inspector-select:focus {
     border-color: var(--neon-cyan);
     outline: none;
+    background: #050508;
 }
 
 .inspector-range {
@@ -303,46 +360,49 @@
 
 .patch-remove-btn:hover { color: #ff5555; }
 
-/* --- Era 4 Empty State --- */
+/* --- Era 6.3 Aseptic Empty State --- */
 .empty-state-info {
     grid-column: 1 / -1;
     text-align: center;
     padding: 60px 40px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 12px;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.01);
+    border-radius: 4px;
+    border: 1px dashed rgba(255, 255, 255, 0.05);
 }
 
 .empty-state-info .info-title {
     font-family: 'Outfit', sans-serif;
-    font-size: 18px;
+    font-size: 11px;
+    font-weight: 900;
     letter-spacing: 4px;
-    color: var(--juno-orange);
+    color: var(--neon-amber);
     margin-bottom: 15px;
+    text-transform: uppercase;
 }
 
 .empty-state-info p {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 13px;
+    color: #555;
+    font-size: 11px;
     max-width: 400px;
     margin: 0 auto 30px auto;
     line-height: 1.6;
 }
 
 .metadata-warning {
-    background: rgba(255, 100, 0, 0.1);
-    border-left: 3px solid var(--juno-orange);
+    background: rgba(255, 170, 0, 0.05);
+    border-left: 2px solid var(--neon-amber);
     padding: 12px;
     margin-bottom: 20px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--juno-orange);
-    border-radius: 0 4px 4px 0;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--neon-amber);
 }
 
 /* Fix Modal Footer Z-Index Overlaps */
 .modal-footer, .patch-modal-footer, .pref-footer {
     position: relative;
     z-index: 9999;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 20px;
+    margin-top: auto;
 }

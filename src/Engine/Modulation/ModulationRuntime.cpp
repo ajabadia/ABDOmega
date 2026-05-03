@@ -106,4 +106,4 @@ namespace Omega::Engine::Modulation {
         }
     }
 
-} // namespace Omega::Core::Modulation
+} // namespace Omega::Engine::Modulation

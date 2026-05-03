@@ -16,6 +16,13 @@ export class RpcCommandDispatcher {
         OmegaLog.info("DISPATCH", "RpcCommandDispatcher Initialized");
     }
 
+    private static readonly CORE_COMMANDS = new Set([
+        'setParameter', 'loadPreset', 'savePreset', 'newPreset', 
+        'updatePatchbayMatrixSlot', 'subscribeTelemetry', 
+        'getUiSchemas', 'getSystemSettings', 'serviceAction', 
+        'setSystemSetting', 'uiReady', 'exit'
+    ]);
+
     public async dispatch(cmd: UiCommand): Promise<any> {
         OmegaLog.debug("DISPATCH", `${cmd.type}`, cmd.payload || '');
 
@@ -25,50 +32,44 @@ export class RpcCommandDispatcher {
         }
 
         try {
-            switch (cmd.type) {
-                case 'setParameter':
-                    if (!cmd.payload || !('target' in cmd.payload)) throw new Error("setParameter missing target");
-                    return await this.rpc.send("setParameter", cmd.payload);
-
-                case 'loadPreset':
-                case 'loadLibraryPreset':
-                    return await this.rpc.send("loadPreset", cmd.payload);
-
-                case 'updatePatchbayMatrixSlot':
-                case 'patchbayMatrixAction': // Map legacy/direct names to canonical method
-                    return await this.rpc.send("updatePatchbayMatrixSlot", (cmd as any).payload || (cmd as any).value);
-
-                case 'getMetadata':
-                    return await this.rpc.send("getMetadata", (cmd as any).payload || {});
-
-                case 'uiReady':
-                    return await this.rpc.send("uiReady", (cmd as any).payload || {});
-
-                case 'subscribeTelemetry':
-                    return await this.rpc.send("subscribeTelemetry", cmd.payload);
-
-                case 'serviceAction':
-                    return await this.rpc.send("serviceAction", cmd.payload);
-
-                case 'setSystemSetting':
-                    return await this.rpc.send("setSystemSetting", cmd.payload);
-
-                case 'exit':
-                    return await this.rpc.send("exit", {});
-                case 'newPreset':
-                    return await this.rpc.send("newPreset", cmd.payload);
-
-                default:
-                    // Si el payload tiene un target, intentamos llamar a ese target como comando directo (Flattening)
-                    const target = (cmd as any).target || (cmd.payload && (cmd.payload as any).target);
-                    if (target) {
-                        return await this.rpc.send(target, cmd.payload || {});
-                    }
-                    OmegaLog.warn("DISPATCH", `Unknown command type: ${cmd.type}`);
+            // 1. Core System Path (Strict Validation)
+            if (RpcCommandDispatcher.CORE_COMMANDS.has(cmd.type)) {
+                return await this.handleCoreCommand(cmd);
             }
+
+            // 2. Dynamic/Legacy Bridge (Noisy Fallback)
+            return await this.handleDynamicCommand(cmd);
+
         } catch (e) {
             OmegaLog.error("DISPATCH", `Failed to execute ${cmd.type}`, e);
         }
+    }
+
+    private async handleCoreCommand(cmd: UiCommand): Promise<any> {
+        switch (cmd.type) {
+            case 'setParameter':
+                const p = cmd.payload as any;
+                if (!p.target && (p.instanceId === undefined || p.paramId === undefined)) {
+                     throw new Error("setParameter missing target or numeric IDs");
+                }
+                break;
+            // Additional core validations can go here
+        }
+        return await this.rpc.send(cmd.type, cmd.payload);
+    }
+
+    private async handleDynamicCommand(cmd: any): Promise<any> {
+        const method = cmd.target || cmd.method || cmd.type;
+        const params = cmd.payload || cmd.value || cmd.data || {};
+        
+        if (method && method !== 'systemAction') {
+            OmegaLog.warn("DISPATCH", `DYNAMIC ROUTE: Using unverified RPC method: ${method}. This is deprecated in Era 7.`, params);
+            return await this.rpc.send(method, params);
+        }
+        
+        const errorMsg = `CONTRACT VIOLATION: Unknown command structure for type '${cmd.type}'`;
+        OmegaLog.error("DISPATCH", errorMsg);
+        throw new Error(errorMsg);
     }
 }
 

@@ -1,55 +1,110 @@
+import { OmegaLog } from './omega_log.js';
 import type {
   ModMetadataPayloadV1,
   ParamChangeEvent,
   StatePayloadV1,
+  StatePayloadV7,
+  PatchDocumentV7,
   TelemetryFramePayloadV1,
   TelemetrySample,
   UiCommand,
 } from './omega_types.js';
 
 export interface RuntimeStoreState {
-  preset: StatePayloadV1['preset'] | null;
-  params: Record<string, number>;
+  patch: PatchDocumentV7 | null;
+  preset: StatePayloadV1['preset'] | null; // Legacy
+  params: Record<string, number>; // Legacy
   telemetry: Record<string, TelemetrySample>;
   modulation: ModMetadataPayloadV1 | null;
   schemaVersion: string | null;
+  systemInfo: {
+      version: string;
+      build: string;
+      lcdText: string;
+  };
 }
 
+export enum ChangeType {
+    Structure = 1,
+    Parameters = 2,
+    Telemetry = 4,
+    System = 8,
+    All = 15
+}
+
+export type StoreListener = (changeType: ChangeType) => void;
+
 export abstract class BaseStore {
-  protected listeners: Set<() => void> = new Set();
+  protected listeners: Set<StoreListener> = new Set();
   
-  subscribe(callback: () => void): () => void {
+  subscribe(callback: StoreListener): () => void {
     this.listeners.add(callback);
     return () => this.listeners.delete(callback);
   }
 
-  protected notify(): void {
-    this.listeners.forEach(cb => cb());
+  protected notify(type: ChangeType = ChangeType.All): void {
+    this.listeners.forEach(cb => cb(type));
   }
 }
 
 export class RuntimeStore extends BaseStore {
   private state: RuntimeStoreState = {
+    patch: null,
     preset: null,
     params: {},
     telemetry: {},
     modulation: null,
     schemaVersion: null,
+    systemInfo: {
+        version: "0.0.0",
+        build: "0",
+        lcdText: "INITIALIZING..."
+    }
   };
 
   getSnapshot(): RuntimeStoreState {
     return this.state;
   }
 
-  applyState(payload: StatePayloadV1): void {
+  getValue(paramKey: string, defaultValue: number = 0): number {
+    return this.state.params[paramKey] ?? defaultValue;
+  }
+
+  getTelemetry(paramKey: string): number {
+    const sample = this.state.telemetry[paramKey];
+    return sample ? (sample.v ?? 0) : 0;
+  }
+
+  applyState(payload: StatePayloadV7 | StatePayloadV1): void {
     if (!payload) return;
-    this.state = {
-      ...this.state,
-      schemaVersion: payload.schemaVersion || this.state.schemaVersion,
-      preset: payload.preset || this.state.preset,
-      params: payload.params ? { ...payload.params } : this.state.params,
-    };
-    this.notify();
+    
+    const isV7 = payload.schemaVersion === '7.0';
+    
+    if (isV7) {
+        const v7 = payload as StatePayloadV7;
+        OmegaLog.info('STORE', `Applying Era 7 Patch: ${v7.patch.name || 'Untitled'}`);
+        this.state = {
+            ...this.state,
+            schemaVersion: '7.0',
+            patch: v7.patch,
+            params: this.syncLegacyParams(v7.patch)
+        };
+        this.notify(ChangeType.Structure | ChangeType.Parameters);
+    } else {
+        OmegaLog.warn('STORE', `REJECTED: Non-Era 7 payload received (Version: ${payload.schemaVersion}). Pure Era 7 environment enforced.`);
+    }
+  }
+
+  private syncLegacyParams(patch: PatchDocumentV7): Record<string, number> {
+      const legacy: Record<string, number> = {};
+      const modules = patch.modules || [];
+      for (const mod of modules) {
+          const params = mod.parameters || mod.params || {};
+          for (const [id, val] of Object.entries(params)) {
+              legacy[`${mod.instanceId}.${id}`] = val;
+          }
+      }
+      return legacy;
   }
 
   applyParamChange(event: ParamChangeEvent): void {
@@ -60,7 +115,7 @@ export class RuntimeStore extends BaseStore {
         [event.id]: event.value,
       },
     };
-    this.notify();
+    this.notify(ChangeType.Parameters);
   }
 
   applyTelemetryFrame(payload: TelemetryFramePayloadV1): void {
@@ -79,7 +134,7 @@ export class RuntimeStore extends BaseStore {
       schemaVersion: payload.schemaVersion || this.state.schemaVersion,
       telemetry: nextTelemetry,
     };
-    this.notify();
+    this.notify(ChangeType.Telemetry);
   }
 
   applyModulation(payload: ModMetadataPayloadV1): void {
@@ -87,19 +142,40 @@ export class RuntimeStore extends BaseStore {
       ...this.state,
       modulation: payload,
     };
-    this.notify();
+    this.notify(ChangeType.Structure);
   }
 
   reduceEvent(event: any): void {
+    if (!event) return;
     switch (event.type) {
       case 'PARAMCHANGE':
         this.applyParamChange(event as ParamChangeEvent);
         return;
       case 'onStateUpdate':
-        this.applyState(event.payload as StatePayloadV1);
+      case 'state':
+        this.applyState(event.payload || event);
         return;
       case 'telemetryUpdate':
-        this.applyTelemetryFrame(event.payload as TelemetryFramePayloadV1);
+        this.applyTelemetryFrame(event.payload || event);
+        return;
+      case 'onLCDUpdate':
+        this.state = {
+            ...this.state,
+            systemInfo: { ...this.state.systemInfo, lcdText: event.detail || event.payload || event }
+        };
+        this.notify(ChangeType.System);
+        return;
+      case 'onVersionUpdate':
+        const vData = event.detail || event.payload || event;
+        this.state = {
+            ...this.state,
+            systemInfo: { 
+                ...this.state.systemInfo, 
+                version: vData.version || this.state.systemInfo.version,
+                build: vData.build || this.state.systemInfo.build
+            }
+        };
+        this.notify(ChangeType.System);
         return;
     }
   }
@@ -108,58 +184,6 @@ export class RuntimeStore extends BaseStore {
 export interface SchemaStoreState {
   schemaVersion: string | null;
   uiSchema: any | null;
-}
-
-export class SchemaStore extends BaseStore {
-  private state: SchemaStoreState = {
-    schemaVersion: null,
-    uiSchema: null,
-  };
-
-  private loadPromise: Promise<boolean> | null = null;
-
-  getSnapshot(): SchemaStoreState {
-    return this.state;
-  }
-
-  async ensureLoaded(): Promise<boolean> {
-    if (this.state.uiSchema) return true;
-    if (this.loadPromise) return this.loadPromise;
-
-    this.loadPromise = (async () => {
-      try {
-        const rpc = (window as any).omegaRPC;
-        if (!rpc) return false;
-
-        const response = await rpc.getUiSchemas();
-        if (response) {
-          this.setSchema(response.schemas || response, response.schemaVersion || '1.0');
-          return true;
-        }
-      } catch (e) {
-        console.error("[SchemaStore] Load error:", e);
-      } finally {
-        this.loadPromise = null;
-      }
-      return false;
-    })();
-
-    return this.loadPromise;
-  }
-
-  setSchema(uiSchema: any, schemaVersion?: string): void {
-    this.state = {
-      schemaVersion: schemaVersion ?? this.state.schemaVersion,
-      uiSchema,
-    };
-    this.notify();
-  }
-
-  getSchemaForComponent(componentId: string): any {
-     if (!this.state.uiSchema) return null;
-     // Búsqueda flexible en el mapa de esquemas
-     return this.state.uiSchema[componentId] || null;
-  }
 }
 
 export interface GraphStoreState {

@@ -3,13 +3,15 @@
  * Build #181 - Hardware Design & Multi-Channel Support
  */
 
-export class ModuleMidiToCv {
+import { type ModuleOptions, type IModuleInstance } from '../contracts/ModuleContract.js';
+
+export class ModuleMidiToCv implements IModuleInstance {
     private container: HTMLElement;
     private content: HTMLElement;
-    private options: any;
+    private options: ModuleOptions;
     private activityPulse: boolean = false;
 
-    constructor(container: HTMLElement, content: HTMLElement, options: any) {
+    constructor(container: HTMLElement, content: HTMLElement, options: ModuleOptions) {
         this.container = container;
         this.content = content;
         this.options = options;
@@ -32,12 +34,14 @@ export class ModuleMidiToCv {
         const width = hp * 18.25; // Standard 1HP = 18.25mm
         this.container.style.width = `${width}px`;
         
+        const isUpper = this.container.parentElement?.id === 'upper-rack';
+        
         this.content.innerHTML = `
-            <div class="aseptic-module-container" style="width: 100%; height: 100%; display: flex; flex-direction: column; background: #050505;">
-                <div class="module-header-narrow" style="font-size: 7px; color: #555; padding: 6px 2px; text-align: center; font-family: 'Outfit', sans-serif; letter-spacing: 1px; border-bottom: 1px solid #111;">
+            <div class="aseptic-module-container ${isUpper ? 'upper-util' : ''}" style="width: 100%; height: 100%; display: flex; ${isUpper ? 'flex-direction: row; align-items: center; padding: 0 10px;' : 'flex-direction: column;'} background: #050505;">
+                <div class="module-header-narrow" style="${isUpper ? 'width: 40px; border-bottom: none; border-right: 1px solid #111; margin-right: 10px;' : 'padding: 6px 2px; border-bottom: 1px solid #111;'} font-size: 7px; color: #555; text-align: center; font-family: 'Outfit', sans-serif; letter-spacing: 1px;">
                     ${this.options.manifest.name || "OMEGA MODULE"}
                 </div>
-                <div class="control-cells-stack" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 15px; padding: 12px 0; overflow: hidden;">
+                <div class="control-cells-stack" style="flex: 1; display: flex; ${isUpper ? 'flex-direction: row;' : 'flex-direction: column;'} align-items: center; gap: 15px; padding: ${isUpper ? '0' : '12px 0'}; overflow: hidden;">
                     <!-- Dynamic Cells -->
                 </div>
             </div>
@@ -46,9 +50,12 @@ export class ModuleMidiToCv {
         const stack = this.content.querySelector('.control-cells-stack');
         if (!stack) return;
 
-        // Discovery: Front Panel shows entities in MAIN tab or with specific UI roles
+        // Discovery: Front Panel shows entities explicitly marked with 'front: true' (Era 6.3)
         const entities = this.options.manifest.registry || [];
-        entities.filter((e: any) => e.presentation?.tab === "MAIN" || (e.presentation?.ui && e.presentation?.tab !== "PATCHING")).forEach((entity: any) => {
+        entities.filter((e: any) => {
+            // [Era 6.3] Canonical Aseptic Filtering: Only show 'front' entities on the operator panel
+            return e.front === true;
+        }).forEach((entity: any) => {
             stack.appendChild(this.buildControlCell(entity));
         });
     }
@@ -68,14 +75,17 @@ export class ModuleMidiToCv {
             cell.appendChild(led);
         }
 
-        // 2. Primary Component
-        const compType = entity.presentation?.ui?.component || "knob";
-        const comp = document.createElement('div');
-        comp.className = `entity-control-mini control-${compType}`;
-        comp.innerHTML = `<div class="knob-mini-placeholder" style="width: 22px; height: 22px; border: 1.5px solid var(--neon-cyan); border-radius: 50%; background: #111; position: relative;">
-            <div style="position: absolute; top: 2px; left: 50%; width: 1.5px; height: 6px; background: var(--neon-cyan); transform-origin: bottom center;"></div>
-        </div>`;
-        cell.appendChild(comp);
+        // 2. Primary Component (Hidden if upper)
+        const isUpper = this.container.parentElement?.id === 'upper-rack';
+        if (!isUpper) {
+            const compType = entity.presentation?.ui?.component || "knob";
+            const comp = document.createElement('div');
+            comp.className = `entity-control-mini control-${compType}`;
+            comp.innerHTML = `<div class="knob-mini-placeholder" style="width: 22px; height: 22px; border: 1.5px solid var(--neon-cyan); border-radius: 50%; background: #111; position: relative;">
+                <div style="position: absolute; top: 2px; left: 50%; width: 1.5px; height: 6px; background: var(--neon-cyan); transform-origin: bottom center;"></div>
+            </div>`;
+            cell.appendChild(comp);
+        }
 
         // 3. Label
         const label = document.createElement('div');
@@ -98,34 +108,44 @@ export class ModuleMidiToCv {
     onStateUpdate(state: any) {
         if (!state || !this.options.manifest) return;
 
+        // Era 7: Authoritative Patch Document Access
+        if (state.patch) {
+            const mod = state.patch.modules.find((m: any) => m.instanceId === this.options.instanceId);
+            if (mod) {
+                const entities = this.options.manifest.registry || [];
+                entities.forEach((entity: any, index: number) => {
+                    // Map entity to numeric ParamId (based on registry index for now)
+                    const paramId = index + 1; 
+                    const val = mod.params[paramId];
+
+                    if (val !== undefined) {
+                        const disp = this.content.querySelector(`#disp-${this.options.instanceId}-${entity.id}`);
+                        if (disp) {
+                            const precision = entity.presentation?.ui?.ui_precision ?? 2;
+                            disp.innerHTML = typeof val === 'number' ? val.toFixed(precision) : val.toString();
+                        }
+                    }
+                });
+            }
+            return;
+        }
+
+        // Fallback for Era 6 (Legacy)
         const entities = this.options.manifest.registry || [];
         entities.forEach((entity: any) => {
-            const paramId = `${this.options.instanceId}.${entity.id}`;
-            const val = state.params?.[paramId];
+            const paramIdStr = `${this.options.instanceId}.${entity.id}`;
+            const val = state.params?.[paramIdStr];
+            // ... (rest of legacy logic)
+        });
+    }
 
-            if (val !== undefined) {
-                const disp = this.content.querySelector(`#disp-${this.options.instanceId}-${entity.id}`);
-                if (disp) {
-                    const precision = entity.presentation?.ui?.ui_precision ?? 2;
-                    disp.innerHTML = typeof val === 'number' ? val.toFixed(precision) : val.toString();
-                }
-            }
-
-            // Semantic Telemetry LED Binding
-            const led = this.content.querySelector(`#led-${this.options.instanceId}-${entity.id}`) as HTMLElement;
-            if (led) {
-                const telemetryKey = `telemetry.${this.options.instanceId}.${entity.id}`;
-                const tVal = state.telemetry?.[telemetryKey];
-                if (tVal > 0.1) {
-                    led.style.background = "var(--neon-purple, #f0f)";
-                    led.style.boxShadow = "0 0 4px var(--neon-purple, #f0f)";
-                    setTimeout(() => {
-                        if (led) {
-                            led.style.background = "#212";
-                            led.style.boxShadow = "none";
-                        }
-                    }, 80);
-                }
+    private sendParamUpdate(paramId: number, value: number) {
+        (window as any).rpcCommandDispatcher.dispatch({
+            type: 'setParameter',
+            payload: {
+                instanceId: this.options.instanceId,
+                paramId: paramId,
+                value: value
             }
         });
     }

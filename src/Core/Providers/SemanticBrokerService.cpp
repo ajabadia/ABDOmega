@@ -54,8 +54,9 @@ namespace Service {
                     m.category = info->family;
                     for (auto const& p : info->parameters) {
                         if (!p.modulable) continue;
-                        // Proper PortDescriptor initialization: {id, label, type, isInput, telemetryIndex, defaultValue, options}
-                        m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options });
+                        if (!p.front) continue; // ASEPTIC WALL: Physical pruning for the production rack
+                        // Proper PortDescriptor initialization: {id, label, type, isInput, telemetryIndex, defaultValue, options, isFront, isBack}
+                        m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options, p.front, p.back });
                     }
                     for (auto const& port : info->ports) m.ports.push_back(port);
                 }
@@ -85,7 +86,8 @@ namespace Service {
                     m.category = info->family;
                     for (auto const& p : info->parameters) {
                         if (!p.modulable) continue;
-                        m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options });
+                        if (!p.front) continue; // ASEPTIC WALL
+                        m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options, p.front, p.back });
                     }
                     for (auto const& port : info->ports) m.ports.push_back(port);
                 }
@@ -105,7 +107,8 @@ namespace Service {
                 m.status = "template";
                 for (auto const& p : info->parameters) {
                     if (!p.modulable) continue;
-                    m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options });
+                    if (!p.front) continue; // ASEPTIC WALL
+                    m.ports.push_back({ p.id, p.label, Modulation::ModPortType::CV, true, -1, p.defaultValue, p.options, p.front, p.back });
                 }
                 for (auto const& port : info->ports) m.ports.push_back(port);
                 if (this->mInventory.find(m.instanceId) == this->mInventory.end()) this->mInventory[m.instanceId] = m;

@@ -154,3 +154,26 @@ ipcMain.handle('delete-file', async (_, filePath) => {
     }
     return { success: false, error: "File not found" };
 });
+ipcMain.handle('sync-schema', async () => {
+    const { exec } = await import('child_process');
+    // Use PROJECT_ROOT to build the path reliably
+    const tool = path.join(PROJECT_ROOT, 'build/src/Core/Release/omega-schema-tool.exe');
+    const out = path.join(PROJECT_ROOT, 'tools/manifest-editor/src/schema.json');
+    if (!fs.existsSync(tool)) {
+        return { success: false, error: `Binary NOT FOUND at ${tool}. Please compile the Omega Core in Release mode.` };
+    }
+    console.log(`[IPC] Executing Sync Command: "${tool}" --output "${out}"`);
+    return new Promise((resolve) => {
+        exec(`"${tool}" --output "${out}"`, (error, stdout, stderr) => {
+            if (error) {
+                const errorDetail = error.message || stderr || "Execution failed without error message (check DLL dependencies)";
+                console.error('Schema Sync Failed:', errorDetail);
+                resolve({ success: false, error: errorDetail });
+            }
+            else {
+                console.log('Schema Sync Success:', stdout);
+                resolve({ success: true, stdout });
+            }
+        });
+    });
+});

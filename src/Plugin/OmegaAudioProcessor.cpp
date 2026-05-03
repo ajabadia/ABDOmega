@@ -29,13 +29,20 @@ namespace Plugin {
           mPresetService (mCatalog),
           mUiBridge (this, mCurrentPreset, mCatalog, &mPresetRepository, mApvts, mSystemSettings)
     {
+        mUiBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset& p) { loadPreset(p); });
+
         // Deep Root Resource Discovery (Vision 2.1.2)
         juce::File exe = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
         juce::File resourceDir = exe.getParentDirectory().getChildFile("Resources");
-        
-        // Upward search for Resources/ folder (up to 10 levels to reach root from deep build folders)
+
+        if (resourceDir.exists()) {
+            ::juce::Logger::writeToLog("ACE: Resources found IMMEDIATELY at: " + resourceDir.getFullPathName());
+        }
+
+        // Upward search for Resources/ folder (up to 15 levels for deep IDE builds)
         int levelsSearched = 0;
-        while (!resourceDir.exists() && levelsSearched < 10 && !exe.isRoot()) {
+        while (!resourceDir.exists() && levelsSearched < 15 && !exe.isRoot()) {
+            ::juce::Logger::writeToLog("ACE: Searching for Resources in: " + exe.getFullPathName());
             exe = exe.getParentDirectory();
             resourceDir = exe.getChildFile("Resources");
             levelsSearched++;
@@ -47,9 +54,20 @@ namespace Plugin {
             ::juce::File modulesDir = resourceDir.getChildFile("modules");
 
             if (mCatalog.loadFromModulesDirectory(modulesDir)) {
-                Core::Service::SemanticBrokerService::getInstance().setCatalog(&mCatalog);
-                ::juce::Logger::writeToLog("ACE: Discovered " + ::juce::String((int)mCatalog.getComponents().size()) + " functional Atomic YAML/WASM modules.");
+                ::juce::Logger::writeToLog("ACE: Discovered Atomic YAML/WASM modules.");
             }
+
+            // NEW: Scanning for OmegaPacks (Era 7.1)
+            juce::Array<juce::File> packs;
+            modulesDir.findChildFiles(packs, juce::File::findFiles, false, "*.zip;*.acepack");
+            for (const auto& pack : packs) {
+                if (mCatalog.loadFromAcePack(pack)) {
+                    ::juce::Logger::writeToLog("ACE: Loaded OmegaPack: " + pack.getFileName());
+                }
+            }
+
+            Core::Service::SemanticBrokerService::getInstance().setCatalog(&mCatalog);
+            ::juce::Logger::writeToLog("ACE: Total Catalog size: " + ::juce::String((int)mCatalog.getComponents().size()) + " modules.");
         } else {
             ::juce::Logger::writeToLog("CRITICAL: OMEGA Resources directory NOT FOUND after 10 levels of searching.");
         }
@@ -125,6 +143,14 @@ namespace Plugin {
         mCurrentPreset = preset;
         mEngineConfig.applyPreset(mCurrentPreset);
         mUiBridge.forceRepaint();
+    }
+
+    void OmegaAudioProcessor::saveCurrentPreset() {
+        // [Era 6.3] Industrial Save: Serialize current state to a default location
+        juce::File desktop = juce::File::getSpecialLocation(juce::File::userDesktopDirectory);
+        juce::File file = desktop.getChildFile("OMEGA_SAVE.yaml");
+        mCurrentPreset.saveToYaml(file.getFullPathName().toStdString());
+        juce::Logger::writeToLog("ACE: Preset saved to: " + file.getFullPathName());
     }
 
     juce::AudioProcessorValueTreeState::ParameterLayout OmegaAudioProcessor::createParameterLayout() {

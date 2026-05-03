@@ -15,6 +15,8 @@ export class OmegaRPC {
             this.updateHealthUI();
             try {
                 const msg = typeof json === 'string' ? JSON.parse(json) : json;
+                const tag = (msg.type === 'telemetryUpdate' || msg.type === 'TELEMETRY') ? 'TELEMETRY' : 'RPC';
+                OmegaLog.debug(tag, `RECV [Type: ${msg.type}]`, msg);
                 if (msg.requestId && this.pendingRequests.has(msg.requestId)) {
                     const req = this.pendingRequests.get(msg.requestId);
                     clearTimeout(req.timer);
@@ -24,8 +26,15 @@ export class OmegaRPC {
                     }
                     else {
                         // Era 6.1: Precision Unwrapping
-                        // Only unwrap if payload exists and is the primary data carrier
                         const data = (msg.payload !== undefined && msg.payload !== null) ? msg.payload : msg;
+                        // [CRITICAL] Even if it's a request response, if it's a state-like event,
+                        // we must dispatch it so the RuntimeStore/EventHub can see it.
+                        if (msg.type === 'state' || msg.type === 'onStateUpdate') {
+                            const norm = normalizeIncomingEvent(msg);
+                            if (norm) {
+                                window.dispatchEvent(new CustomEvent(`omega:${norm.type}`, { detail: norm }));
+                            }
+                        }
                         req.resolve(data);
                     }
                 }
@@ -33,8 +42,7 @@ export class OmegaRPC {
                     // Era 6.1 Normalization Shunt
                     const norm = normalizeIncomingEvent(msg);
                     if (norm) {
-                        const payload = norm.payload || norm;
-                        window.dispatchEvent(new CustomEvent(`omega:${norm.type}`, { detail: payload }));
+                        window.dispatchEvent(new CustomEvent(`omega:${norm.type}`, { detail: norm }));
                     }
                 }
             }
@@ -84,30 +92,26 @@ export class OmegaRPC {
         const start = Date.now();
         while (Date.now() - start < timeout) {
             const win = window;
-            const bridge = win.omegaNativeCall || win.__JUCE__?.backend?.omegaNativeCall;
-            if (typeof bridge === 'function')
-                return { omegaNativeCall: bridge };
-            if (win.__JUCE__?.backend?.emitEvent)
+            // Era 7: JUCE 8 Backend is mandatory for Event-Based Bridge
+            if (win.__JUCE__?.backend)
                 return win.__JUCE__.backend;
             await new Promise(r => setTimeout(r, 100));
         }
         return null;
     }
     /**
-     * Centralized Send Method with Timeout Protection
+     * Centralized Send Method: Uses Event-Based Bridge for Maximum Reliability
      */
     async send(type, payload = {}) {
         const id = this.requestId++;
         const message = { type, requestId: id, payload };
         const backend = await this._waitForBackend();
-        if (!backend) {
-            OmegaLog.error("RPC", `Backend UNREACHABLE for ${type}`);
+        if (!backend || !backend.emitEvent) {
+            OmegaLog.error("RPC", `Backend EVENT CHANNEL UNREACHABLE for ${type}`);
             this.isConnected = false;
             this.updateHealthUI();
             return null;
         }
-        // [Era 6.1] Direct Native Function Lookups
-        const nativeFn = window.omegaNativeCall;
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 if (this.pendingRequests.has(id)) {
@@ -118,29 +122,43 @@ export class OmegaRPC {
             }, 10000);
             this.pendingRequests.set(id, { resolve, reject, timer });
             try {
-                if (typeof nativeFn === 'function') {
-                    nativeFn(type, id, payload).then((res) => {
-                        // Note: resolve is handled via handleOmegaMessage, but some bridges might return directly
-                        if (res !== undefined && res !== null) {
-                            // if result arrived here, we can resolve immediately
-                            this.handleNativeResponse(id, res);
-                        }
-                    });
-                }
-                else if (backend.emitEvent) {
-                    backend.emitEvent("omegaMessage", message);
-                }
-                else {
-                    throw new Error("No valid native invoke found");
-                }
+                // Era 7 Event-Based Query
+                const tag = (type === 'subscribeTelemetry' || type === 'unsubscribeTelemetry') ? 'TELEMETRY' : 'RPC';
+                OmegaLog.debug(tag, `EMIT [ID: ${id}] ${type}`, payload);
+                backend.emitEvent("omega_rpc_query", message);
             }
             catch (e) {
                 clearTimeout(timer);
-                this.pendingRequests.delete(id);
-                OmegaLog.error("RPC", `Native call failed for ${type}`, e);
+                if (this.pendingRequests.has(id))
+                    this.pendingRequests.delete(id);
+                OmegaLog.error("RPC", `Event emission CRASHED for ${type}`, e);
                 reject(e);
             }
         });
+    }
+    /**
+     * Era 7 Handshake
+     */
+    async ensureReady(timeout = 5000) {
+        OmegaLog.info("RPC", "Starting Era 7 Handshake...");
+        const backend = await this._waitForBackend(timeout);
+        if (!backend) {
+            OmegaLog.error("RPC", "Handshake FAILED: Native backend unreachable");
+            return false;
+        }
+        try {
+            const state = await this.getState();
+            if (state) {
+                this.isConnected = true;
+                this.updateHealthUI();
+                OmegaLog.info("RPC", "Handshake SUCCESS: Backend is alive and state received");
+                return true;
+            }
+        }
+        catch (e) {
+            OmegaLog.error("RPC", "Handshake FAILED: Could not retrieve initial state", e);
+        }
+        return false;
     }
     call(type, payload = {}) { return this.send(type, payload); }
     getState() { return this.send("getState"); }

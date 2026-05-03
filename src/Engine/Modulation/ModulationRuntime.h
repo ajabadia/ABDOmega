@@ -39,7 +39,7 @@ namespace Omega::Engine::Modulation {
      * @brief Almacén de señales procesadas en el bloque actual.
      */
     struct SignalBufferBank {
-        static constexpr int kMaxSignals = 64;
+        static constexpr int kMaxSignals = 256;
         std::array<float, kMaxSignals> values; // Valores de control por bloque
     };
 
@@ -79,7 +79,7 @@ namespace Omega::Engine::Modulation {
 
         float getSignalValue(uint8_t index) const { return mBuffers.values[index]; }
         
-        const std::array<float, 64>& getBuffers() const { return mBuffers.values; }
+        const std::array<float, SignalBufferBank::kMaxSignals>& getBuffers() const { return mBuffers.values; }
         
         // Acceso para pruebas unitarias
         RuntimeNode& getRuntimeNode(int index) { return mNodes[index]; }

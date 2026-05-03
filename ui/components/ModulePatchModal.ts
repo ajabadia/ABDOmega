@@ -13,7 +13,7 @@ export class ModulePatchModal {
     private maxSlots: number = 32;
 
     constructor() {
-        console.log("[ModulePatchModal] Initializing Unified Era 6 UI...");
+        console.log("[ModulePatchModal] Initializing Unified Era 7 UI...");
         this.init();
     }
 
@@ -36,12 +36,13 @@ export class ModulePatchModal {
             }
         });
 
-        // Era 6 Aseptic: Real-time subscription
-        // @ts-ignore
-        if (window.runtimeStateStore) {
-            // @ts-ignore
-            window.runtimeStateStore.subscribe(() => {
-                this.updateRealtimeUI();
+        // Era 7: Reactive Subscription
+        if ((window as any).runtimeStore) {
+            (window as any).runtimeStore.subscribe((type: any) => {
+                // Modal needs real-time updates for params and telemetry
+                if (type & 2 /* Parameters */ || type & 4 /* Telemetry */) {
+                    this.updateRealtimeUI();
+                }
             });
         }
     }
@@ -49,20 +50,55 @@ export class ModulePatchModal {
     public async open(instanceId: string, schema: any): Promise<void> {
         if (!this.el) return;
         this.currentInstanceId = instanceId;
-        this.currentSchema = schema;
+        
+        // --- ERA 7 Normalization Shunt ---
+        const normalized = this.normalizeSchema(schema);
+        this.currentSchema = normalized;
+        
         this.el.style.display = 'flex';
 
-        if (!schema || !schema.items) {
-            this.renderError("INVALID_CONTRACT");
+        if (!normalized || !normalized.items || normalized.items.length === 0) {
+            // Check if we have at least a RACK tab
+            this.renderTabs(normalized || { items: [] });
+            this.switchTab("RACK");
             return;
         }
 
-        this.renderTabs(schema);
+        this.renderTabs(normalized);
         
-        // Default to first tab
-        const tabs = this.getTabsFromSchema(schema);
-        const defaultTab = tabs[0] || "";
-        if (defaultTab) this.switchTab(defaultTab);
+        // Default to first tab (prefer MAIN)
+        const tabs = this.getTabsFromSchema(normalized);
+        const defaultTab = tabs.includes("MAIN") ? "MAIN" : (tabs[0] || "RACK");
+        this.switchTab(defaultTab);
+    }
+
+    private normalizeSchema(schema: any): any {
+        if (!schema) return null;
+        
+        // If already in Era 6 format, return as is
+        if (schema.items) return schema;
+
+        // Map Era 7 (Manifest Editor format) to Modal format
+        const items: any[] = [];
+
+        if (schema.ui && schema.ui.controls) {
+            schema.ui.controls.forEach((ctrl: any) => {
+                const param = schema.parameters?.find((p: any) => p.id === ctrl.bind);
+                items.push({
+                    id: ctrl.bind,
+                    paramId: ctrl.bind,
+                    label: ctrl.label || param?.label || ctrl.bind,
+                    tab: ctrl.presentation?.tab || "MAIN",
+                    group: ctrl.presentation?.container || ctrl.presentation?.group || "PARAMETERS",
+                    look: ctrl.type === 'selector' ? 'list' : 'knob',
+                    options: param?.options || null,
+                    default: param?.default || 0,
+                    roles: param?.modulable ? ['stream'] : []
+                });
+            });
+        }
+
+        return { ...schema, items };
     }
 
     public close(): void {
@@ -90,6 +126,10 @@ export class ModulePatchModal {
         schema.items.forEach((item: any) => {
             if (item.tab) tabs.add(item.tab);
         });
+        
+        // Era 6.3: Always inject RACK management tab
+        tabs.add("RACK");
+        
         return Array.from(tabs);
     }
 
@@ -101,7 +141,79 @@ export class ModulePatchModal {
             btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
         });
 
-        this.renderTabContent(tabId);
+        if (tabId === "RACK") {
+            this.renderRackTab();
+        } else {
+            this.renderTabContent(tabId);
+        }
+    }
+
+    private renderRackTab(): void {
+        if (!this.viewport) return;
+        this.viewport.innerHTML = `
+            <div class="aseptic-params-container">
+                <div class="aseptic-group-title">RACK REORDERING</div>
+                <div class="rack-reorder-actions">
+                    <button class="btn-rack-action" id="btn-move-left">◀ MOVE LEFT</button>
+                    <button class="btn-rack-action" id="btn-move-right">MOVE RIGHT ▶</button>
+                </div>
+                <div class="aseptic-group-title">VISUAL THEME</div>
+                <div class="theme-selector-container">
+                    <select class="selector-control" id="theme-selector">
+                        <option value="">DEFAULT (MANIFEST)</option>
+                        <option value="juno">JUNO-STYLE (ORANGE/BLUE)</option>
+                        <option value="jp">JP-STYLE (NEON CYAN)</option>
+                        <option value="korg-ms20">KORG MS-20 (CONSOLAS/WHITE)</option>
+                        <option value="korg-prophecy">KORG PROPHECY (SILVER)</option>
+                        <option value="space">SPACE ECHO (GREEN)</option>
+                    </select>
+                </div>
+                <div class="rack-reorder-info">
+                    Instance: <span>${this.currentInstanceId}</span>
+                </div>
+            </div>
+        `;
+
+        const themeSel = document.getElementById('theme-selector') as HTMLSelectElement;
+        if (themeSel) {
+            // @ts-ignore
+            const currentTheme = window.runtimeStore.getSnapshot().preset?.auxiliary?.find((m: any) => m.instanceId === this.currentInstanceId)?.theme || "";
+            themeSel.value = currentTheme;
+            themeSel.addEventListener('change', (e: any) => {
+                this.setModuleTheme(e.target.value);
+            });
+        }
+
+        document.getElementById('btn-move-left')?.addEventListener('click', () => {
+            this.moveModule(-1);
+        });
+        document.getElementById('btn-move-right')?.addEventListener('click', () => {
+            this.moveModule(1);
+        });
+    }
+
+    private async setModuleTheme(theme: string): Promise<void> {
+        console.log(`[ModulePatchModal] Setting theme for ${this.currentInstanceId} to ${theme}`);
+        // @ts-ignore
+        await window.rpcCommandDispatcher.dispatch({
+            type: 'setModuleTheme',
+            payload: { 
+                instanceId: this.currentInstanceId,
+                theme: theme 
+            }
+        });
+    }
+
+    private async moveModule(direction: number): Promise<void> {
+        console.log(`[ModulePatchModal] Moving module ${this.currentInstanceId} in direction ${direction}`);
+        // @ts-ignore
+        await window.rpcCommandDispatcher.dispatch({
+            type: 'moveModule',
+            payload: { 
+                instanceId: this.currentInstanceId,
+                direction: direction 
+            }
+        });
     }
 
     private renderTabContent(tabId: string): void {
@@ -257,7 +369,7 @@ export class ModulePatchModal {
         display.className = 'cell-display';
         display.setAttribute('data-precision', (item.ui_precision ?? 2).toString());
         // @ts-ignore
-        const currentVal = window.runtimeStateStore?.getValue(`${this.currentInstanceId}.${id}`, item.default || 0);
+        const currentVal = window.runtimeStore?.getValue(`${this.currentInstanceId}.${id}`, item.default || 0);
         display.innerText = currentVal.toString();
         info.appendChild(display);
 
@@ -278,7 +390,7 @@ export class ModulePatchModal {
             if (!id) return;
 
             // @ts-ignore
-            const val = window.runtimeStateStore.getValue(`${this.currentInstanceId}.${id}`);
+            const val = window.runtimeStore.getValue(`${this.currentInstanceId}.${id}`);
             
             // Knob
             const knob = cell.querySelector('.knob') as HTMLElement;
@@ -299,7 +411,7 @@ export class ModulePatchModal {
             const led = cell.querySelector('.led') as HTMLElement;
             if (led) {
                 // @ts-ignore
-                const tVal = window.runtimeStateStore.getTelemetry(`${this.currentInstanceId}.${id}`);
+                const tVal = window.runtimeStore.getTelemetry(`${this.currentInstanceId}.${id}`);
                 led.classList.toggle('active', tVal > 0.05);
             }
         });

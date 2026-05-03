@@ -33,11 +33,13 @@ export class ModuleBrowser {
         this.render();
     }
     async fetchCatalog() {
+        console.log("[ModuleBrowser] fetchCatalog starting...");
         // @ts-ignore
         const invStore = window.inventoryStore;
         if (invStore) {
             await invStore.ensureLoaded();
             this.catalog = invStore.getAllItems();
+            console.log("[ModuleBrowser] Catalog items in store:", this.catalog.length);
             // Sync legacy global if still needed for transitional shims
             window.omegaCatalog = Object.fromEntries(this.catalog.map((c) => [c.id, c]));
         }
@@ -66,9 +68,13 @@ export class ModuleBrowser {
     renderGrid() {
         if (!this.grid)
             return;
+        console.log(`[ModuleBrowser] renderGrid. Total items: ${this.catalog.length}, Filter: ${this.currentFilter}`);
         const filtered = this.catalog.filter(c => {
+            if (!c.id)
+                return false; // Ignore placeholders
             const isVisible = c.visible !== false;
-            const matchesFam = this.currentFilter === 'ALL' || c.family === this.currentFilter;
+            const matchesFam = this.currentFilter === 'ALL' ||
+                c.family.toUpperCase() === this.currentFilter.toUpperCase();
             const matchesSearch = c.name.toLowerCase().includes(this.currentSearch.toLowerCase()) ||
                 (c.description || '').toLowerCase().includes(this.currentSearch.toLowerCase());
             return isVisible && matchesFam && matchesSearch;
@@ -146,9 +152,8 @@ export class ModuleBrowser {
             try {
                 // @ts-ignore
                 const resp = await window.rpcCommandDispatcher.dispatch({
-                    type: 'systemAction',
-                    target: 'addModule',
-                    value: { componentId }
+                    type: 'addModule',
+                    payload: { componentId }
                 });
                 if (resp && !resp.error) {
                     this.el.style.display = 'none';

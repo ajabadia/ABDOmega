@@ -47,14 +47,14 @@
             "type": "string",
             "enum": ["int", "float", "bool", "string", "list", "audio", "cv", "midi"]
           },
-          "roles": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "string",
-              "enum": ["control", "stream", "input", "output", "mod_source", "mod_target", "telemetry", "expert"]
-            }
-          },
+            "roles": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": ["control", "stream", "input", "output", "mod_source", "mod_target", "telemetry", "expert", "system"]
+              }
+            },
           "range": {
             "type": "object",
             "properties": {
@@ -95,6 +95,12 @@
               }
             }
           },
+          "direction": {
+            "type": "string",
+            "enum": ["internal", "input", "output"],
+            "deprecated": true,
+            "description": "Legacy direction marker. Use 'input' or 'output' roles instead."
+          },
           "presentation": {
             "type": "object",
             "properties": {
@@ -112,7 +118,9 @@
                     "type": "string",
                     "enum": ["knob", "slider_h", "slider_v", "switch", "toggle", "display", "led", "port", "hidden"]
                   },
-                  "variant": { "type": "string" }
+                  "variant": { "type": "string" },
+                  "disabled": { "type": "boolean", "default": false },
+                  "readOnly": { "type": "boolean", "default": false }
                 }
               },
               "attachments": {
@@ -141,11 +149,20 @@
       }
     }
   },
-  "additionalProperties": false,
-  "not": {
-    "anyOf": [
-      { "required": ["layout"] },
-      { "properties": { "registry": { "items": { "required": ["direction"] } } } }
-    ]
-  }
+    "engine": { 
+      "type": "string", 
+      "deprecated": true,
+      "description": "Legacy engine selector. Transition to family-based routing."
+    },
+    "layout": {
+      "type": "object",
+      "deprecated": true,
+      "properties": {
+        "hp": { "type": "integer" },
+        "rack": { "type": "string" },
+        "columns": { "type": "integer" }
+      }
+    }
+  },
+  "additionalProperties": false
 }

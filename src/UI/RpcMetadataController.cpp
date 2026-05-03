@@ -62,15 +62,33 @@ namespace UI {
         if (!mProcessor) return createError("GET_INVENTORY", requestId, "Missing Processor");
         
         auto& catalog = mProcessor->getCatalog();
+        juce::Logger::writeToLog("[RPC] handleGetInventory: Catalog has " + juce::String((int)catalog.getComponents().size()) + " modules.");
         juce::Array<juce::var> components;
-        
-        for (auto const* info : catalog.getComponents()) {
+
+        auto catalogItems = catalog.getComponents();
+        if (catalogItems.empty()) {
+            juce::DynamicObject::Ptr debugObj = new juce::DynamicObject();
+            debugObj->setProperty("id", "DEBUG-EMPTY");
+            debugObj->setProperty("name", "!! DEBUG: CATALOG EMPTY !!");
+            debugObj->setProperty("family", "UTILITY");
+            debugObj->setProperty("engine", "WASM");
+            debugObj->setProperty("version", 0);
+            components.add(juce::var(debugObj.get()));
+        }
+
+        for (auto const* info : catalogItems) {
             juce::DynamicObject::Ptr obj = new juce::DynamicObject();
             obj->setProperty("id", juce::String(info->id));
             obj->setProperty("name", juce::String(info->name));
             obj->setProperty("family", juce::String(info->family));
             obj->setProperty("engine", juce::String(info->engine));
             obj->setProperty("version", info->version);
+            obj->setProperty("rack", juce::String(info->rack));
+            obj->setProperty("hp", info->hp);
+            
+            juce::Array<juce::var> tags;
+            for (const auto& t : info->tags) tags.add(juce::String(t));
+            obj->setProperty("tags", tags);
             
             juce::Array<juce::var> registryArray;
             for (auto const& p : info->parameters) {
@@ -87,16 +105,6 @@ namespace UI {
                 range->setProperty("unit", juce::String(p.unit));
                 pobj->setProperty("range", juce::var(range.get()));
                 
-                if (!p.options.empty()) {
-                    juce::Array<juce::var> opts;
-                    for (auto const& o : p.options) {
-                        juce::DynamicObject::Ptr oo = new juce::DynamicObject();
-                        oo->setProperty("value", o.value);
-                        oo->setProperty("label", juce::String(o.label));
-                        opts.add(juce::var(oo.get()));
-                    }
-                    pobj->setProperty("options", opts);
-                }
                 registryArray.add(juce::var(pobj.get()));
             }
 
@@ -116,10 +124,20 @@ namespace UI {
                 registryArray.add(juce::var(pobj.get()));
             }
             obj->setProperty("registry", registryArray);
+
+            // ERA 7 UI Block for Inventory
+            if (info->version >= 7) {
+                auto uiData = mProcessor->getCatalog().exportComponentContract(info->id);
+                if (uiData.getDynamicObject() && uiData.getDynamicObject()->hasProperty("ui")) {
+                    obj->setProperty("ui", uiData["ui"]);
+                }
+            }
+
             components.add(juce::var(obj.get()));
         }
         
         juce::DynamicObject::Ptr payload = new juce::DynamicObject();
+        payload->setProperty("schemaVersion", "1.0");
         payload->setProperty("components", components);
         
         return createResponse("INVENTORY", requestId, juce::var(), payload.get());
@@ -127,15 +145,25 @@ namespace UI {
 
     juce::var RpcMetadataController::handleGetUiSchemas(const juce::var& requestId, const juce::var&) {
         juce::DynamicObject::Ptr payload = new juce::DynamicObject();
-        
-        // [Era 6] Nominal Minimal Schema to prevent UI hang
         juce::Array<juce::var> schemas;
+        
+        // 1. System Nominal Schema
         juce::DynamicObject::Ptr nominal = new juce::DynamicObject();
         nominal->setProperty("id", "omega.nominal");
         nominal->setProperty("schemaVersion", "1.0");
         nominal->setProperty("target", "system");
         schemas.add(juce::var(nominal.get()));
 
+        // 2. Module Schemas from Catalog
+        if (mProcessor) {
+            auto& catalog = mProcessor->getCatalog();
+            for (auto const* info : catalog.getComponents()) {
+                auto contract = catalog.exportComponentContract(info->id);
+                schemas.add(contract);
+            }
+        }
+
+        payload->setProperty("schemaVersion", "1.0");
         payload->setProperty("schemas", schemas);
         return createResponse("UISCHEMAS", requestId, juce::var(), payload.get());
     }

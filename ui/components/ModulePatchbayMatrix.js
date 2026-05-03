@@ -2,7 +2,7 @@ import {} from '../omega_types.js';
 import { OmegaLog } from '../omega_log.js';
 export class ModulePatchbayMatrix {
     el = null;
-    content = null;
+    root = null;
     options;
     state = null;
     sources = [];
@@ -16,13 +16,37 @@ export class ModulePatchbayMatrix {
         this.options = options;
         this.loadMetadata();
         this.syncMaxSlots();
+        // Era 7: Reactive Subscription
+        if (window.runtimeStore) {
+            window.runtimeStore.subscribe((type) => {
+                // Patchbay routes are part of the structure (preset.patchbayMatrix)
+                if (type & 1 /* Structure */) {
+                    this.onStateUpdate(window.runtimeStore.getSnapshot());
+                }
+            });
+        }
     }
     ensureElements() {
-        if (this.el)
+        if (this.el && this.root)
             return true;
         this.el = document.getElementById('modulation-modal');
-        this.content = document.getElementById('modulation-workspace');
-        return !!(this.el && this.content);
+        this.root = document.getElementById('modulation-workspace');
+        if (!this.root && this.el) {
+            // Self-repair: inject workspace if missing
+            const content = this.el.querySelector('.modulation-modal-content');
+            if (content) {
+                this.root = document.createElement('div');
+                this.root.id = 'modulation-workspace';
+                this.root.className = 'modulation-workspace';
+                this.root.innerHTML = `
+                    <div id="matrix-grid-container" class="matrix-grid-container"></div>
+                    <div id="matrix-inspector-container" class="matrix-inspector-container"></div>
+                `;
+                const footer = content.querySelector('.modal-footer');
+                content.insertBefore(this.root, footer);
+            }
+        }
+        return !!(this.el && this.root);
     }
     async syncMaxSlots() {
         // [Era 6 Aseptic] Use RpcCommandDispatcher for system queries if possible, 
@@ -35,7 +59,8 @@ export class ModulePatchbayMatrix {
                     return;
                 const maxSlotsSetting = settings.find((s) => s && s.id === "maxPatchbaySlots");
                 if (maxSlotsSetting) {
-                    const newValue = Math.floor(maxSlotsSetting.currentValue || 32);
+                    const val = Math.floor(maxSlotsSetting.currentValue || 32);
+                    const newValue = val > 0 ? val : 32;
                     if (this.maxSlots !== newValue) {
                         OmegaLog.info("MATRIX", `Capacity updated: ${newValue}`);
                         this.maxSlots = newValue;
@@ -52,26 +77,37 @@ export class ModulePatchbayMatrix {
     }
     async loadMetadata() {
         const rpc = window.omegaRPC;
-        if (rpc) {
+        if (!rpc)
+            return;
+        // Era 6.3: Staggered load to prevent bridge congestion
+        setTimeout(async () => {
             try {
-                // [Era 6.1] Canonical Metadata Handshake
-                const resp = await rpc.send("getMetadata", {});
-                const params = resp?.parameters || resp;
-                if (params && Array.isArray(params)) {
-                    // Map parameters to source/target if they have appropriate roles (Legacy Shims)
-                    this.sources = params.map((p) => ({ id: p.id || p.target, name: p.name || p.label, instance: p.groupId || p.instance }));
-                    this.targets = params.map((p) => ({ id: p.id || p.target, name: p.name || p.label, instance: p.groupId || p.instance }));
+                // [Era 6.3] Use Canonical Modulation Metadata Handshake with 3s Timeout Guard
+                const resp = await Promise.race([
+                    rpc.send("getModulationMetadata", {}),
+                    new Promise((_, reject) => setTimeout(() => reject("TIMEOUT"), 3000))
+                ]);
+                if (resp && resp.sources && resp.targets) {
+                    this.sources = this.normalizeList(resp.sources);
+                    this.targets = this.normalizeList(resp.targets);
                     if (this.isWorkspaceOpen())
                         this.renderWorkspace();
                 }
                 else {
-                    OmegaLog.warn("MATRIX", "Received malformed metadata", resp);
+                    OmegaLog.warn("MATRIX", "Received incomplete or timed-out modulation metadata", resp);
+                    this.sources = this.sources.length > 0 ? this.sources : [];
+                    this.targets = this.targets.length > 0 ? this.targets : [];
+                    if (this.isWorkspaceOpen())
+                        this.renderWorkspace();
                 }
             }
             catch (e) {
-                OmegaLog.error("MATRIX", "Metadata load failed", e);
+                OmegaLog.error("MATRIX", "Failed to load modulation metadata:", e);
+                // Fallback to avoid black screen
+                if (this.isWorkspaceOpen())
+                    this.renderWorkspace();
             }
-        }
+        }, 500);
     }
     toggleWorkspace(open) {
         if (!this.ensureElements())
@@ -94,12 +130,14 @@ export class ModulePatchbayMatrix {
         const matrixData = state?.preset?.patchbayMatrix || [];
         const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
         // Update global counter
-        const activeCount = matrix.filter((s) => s.active).length;
+        const activeCount = matrix.filter((s) => s.active === true || s.active === "true").length;
         const countEl = document.getElementById('matrix-active-count');
         if (countEl)
             countEl.innerText = activeCount.toString().padStart(2, '0');
         this.triggerActivity('general');
         if (this.isWorkspaceOpen()) {
+            // [Era 6.3] High-frequency sync: only refresh structure if inventory changed significantly,
+            // but always sync slot values.
             this.syncSlotsFromState(matrix);
         }
     }
@@ -126,8 +164,11 @@ export class ModulePatchbayMatrix {
         if (!this.ensureElements())
             return;
         const grid = document.getElementById('matrix-grid-container');
-        if (!grid)
+        const inspector = document.getElementById('matrix-inspector-container');
+        if (!grid) {
+            OmegaLog.error("MATRIX", "Grid container missing from DOM");
             return;
+        }
         // One-time header setup
         this.setupHeaderToggles();
         // 1. Structural Rendering (Base cards)
@@ -137,20 +178,21 @@ export class ModulePatchbayMatrix {
         }
         // 2. Data Sync
         const matrixData = this.state?.preset?.patchbayMatrix || [];
-        const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
+        const matrix = this.normalizeList(matrixData);
         this.syncSlotsFromState(matrix);
         // 3. Inspector
-        this.renderInspector();
+        if (inspector)
+            this.renderInspector();
     }
     setupHeaderToggles() {
         const modalHeader = document.querySelector('.modulation-modal-content .modal-title');
         if (modalHeader && !document.getElementById('matrix-view-toggles')) {
             const toggles = document.createElement('div');
             toggles.id = 'matrix-view-toggles';
-            toggles.style.cssText = "display:flex; gap:10px; margin-left:20px; font-size:10px;";
+            toggles.style.cssText = "display:flex; gap:8px; margin-left:20px;";
             toggles.innerHTML = `
-                <button class="juno-btn ${this.viewMode === 'compose' ? 'active juno-orange' : ''}" id="btn-view-compose">COMPOSE</button>
-                <button class="juno-btn ${this.viewMode === 'overview' ? 'active juno-orange' : ''}" id="btn-view-overview">OVERVIEW</button>
+                <button class="aseptic-btn ${this.viewMode === 'compose' ? 'active' : ''}" id="btn-view-compose">COMPOSE</button>
+                <button class="aseptic-btn ${this.viewMode === 'overview' ? 'active' : ''}" id="btn-view-overview">OVERVIEW</button>
             `;
             modalHeader.parentElement?.insertBefore(toggles, modalHeader.nextSibling);
             document.getElementById('btn-view-compose')?.addEventListener('click', () => {
@@ -170,7 +212,7 @@ export class ModulePatchbayMatrix {
         const matrix = this.state?.preset?.patchbayMatrix || [];
         if (this.viewMode === 'compose') {
             const activeSlots = matrix.map((s, i) => ({ ...s, i }))
-                .filter((s) => s.active || (s.source !== '' && s.source !== undefined));
+                .filter((s) => (s.active === true || s.active === "true") || (s.source !== '' && s.source !== undefined));
             activeSlots.forEach((slot) => {
                 html += this.getSlotSkeleton(slot.i);
             });
@@ -232,9 +274,9 @@ export class ModulePatchbayMatrix {
             const fill = el.querySelector('.bipolar-slider-fill');
             const valueDisp = el.querySelector('.bipolar-value');
             if (fill && valueDisp) {
-                const amount = slot.amount || 0;
+                const amount = parseFloat(slot.amount || 0);
                 const color = this.getAmountColor(amount);
-                fill.style.width = `${Math.min(amount, 2.0) * 50}%`;
+                fill.style.width = `${Math.min(Math.abs(amount), 2.0) * 50}%`;
                 fill.style.backgroundColor = color;
                 valueDisp.textContent = `${amount.toFixed(2)}x`;
                 valueDisp.style.color = color;
@@ -277,9 +319,12 @@ export class ModulePatchbayMatrix {
         const container = document.getElementById('matrix-inspector-container');
         if (!container)
             return;
-        const matrix = this.state?.preset?.patchbayMatrix || [];
+        const matrixData = this.state?.preset?.patchbayMatrix || [];
+        const matrix = this.normalizeList(matrixData);
         const slotIdx = this.selectedSlot;
         const slot = matrix[slotIdx] || { active: false, source: '', target: '', amount: 0, via: '', viaAmount: 0 };
+        const amount = parseFloat(slot.amount || 0);
+        const viaAmount = parseFloat(slot.viaAmount || 0);
         const targetInstance = slot.target?.split('.')[0] || "";
         const sourceInstance = slot.source?.split('.')[0] || "";
         container.innerHTML = `
@@ -301,8 +346,8 @@ export class ModulePatchbayMatrix {
 
             <div class="control-group">
                 <label>GAIN MULTIPLIER (0 to 2.0x)</label>
-                <input type="range" class="inspector-range" data-key="amount" min="0" max="2" step="0.01" value="${slot.amount}">
-                <div class="bipolar-value" style="color: ${this.getAmountColor(slot.amount)}">${slot.amount.toFixed(2)}x</div>
+                <input type="range" class="inspector-range" data-key="amount" min="0" max="2" step="0.01" value="${amount}">
+                <div class="bipolar-value" style="color: ${this.getAmountColor(amount)}">${amount.toFixed(2)}x</div>
             </div>
 
             <div class="control-group">
@@ -314,19 +359,30 @@ export class ModulePatchbayMatrix {
 
             <div class="control-group">
                 <label>VIA AMOUNT</label>
-                <input type="range" class="inspector-range" data-key="viaAmount" min="0" max="1" step="0.05" value="${slot.viaAmount}">
+                <input type="range" class="inspector-range" data-key="viaAmount" min="0" max="1" step="0.05" value="${viaAmount}">
             </div>
 
             <div class="inspector-actions" style="margin-top: auto; display: flex; gap: 10px;">
-                <button class="juno-btn" id="btn-clear-slot" style="flex:1">CLEAR</button>
-                <button class="juno-btn" id="btn-init-matrix" style="flex:1">INIT ALL</button>
+                <button class="aseptic-btn" id="btn-clear-slot" style="flex:1">CLEAR</button>
+                <button class="aseptic-btn" id="btn-init-matrix" style="flex:1">INIT ALL</button>
             </div>
         `;
         this.attachInspectorListeners(container);
     }
     getNameForId(list, id) {
-        const item = list.find(s => s.id === id);
-        return item ? item.name : '';
+        if (!id)
+            return '';
+        const item = list.find(s => s && s.id === id);
+        return item ? (item.name || item.label || id) : '---';
+    }
+    normalizeList(data) {
+        if (!data)
+            return [];
+        if (Array.isArray(data))
+            return data;
+        if (typeof data === 'object')
+            return Object.values(data);
+        return [];
     }
     generateOptions(list, current, exclude) {
         let html = '<option value="">- NONE -</option>';

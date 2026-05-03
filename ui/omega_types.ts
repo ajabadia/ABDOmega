@@ -32,26 +32,49 @@ export interface RpcErrorEnvelope extends RpcEnvelope<undefined> {
 
 // --- State ---
 
-export interface RuntimePresetInfo {
-  id: string;
+// --- Era 7: Patch Document (Absolute SOT) ---
+
+export interface PatchModuleV7 {
+  instanceId: number;
+  typeId: number;
+  componentId?: string; // Resolved by backend for UI convenience
+  rack?: string;         // 'upper' | 'lower'
+  label?: string;        // Custom user label
+  theme?: string;        // Theme override (e.g., 'industrial', 'minimal')
+  parameters: Record<string, number>; // Industrial Era 7 (String keys from bridge)
+  params: Record<string, number>;     // Compatibility Layer
+}
+
+export interface PatchDocumentV7 {
   name: string;
-  author?: string;
+  author: string;
+  masterGainDb: number;
+  modules: PatchModuleV7[];
 }
 
 export interface StatePayloadV1 {
-  schemaVersion: SchemaVersion;
-  preset: RuntimePresetInfo;
-  params: Record<string, number>;
+  schemaVersion: '1.0' | string;
+  preset: any;
+  params?: Record<string, number>;
+  auxiliary?: any[];
+  mainChain?: any[];
 }
 
-export interface StateResponse extends RpcEnvelope<StatePayloadV1> {
+export interface StatePayloadV7 {
+  schemaVersion: '7.0';
+  patch: PatchDocumentV7;
+}
+
+export interface StateResponse extends RpcEnvelope<StatePayloadV7 | StatePayloadV1> {
   type: 'state';
 }
 
 // --- Parameter Ack ---
 
 export interface ParamAckPayload {
-  target: string;
+  target?: string;
+  instanceId?: number;
+  paramId?: number;
   value: number;
 }
 
@@ -196,7 +219,12 @@ export interface UiGetStateCommand {
 export interface UiSetParameterCommand {
   type: 'setParameter';
   requestId?: RequestId;
-  payload: { target: string; value: number };
+  payload: { 
+    target?: string; 
+    instanceId?: number; 
+    paramId?: number; 
+    value: number;
+  };
 }
 
 export interface UiLoadPresetCommand {

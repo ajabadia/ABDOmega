@@ -25,6 +25,10 @@ namespace UI {
         juce::var handleExit(const juce::var& requestId, const juce::var& payload);
         juce::var handleNewPreset(const juce::var& requestId, const juce::var& payload, Plugin::OmegaAudioProcessor* processor);
         juce::var handleServiceAction(const juce::var& requestId, const juce::var& payload);
+        
+        // [Era 6.3] Dynamic Schema Sync
+        juce::var handleGetAceSchema(const juce::var& requestId, Plugin::OmegaAudioProcessor* processor);
+        juce::var handleSystemAction(const juce::var& requestId, const juce::var& payload, Plugin::OmegaAudioProcessor* processor);
 
         void registerCommands(RpcCommandDispatcher& dispatcher, Plugin::OmegaAudioProcessor* processor);
 

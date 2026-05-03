@@ -1,4 +1,5 @@
 import React from 'react';
+import { NORMATIVE_PINS } from '../constants';
 
 interface RegistryItem {
   id: string;
@@ -21,11 +22,12 @@ interface AsepticOutlineProps {
   moduleData: any;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  activeView: 'editor' | 'preview' | 'source' | 'patching_hub';
-  onViewChange: (view: 'editor' | 'preview' | 'source' | 'patching_hub') => void;
+  activeView: 'editor' | 'preview' | 'source' | 'patching_hub' | 'repo_health';
+  onViewChange: (view: 'editor' | 'preview' | 'source' | 'patching_hub' | 'repo_health') => void;
   assetStatus: 'loading' | 'missing' | 'exists';
   collapsed?: boolean;
   onExpand?: () => void;
+  dirtyItems?: Set<string>;
 }
 
 const AsepticOutline: React.FC<AsepticOutlineProps> = ({ 
@@ -35,7 +37,8 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
   assetStatus,
   collapsed,
   onSelect,
-  selectedId
+  selectedId,
+  dirtyItems = new Set()
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -57,6 +60,10 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
     if (!searchTerm) return []; // EMPTY BY DEFAULT as per USER VISION
     const term = searchTerm.toLowerCase();
     return registry.filter((item: RegistryItem) => {
+      // GHOST EXCLUSION: If it's internal/calibration only, it's invisible to explorer
+      const isGhost = (item as any).front === false && (item as any).back === false;
+      if (isGhost) return false;
+
       return (
         item.id.toLowerCase().includes(term) || 
         item.label.toLowerCase().includes(term) ||
@@ -125,6 +132,16 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
           {!collapsed && <span className="item-label">Raw YAML Source</span>}
           {activeView === 'source' && <span className="active-dot" />}
         </div>
+
+        <div 
+          className={`outline-item ${activeView === 'repo_health' ? 'active' : ''}`}
+          onClick={() => onViewChange('repo_health')}
+          title={collapsed ? "Repo Health Audit" : ""}
+        >
+          <span className="item-icon">🏥</span>
+          {!collapsed && <span className="item-label">Repo Health Audit</span>}
+          {activeView === 'repo_health' && <span className="active-dot" />}
+        </div>
       </div>
 
       {/* 2. ASEPTIC SEARCH & STRUCTURE */}
@@ -162,6 +179,28 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
           </header>
 
           <div className="structure-list">
+            <header className="section-header small-sub">
+               <span className="section-icon">🏢</span>
+               <span className="section-title">HOST-INJECTED SIGNALS</span>
+            </header>
+            
+            {NORMATIVE_PINS.map(pin => (
+              <div 
+                key={pin.id}
+                className={`outline-item structure-item system-signal ${selectedId === pin.id ? 'active' : ''}`}
+                onClick={() => onSelect(pin.id)}
+              >
+                <span className="item-icon">📡</span>
+                <span className="item-label" style={{ opacity: 0.6 }}>{pin.label}</span>
+                <span className="item-id-hint" style={{ color: '#88f' }}>{pin.id}</span>
+              </div>
+            ))}
+
+            <header className="section-header small-sub" style={{ marginTop: '10px' }}>
+               <span className="section-icon">💎</span>
+               <span className="section-title">MODULE REGISTRY</span>
+            </header>
+
             {dnaMatches && (
               <div 
                 className={`outline-item structure-item dna-match ${selectedId === '_module_root' ? 'active' : ''}`}
@@ -173,6 +212,7 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
               >
                 <span className="item-icon">🏠</span>
                 <span className="item-label" style={{ color: 'var(--neon-cyan)', fontWeight: 800 }}>MODULE DNA</span>
+                {dirtyItems.has('_module_root') && <span className="dirty-indicator" title="Unsaved changes">●</span>}
                 <span className="item-id-hint">Identity</span>
               </div>
             )}
@@ -189,6 +229,10 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
               >
                 <span className="item-icon">{getComponentIcon(item.presentation?.ui?.component)}</span>
                 <span className="item-label">{item.label}</span>
+                {dirtyItems.has(item.id) && <span className="dirty-indicator" title="Unsaved changes">●</span>}
+                {(item as any).back === true && (item as any).front === false && (
+                  <span className="item-id-hint" style={{ color: '#ff7800', opacity: 0.8 }}>[BACK-PANEL]</span>
+                )}
                 <span className="item-id-hint">{item.id}</span>
                 {selectedId === item.id && <span className="active-dot" />}
               </div>
@@ -224,6 +268,11 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
           letter-spacing: 1.5px;
           color: #fff;
         }
+        .section-header.small-sub {
+          padding: 10px 15px 5px 15px;
+          font-size: 8px;
+          opacity: 0.25;
+        }
         .outline-item {
           margin: 0 8px;
           padding: 10px 12px;
@@ -255,6 +304,13 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
           box-shadow: 0 0 8px var(--neon-cyan);
           position: absolute;
           right: 12px;
+        }
+        .dirty-indicator {
+          color: var(--neon-amber);
+          font-size: 8px;
+          margin-left: -4px;
+          filter: drop-shadow(0 0 3px var(--neon-amber));
+          animation: breath 2s infinite ease-in-out;
         }
         .status-dot {
           width: 6px;
@@ -359,6 +415,11 @@ const AsepticOutline: React.FC<AsepticOutlineProps> = ({
           0% { opacity: 1; }
           50% { opacity: 0.3; }
           100% { opacity: 1; }
+        }
+        @keyframes breath {
+          0% { opacity: 0.4; }
+          50% { opacity: 1; }
+          100% { opacity: 0.4; }
         }
       `}</style>
     </div>

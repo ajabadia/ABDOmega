@@ -36,6 +36,9 @@ namespace Modulation {
         
         float defaultValue = 0.0f;
         std::vector<PortOption> options; // Discrete values for UI (Optional)
+
+        bool isFront = true;   // Visible in standard rack view
+        bool isBack = false;   // Visible in engineering/back panel view
     };
 
     /**

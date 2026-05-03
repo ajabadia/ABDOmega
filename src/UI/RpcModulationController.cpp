@@ -12,15 +12,15 @@ namespace UI {
 
     juce::var RpcModulationController::handleGetModulationMetadata(const juce::var& requestId, const juce::var& payload) {
         juce::DynamicObject::Ptr resp = new juce::DynamicObject();
+        juce::Logger::writeToLog("[RPC] [Modulation] handleGetModulationMetadata ENTER (ID: " + requestId.toString() + ")");
         
         auto& broker = Core::Service::SemanticBrokerService::getInstance();
-        auto inventory = broker.getInventory();
-
-        // Always rebuild to ensure total synchronization with the rack (Era 4 strict isolation)
+        
+        // Restoration: Rebuild inventory to ensure we have the latest ports from the rack
         broker.rebuildInventory(mPreset);
-        inventory = broker.getInventory();
-
-        juce::Logger::writeToLog("[RpcModulationController] Serving modulation metadata. Inventory size: " + juce::String((int)inventory.size()));
+        
+        auto inventory = broker.getInventory();
+        juce::Logger::writeToLog("[RPC] [Modulation] Inventory rebuilt. Size: " + juce::String((int)inventory.size()));
 
         juce::Array<juce::var> sources;
         juce::Array<juce::var> targets;

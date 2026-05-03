@@ -8,6 +8,8 @@ layers:
   - id: "layer.0"
     name: "Main"
     modules: []
+    auxiliary: []
+    mainChain: []
 
 # El Patchbay nace sin conexiones persistentes de usuario
 patchbay:
