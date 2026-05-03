@@ -79,7 +79,7 @@ namespace Omega {
 
             // Wire the preset-load callback: when a module is added, trigger forceRepaint()
             // which serializes the preset and broadcasts onStateUpdate to the WebUI.
-            mBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset&) {
+            mBridge.setOnLoadCallback([this]() {
                 mBridge.forceRepaint();
             });
 

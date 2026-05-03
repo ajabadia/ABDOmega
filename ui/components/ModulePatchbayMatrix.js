@@ -77,37 +77,75 @@ export class ModulePatchbayMatrix {
     }
     async loadMetadata() {
         const rpc = window.omegaRPC;
+        const inv = window.inventoryStore;
+        // Era 7 Strategy: Always try to build from InventoryStore first (Pure Industrial)
+        if (inv && inv.getAllItems().length > 0) {
+            this.buildMetadataFromInventory(inv.getAllItems());
+            if (this.isWorkspaceOpen())
+                this.renderWorkspace();
+        }
         if (!rpc)
             return;
-        // Era 6.3: Staggered load to prevent bridge congestion
+        // Background sync with C++ to keep names in parity
         setTimeout(async () => {
             try {
-                // [Era 6.3] Use Canonical Modulation Metadata Handshake with 3s Timeout Guard
-                const resp = await Promise.race([
-                    rpc.send("getModulationMetadata", {}),
-                    new Promise((_, reject) => setTimeout(() => reject("TIMEOUT"), 3000))
-                ]);
-                if (resp && resp.sources && resp.targets) {
+                const resp = await rpc.send("getModulationMetadata", {});
+                if (resp && resp.sources && resp.targets && resp.sources.length > 0) {
                     this.sources = this.normalizeList(resp.sources);
                     this.targets = this.normalizeList(resp.targets);
+                    OmegaLog.info("MATRIX", `Metadata synced from backend. Sources: ${this.sources.length}`);
                     if (this.isWorkspaceOpen())
                         this.renderWorkspace();
                 }
                 else {
-                    OmegaLog.warn("MATRIX", "Received incomplete or timed-out modulation metadata", resp);
-                    this.sources = this.sources.length > 0 ? this.sources : [];
-                    this.targets = this.targets.length > 0 ? this.targets : [];
-                    if (this.isWorkspaceOpen())
-                        this.renderWorkspace();
+                    OmegaLog.debug("MATRIX", "Backend returned empty metadata, keeping InventoryStore data.");
                 }
             }
             catch (e) {
-                OmegaLog.error("MATRIX", "Failed to load modulation metadata:", e);
-                // Fallback to avoid black screen
-                if (this.isWorkspaceOpen())
-                    this.renderWorkspace();
+                OmegaLog.warn("MATRIX", "Backend metadata sync failed, relying on InventoryStore", e);
             }
         }, 500);
+    }
+    buildMetadataFromInventory(components) {
+        const newSources = [];
+        const newTargets = [];
+        // Get active module types from current rack state (Era 7 Patch prioritized)
+        const activeTypes = new Set();
+        const activeModules = this.state?.patch?.modules || this.state?.preset?.modules || [];
+        activeModules.forEach((m) => {
+            const type = m.componentId || m.typeId || m.id || m.modelId;
+            if (type)
+                activeTypes.add(type);
+        });
+        OmegaLog.debug("MATRIX", `Active Types for metadata: ${Array.from(activeTypes).join(', ')}`);
+        if (activeTypes.size === 0) {
+            OmegaLog.warn("MATRIX", "Metadata rebuild triggered but no active modules found in state.");
+        }
+        components.forEach(comp => {
+            // [Era 7] Pure Industrial: Only show ports for modules actually present in the rack.
+            if (!activeTypes.has(comp.id))
+                return;
+            if (!comp.registry)
+                return;
+            comp.registry.forEach((reg) => {
+                const portId = `${comp.id}.${reg.id}`;
+                const portName = `${comp.name || comp.id} ${reg.label || reg.id}`;
+                const item = {
+                    id: portId,
+                    name: portName,
+                    instance: comp.id,
+                    label: reg.label || reg.id,
+                    type: reg.type || 'CV'
+                };
+                if (reg.roles?.includes('output'))
+                    newSources.push(item);
+                if (reg.roles?.includes('input'))
+                    newTargets.push(item);
+            });
+        });
+        this.sources = newSources;
+        this.targets = newTargets;
+        OmegaLog.info("MATRIX", `Industrial Metadata Rebuilt: ${this.sources.length} sources, ${this.targets.length} targets`);
     }
     toggleWorkspace(open) {
         if (!this.ensureElements())
@@ -126,8 +164,12 @@ export class ModulePatchbayMatrix {
         return this.el.style.display === 'flex';
     }
     onStateUpdate(state) {
+        const oldModules = this.state?.patch?.modules || this.state?.preset?.modules || [];
+        const newModules = state?.patch?.modules || state?.preset?.modules || [];
+        const structuralChange = oldModules.length !== newModules.length ||
+            JSON.stringify(oldModules.map((m) => m.id)) !== JSON.stringify(newModules.map((m) => m.id));
         this.state = state;
-        const matrixData = state?.preset?.patchbayMatrix || [];
+        const matrixData = state?.patch?.patchbayMatrix || state?.preset?.patchbayMatrix || [];
         const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
         // Update global counter
         const activeCount = matrix.filter((s) => s.active === true || s.active === "true").length;
@@ -136,6 +178,10 @@ export class ModulePatchbayMatrix {
             countEl.innerText = activeCount.toString().padStart(2, '0');
         this.triggerActivity('general');
         if (this.isWorkspaceOpen()) {
+            if (structuralChange) {
+                OmegaLog.debug("MATRIX", "Structural change detected, rebuilding metadata...");
+                this.loadMetadata();
+            }
             // [Era 6.3] High-frequency sync: only refresh structure if inventory changed significantly,
             // but always sync slot values.
             this.syncSlotsFromState(matrix);
@@ -163,6 +209,10 @@ export class ModulePatchbayMatrix {
     renderWorkspace() {
         if (!this.ensureElements())
             return;
+        // Era 7: Ensure state is current before rendering
+        if (!this.state && window.runtimeStore) {
+            this.state = window.runtimeStore.getSnapshot();
+        }
         const grid = document.getElementById('matrix-grid-container');
         const inspector = document.getElementById('matrix-inspector-container');
         if (!grid) {
@@ -177,7 +227,7 @@ export class ModulePatchbayMatrix {
             this.structureBuilt = (this.viewMode === 'overview');
         }
         // 2. Data Sync
-        const matrixData = this.state?.preset?.patchbayMatrix || [];
+        const matrixData = this.state?.patch?.patchbayMatrix || this.state?.preset?.patchbayMatrix || [];
         const matrix = this.normalizeList(matrixData);
         this.syncSlotsFromState(matrix);
         // 3. Inspector
@@ -209,20 +259,32 @@ export class ModulePatchbayMatrix {
     }
     renderStructure(grid) {
         let html = '';
-        const matrix = this.state?.preset?.patchbayMatrix || [];
+        const matrixData = this.state?.preset?.patchbayMatrix || [];
+        const matrix = this.normalizeList(matrixData);
         if (this.viewMode === 'compose') {
             const activeSlots = matrix.map((s, i) => ({ ...s, i }))
                 .filter((s) => (s.active === true || s.active === "true") || (s.source !== '' && s.source !== undefined));
-            activeSlots.forEach((slot) => {
-                html += this.getSlotSkeleton(slot.i);
-            });
-            if (activeSlots.length < this.maxSlots) {
-                html += `
-                    <div class="matrix-card add-card" id="btn-add-modulation">
-                        <div class="add-icon">＋</div>
-                        <div class="card-label" style="text-align:center">ADD MODULATION</div>
+            if (activeSlots.length === 0 && this.sources.length === 0) {
+                html = `
+                    <div class="empty-state-info">
+                        <div class="info-title">NO SIGNAL ASSETS DETECTED</div>
+                        <p>The system catalog is currently empty or no active modules with I/O ports were found in the rack.</p>
+                        <div class="metadata-warning">HANDSHAKE PENDING: Verify Era 7 Bridge Status</div>
                     </div>
                 `;
+            }
+            else {
+                activeSlots.forEach((slot) => {
+                    html += this.getSlotSkeleton(slot.i);
+                });
+                if (activeSlots.length < this.maxSlots) {
+                    html += `
+                        <div class="matrix-card add-card" id="btn-add-modulation">
+                            <div class="add-icon">＋</div>
+                            <div class="card-label" style="text-align:center">ADD MODULATION</div>
+                        </div>
+                    `;
+                }
             }
         }
         else {

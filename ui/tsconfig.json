@@ -42,5 +42,9 @@
     "allowJs": false,
     "noEmit": false,
     "skipLibCheck": true,
-  }
+  },
+  "exclude": [
+    "legacy",
+    "node_modules"
+  ]
 }

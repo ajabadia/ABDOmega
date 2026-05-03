@@ -160,12 +160,10 @@ export class ModulePatchModal {
                 <div class="aseptic-group-title">VISUAL THEME</div>
                 <div class="theme-selector-container">
                     <select class="selector-control" id="theme-selector">
-                        <option value="">DEFAULT (MANIFEST)</option>
-                        <option value="juno">JUNO-STYLE (ORANGE/BLUE)</option>
-                        <option value="jp">JP-STYLE (NEON CYAN)</option>
-                        <option value="korg-ms20">KORG MS-20 (CONSOLAS/WHITE)</option>
-                        <option value="korg-prophecy">KORG PROPHECY (SILVER)</option>
-                        <option value="space">SPACE ECHO (GREEN)</option>
+                        <option value="industrial">INDUSTRIAL (DEFAULT)</option>
+                        <option value="carbon">CARBON (TECH)</option>
+                        <option value="glass">GLASS (FUTURISTIC)</option>
+                        <option value="minimal">MINIMAL (CLEAN)</option>
                     </select>
                 </div>
                 <div class="rack-reorder-info">

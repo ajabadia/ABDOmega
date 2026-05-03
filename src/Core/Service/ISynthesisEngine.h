@@ -1,7 +1,7 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
-#include "../Input/OmegaInput.h"
+// #include "../Input/OmegaInput.h" - ASEPTIC PURGE
 
 namespace Omega {
 namespace Core {
@@ -9,8 +9,6 @@ namespace Service {
 
     /**
      * @brief Master Synthesis Engine Interface (The Central Contract).
-     * [Architecture]: Defined in Core/Service to unify the contract between 
-     * DSP (Building blocks), Engine (Orchestration), and Plugin (Host).
      */
     class ISynthesisEngine {
     public:
@@ -21,8 +19,8 @@ namespace Service {
         virtual void reset() = 0;
 
         // Audio Processing (Thread-Safe)
-        virtual void renderNextBlock(::juce::AudioBuffer<float>& buffer, 
-                                     const ::Omega::Core::Input::OmegaInput& input) noexcept = 0;
+        // [Era 7] Input is now handled via the Aseptic Bridge / WASM Contract.
+        virtual void renderNextBlock(::juce::AudioBuffer<float>& buffer) noexcept = 0;
 
         // Control
         virtual void noteOn(int voiceIndex, float freqHz) noexcept = 0;

@@ -87,7 +87,7 @@ class OmegaApp {
     private updateVersion(version: string, build?: string, timestamp?: string) {
         const topEl = document.getElementById('top-bar-version');
         if (topEl) {
-            topEl.textContent = `OMEGA Era 6 [Build ${build || 'ASEPTIC'}]`;
+            topEl.textContent = `OMEGA Era 7.2.3 [Build ${build || 'SYS_READY'}]`;
         }
         
         document.querySelectorAll('.splash-version, #app-title-mini, #about-version, .about-version').forEach(el => {
@@ -156,7 +156,11 @@ class OmegaApp {
                 if (c) c.style.display = c.style.display === 'none' ? 'block' : 'none';
                 break;
             case 'toggle_matrix':
-                this.showModal('modulation-modal');
+                if ((window as any).patchbayHub) {
+                    (window as any).patchbayHub.toggleWorkspace(true);
+                } else {
+                    this.showModal('modulation-modal');
+                }
                 break;
             case 'toggle_module_browser':
                 if ((window as any).moduleBrowser) {
@@ -349,16 +353,6 @@ class OmegaApp {
     private setupMenus() {
         document.querySelectorAll('.menu-item').forEach(item => {
             const htmlItem = item as HTMLElement;
-
-            // [Era 6.1] Support for direct-action menu items without dropdowns
-            if (htmlItem.id === 'btn-global-matrix') {
-                htmlItem.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.handleMenuAction('toggle_matrix');
-                };
-                return;
-            }
 
             htmlItem.addEventListener('click', (e) => {
                 const target = e.target as HTMLElement;

@@ -8,7 +8,6 @@
 #include "../Core/Providers/ModulationTelemetryHub.h"
 #include "../Core/Providers/ModulationTelemetryRegistry.h"
 #include "../Core/Providers/SystemSettingsManager.h"
-#include "../Core/Input/MidiMonitor.h"
 
 namespace Omega {
 namespace UI {

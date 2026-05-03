@@ -1,11 +1,10 @@
 export declare class ModuleManager {
     private activeModules;
-    private oscilloscopes;
-    private midiViewer;
     private lastState;
     private isRendering;
     private lastFingerprint;
     private pendingState;
+    private renderGeneration;
     constructor();
     private normalizeList;
     updateRack(state: any): Promise<void>;

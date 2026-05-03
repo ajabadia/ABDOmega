@@ -11,13 +11,6 @@
 }
 
 :root {
-    /* Brand Colors */
-    --juno-red: #ea212d;
-    --juno-blue: #2a6bcc;
-    --juno-grey: #b8b8b8;
-    --juno-orange: #ff8c00;
-    --juno-beige: #f0eee6;
-
     /* Functional Colors */
     --bg-synth: #0d0e11;
     --metal-dark: #1e1f24;

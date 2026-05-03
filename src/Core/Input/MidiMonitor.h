@@ -5,6 +5,7 @@
 #include <mutex>
 #include <vector>
 
+/** [BUILD_FORCE_15] Aseptic MIDI Monitor for OMEGA Era 7. **/
 namespace Omega {
 namespace Core {
 namespace Input {
@@ -38,7 +39,7 @@ namespace Input {
          */
         void pushEvent(const juce::MidiMessage& msg) {
             std::lock_guard<std::mutex> lock(mMutex);
-            int pos = mWritePos % kMaxEvents;
+            int pos = (int)(mWritePos % kMaxEvents);
             
             MidiEventInfo info;
             const uint8_t* rawData = msg.getRawData();
@@ -61,14 +62,14 @@ namespace Input {
             std::lock_guard<std::mutex> lock(mMutex);
             std::vector<MidiEventInfo> result;
             
-            int totalAvailable = (int)mWritePos;
+            uint64_t totalAvailable = mWritePos.load();
             if (totalAvailable > kMaxEvents) totalAvailable = kMaxEvents;
             
-            int count = (maxToReturn < totalAvailable) ? maxToReturn : totalAvailable;
+            int count = (maxToReturn < (int)totalAvailable) ? maxToReturn : (int)totalAvailable;
             
             for (int i = 0; i < count; ++i) {
                 // Leer de más reciente a más antiguo
-                int pos = (mWritePos - 1 - i) % kMaxEvents;
+                int pos = (int)((mWritePos - 1 - i) % kMaxEvents);
                 if (pos < 0) pos += kMaxEvents;
                 result.push_back(mEvents[pos]);
             }

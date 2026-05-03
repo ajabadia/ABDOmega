@@ -26,8 +26,6 @@ add_library(omega_core STATIC ${OMEGA_CORE_SOURCES})
 target_include_directories(omega_core 
     PUBLIC 
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/Input
-        ${CMAKE_CURRENT_SOURCE_DIR}/Preset
         ${CMAKE_CURRENT_SOURCE_DIR}/Ace
         ${CMAKE_CURRENT_SOURCE_DIR}/Providers
         ${CMAKE_CURRENT_SOURCE_DIR}/Modulation

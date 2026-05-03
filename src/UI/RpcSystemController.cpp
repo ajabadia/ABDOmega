@@ -9,43 +9,15 @@ namespace UI {
         dispatcher.registerHandler("getSystemSettings", [this](const juce::var& rid, const juce::var& p) { return handleGetSystemSettings(rid, p); });
         dispatcher.registerHandler("setSystemSetting",  [this](const juce::var& rid, const juce::var& p) { return handleSetSystemSetting(rid, p); });
         
-        // [Era 6] Nominal Application Lifecycle Commands
         dispatcher.registerHandler("exit",              [this](const juce::var& rid, const juce::var& p) { return handleExit(rid, p); });
-        dispatcher.registerHandler("newPreset",          [this, processor](const juce::var& rid, const juce::var& p) { return handleNewPreset(rid, p, processor); });
-        
-        // [Era 6] Service & Hardware Diagnostics
         dispatcher.registerHandler("serviceAction",      [this](const juce::var& rid, const juce::var& p) { return handleServiceAction(rid, p); });
-        
-        // [Era 6.3] Dynamic Schema Sync
         dispatcher.registerHandler("getAceSchema",       [this, processor](const juce::var& rid, const juce::var& p) { return handleGetAceSchema(rid, processor); });
-        
-        // [Era 6.3] Generic System Action
         dispatcher.registerHandler("systemAction",      [this, processor](const juce::var& rid, const juce::var& p) { return handleSystemAction(rid, p, processor); });
     }
 
     juce::var RpcSystemController::handleExit(const juce::var& requestId, const juce::var&) {
-        DBG("[RpcSystemController] Executing System Quit");
         juce::JUCEApplication::getInstance()->systemRequestedQuit();
         return createResponse("EXIT_ACK", requestId, juce::var());
-    }
-
-    juce::var RpcSystemController::handleNewPreset(const juce::var& requestId, const juce::var& payload, Plugin::OmegaAudioProcessor* processor) {
-        DBG("[RpcSystemController] Loading Minimal Preset (Era 6 Nominal)");
-        
-        juce::String presetName = "Init Preset";
-        if (payload.hasProperty("args") && payload["args"].isArray()) {
-            auto* arr = payload["args"].getArray();
-            if (arr->size() > 0) presetName = (*arr)[0].toString();
-        }
-
-        if (processor) {
-            juce::MessageManager::callAsync([this, processor, presetName]() {
-                auto p = Core::Preset::OmegaPreset::createMinimal();
-                p.setName(presetName);
-                processor->loadPreset(p);
-            });
-        }
-        return createResponse("NEW_PRESET_ACK", requestId, juce::var());
     }
 
     juce::var RpcSystemController::handleGetSystemSettings(const juce::var& requestId, const juce::var&) {
@@ -68,7 +40,6 @@ namespace UI {
                 }
                 obj->setProperty("options", juce::var(optObj.get()));
             }
-
             settings.add(juce::var(obj.get()));
         }
         return createResponse("SYSTEM_SETTINGS", requestId, juce::var(), settings);
@@ -83,7 +54,6 @@ namespace UI {
     }
 
     juce::var RpcSystemController::handleServiceAction(const juce::var& requestId, const juce::var& payload) {
-        // ... (existing handleServiceAction)
         juce::String action = payload["action"].toString();
         juce::DynamicObject::Ptr result = new juce::DynamicObject();
         result->setProperty("status", "received");
@@ -93,23 +63,15 @@ namespace UI {
 
     juce::var RpcSystemController::handleGetAceSchema(const juce::var& requestId, Plugin::OmegaAudioProcessor* processor) {
         if (!processor) return createError("NO_PROCESSOR", requestId, "Processor instance missing");
-        
         juce::var schema = processor->getCatalog().generateSchema();
         return createResponse("ACE_SCHEMA", requestId, juce::var(), schema);
     }
 
     juce::var RpcSystemController::handleSystemAction(const juce::var& requestId, const juce::var& payload, Plugin::OmegaAudioProcessor* processor) {
         juce::String action = payload.hasProperty("action") ? payload["action"].toString() : payload["target"].toString();
-        DBG("[RpcSystemController] System Action: " << action);
-        
-        // Handle specific actions if needed
-        if (action == "undo") { /* ... */ }
-        else if (action == "redo") { /* ... */ }
-        else if (action == "save_preset") {
-            if (processor) processor->saveCurrentPreset();
-        }
-        
+        // Era 7: Specific actions handled via EngineConfig or directly.
         return createResponse("SYSTEM_ACTION_ACK", requestId, juce::var(), action);
     }
+
 } // namespace UI
 } // namespace Omega

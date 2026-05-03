@@ -1,7 +1,6 @@
 #pragma once
 
 #include "EngineConfig.h"
-#include "../Preset/OmegaPresetSchema.h"
 
 namespace Omega {
 namespace Core {
@@ -12,24 +11,14 @@ namespace Service {
      */
     class VoiceArchToEngineConfigMapper {
     public:
+        /**
+         * @brief Maps modular architectural components to the final EngineConfig struct.
+         */
+        /*
         static void mapArchitecture(const Preset::VoiceArchitecture& arch, VoiceConfig& cfg) {
-            // 1. Oscillators
-            cfg.numActiveOscillators = 0;
-            for (const auto& osc : arch.oscillators) {
-                if (cfg.numActiveOscillators < VoiceConfig::kMaxOscillatorsPerVoice) {
-                    cfg.oscModes[cfg.numActiveOscillators] = mapOscMode(osc.componentId);
-                    cfg.numActiveOscillators++;
-                }
-            }
-
-            // 2. Filters
-            if (!arch.filters.empty()) {
-                cfg.filterType = mapFilterType(arch.filters[0].componentId);
-            }
-
-            // Note: Individual parameter mapping (cutoff, resonance, etc.) 
-            // is handled by the ParamBindingRegistry in real-time or during full apply.
+            ...
         }
+        */
 
     private:
         static OscillatorMode mapOscMode(const std::string& compId) {

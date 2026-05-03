@@ -26,6 +26,7 @@ export declare class SchemaStore {
     ensureLoaded(): Promise<boolean>;
     reload(): Promise<boolean>;
     private normalizeSchema;
+    private validateIntegrity;
     getSchema(id: string): ModuleSchema | undefined;
     getSchemaForComponent(id: string): ModuleSchema | undefined;
     getAllSchemas(): ModuleSchema[];

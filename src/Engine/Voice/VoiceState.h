@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <array>
 #include "../../Core/Voice/CompiledVoicePlan.h"
-#include "../../DSP/Core/Modulation/EnvelopeMultiStage.h"
 
 namespace Omega {
 namespace Core {
@@ -11,12 +10,11 @@ namespace Service { struct VoiceConfig; }
 namespace Voice {
 
     /**
-     * @brief Internal DSP state for a single unit.
+     * @brief Internal DSP state for a single unit (Aseptic Era 7).
      */
     struct UnitRuntimeState {
         UnitRuntimeState() : active(false), type(None) {}
 
-        // Generic state for various DSP implementations
         enum Type { None, Osc, Filter, Envelope, Bus };
         Type type = None;
         bool active = false;
@@ -24,10 +22,11 @@ namespace Voice {
         struct OscState { float phase = 0.0f; float increment = 0.0f; };
         struct FilterState { float z1 = 0.0f, z2 = 0.0f; float k = 0.0f, g = 0.0f; };
         struct BusState { float l = 0.0f, r = 0.0f; };
+        struct EnvState { float value = 0.0f; int stage = 0; }; // 0=Idle, 1=A, 2=D, 3=S, 4=R
 
         OscState osc;
         FilterState filter;
-        Omega::DSP::Core::Modulation::EnvelopeMultiStage::VoiceState env;
+        EnvState env;
         BusState bus;
     };
 
@@ -43,17 +42,17 @@ namespace Voice {
     };
 
     /**
-     * @brief Live state of a single synthesis voice.
+     * @brief Live state of a single synthesis voice (Aseptic Era 7).
      */
     struct VoiceState {
-        bool isActive = false;     // Renamed to match Engine expectations
+        bool isActive = false;     
         bool releasing = false;
         
         int noteId = -1;
         float frequencyHz = 440.0f;
         float velocity = 0.0f;
-        float ampEnvelope = 0.0f;  // Unified amp envelope value for dispatcher
-        bool triggerRequested = false; // Phase/Envelope reset trigger
+        float ampEnvelope = 0.0f;  
+        bool triggerRequested = false; 
         
         // DSP State
         std::array<UnitRuntimeState, CompiledVoicePlan::kMaxUnits> units;
@@ -62,7 +61,6 @@ namespace Voice {
         float buses[16] = { 0.0f };
 
         // Modular MIDI Bus (VA 2.2 Hub)
-        // Supports up to 16 messages per block per voice for high-density sequences.
         struct MidiMessage {
             uint8_t status = 0;
             uint8_t d1 = 0;
@@ -73,18 +71,17 @@ namespace Voice {
             int count = 0;
         } modularMidi;
 
-        // Modulation Signal Space (Case 401: ADSR, LFO outputs)
-        // Era 6.3: Expanded to 256 to support System Environment Pins (200+)
+        // Modulation Signal Space
         float modSignals[256] = { 0.0f };
         
         // Link to shared hardware/plan/config
         const CompiledVoicePlan* plan = nullptr;
         const Service::VoiceConfig* activeConfig = nullptr;
         
-        // ADSR / LFO explicit states (Tanda 9)
+        // ADSR / LFO explicit states
         struct {
             float value = 0.0f;
-            int stage = 0; // 0=Idle, 1=A, 2=D, 3=S, 4=R
+            int stage = 0; 
         } ampEnv;
         
         struct {

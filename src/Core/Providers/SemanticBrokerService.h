@@ -7,16 +7,16 @@
 #include <mutex>
 #include <juce_core/juce_core.h>
 #include "../Modulation/ModuleManifest.h"
-#include "../Preset/OmegaPreset.h"
 #include "../Ace/AceCatalog.h"
+#include "../Model/PatchDocument.h"
 
 namespace Omega {
 namespace Core {
 namespace Service {
 
     /**
-     * @brief The Semantic Broker: Aggregates and manages module manifests from the active preset.
-     * This is the single source of truth for 'What is loaded and what can it do?'.
+     * @brief The Semantic Broker (Era 7): Aggregates and manages module manifests from the active PatchDocument.
+     * Single source of truth for semantic signal routing.
      */
     class SemanticBrokerService {
     public:
@@ -28,9 +28,9 @@ namespace Service {
         void setCatalog(Ace::AceCatalog* catalog) { mCatalog = catalog; }
 
         /**
-         * @brief Scans the given preset and rebuilds the semantic inventory.
+         * @brief Scans and rebuilds the semantic inventory based on Era 7 PatchDocument.
          */
-        void rebuildInventory(const Preset::OmegaPreset& preset);
+        void rebuildInventory(const Model::PatchDocument& doc);
 
         /**
          * @brief Returns the complete active inventory.
@@ -44,12 +44,6 @@ namespace Service {
 
     private:
         SemanticBrokerService() = default;
-
-        void scanLegacyRack(const juce::ValueTree& state);
-        void scanDynamicNodes(const juce::ValueTree& state);
-        void scanAuxiliaryModules(const juce::ValueTree& state);
-        void scanWasmModules();
-        void addStandardMidiSources();
 
 
         std::map<std::string, Modulation::ModuleManifest> mInventory;

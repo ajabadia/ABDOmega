@@ -1,11 +1,12 @@
 #include "RpcParameterController.h"
 #include "../Plugin/OmegaAudioProcessor.h"
+#include "../Core/Providers/EngineConfigManager.h"
 
 namespace Omega {
 namespace UI {
 
-    RpcParameterController::RpcParameterController(Plugin::OmegaAudioProcessor* processor, juce::AudioProcessorValueTreeState& apvts, Core::Preset::OmegaPreset& preset)
-        : mProcessor(processor), mApvts(apvts), mPreset(preset)
+    RpcParameterController::RpcParameterController(Plugin::OmegaAudioProcessor* processor, juce::AudioProcessorValueTreeState& apvts)
+        : mProcessor(processor), mApvts(apvts)
     {
     }
 
@@ -26,30 +27,19 @@ namespace UI {
         if (mProcessor) {
             auto& configStore = mProcessor->getEngineConfigManager();
 
-            // Era 7: Typed Numeric IDs
             if (payload.hasProperty("instanceId") && payload.hasProperty("paramId")) {
                 uint32_t instanceId = static_cast<uint32_t>((int)payload["instanceId"]);
                 uint16_t paramId = static_cast<uint16_t>((int)payload["paramId"]);
-                
                 configStore.updateParameter(instanceId, static_cast<Core::Model::ParamId>(paramId), value);
             }
-            // Legacy / Global: String IDs
             else {
                 juce::String target = payload["target"].toString();
-                
-                // 1. Static APVTS Path (Host-visible parameters)
                 if (auto* param = mApvts.getParameter(target)) {
                     param->setValueNotifyingHost(value);
-                }
-
-                // 2. Global Bridge Fallback
-                if (target == "master_gain") {
-                    configStore.updateParameter(0, Core::Model::ParamId::Frequency, value); // Map to Global Slot 0
                 }
             }
         }
 
-        // Acknowledge the change
         juce::DynamicObject::Ptr resp = new juce::DynamicObject();
         resp->setProperty("type", "PARAM_ACK");
         resp->setProperty("requestId", requestId);
@@ -60,7 +50,7 @@ namespace UI {
     juce::var RpcParameterController::handleGetState(const juce::var& requestId, const juce::var& payload)
     {
         juce::DynamicObject::Ptr stateObj = new juce::DynamicObject();
-        stateObj->setProperty("schemaVersion", "7.0"); // Era 7
+        stateObj->setProperty("schemaVersion", "7.0"); // Era 7 Aseptic SOT
         
         if (mProcessor) {
             const auto& doc = mProcessor->getEngineConfigManager().getPatchDocument();
@@ -75,8 +65,6 @@ namespace UI {
                 juce::DynamicObject::Ptr mObj = new juce::DynamicObject();
                 mObj->setProperty("instanceId", (int)m.instanceId);
                 mObj->setProperty("typeId", (int)m.typeId);
-                
-                // [Era 7] Resolve string componentId for UI compatibility
                 mObj->setProperty("componentId", juce::String(Core::Model::mapTypeToId(m.typeId)));
                 
                 juce::DynamicObject::Ptr params = new juce::DynamicObject();
@@ -87,7 +75,6 @@ namespace UI {
                 modules.add(juce::var(mObj.get()));
             }
             docObj->setProperty("modules", modules);
-            
             stateObj->setProperty("patch", juce::var(docObj.get()));
         }
 

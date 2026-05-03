@@ -8,8 +8,6 @@
 #include "../Model/PatchDocument.h"
 #include "../Model/RuntimeSnapshot.h"
 #include "../Compiler/RuntimeCompiler.h"
-#include "../Preset/OmegaPreset.h"
-
 #include "../Ace/AceCatalog.h"
 #include "../../Engine/Modular/VirtualAnalogEngine.h"
 
@@ -37,17 +35,7 @@ namespace Omega::Core::Service {
         /**
          * @brief [Legacy] Adaptador para el sistema de presets Era 6.
          */
-        void applyPreset(const Preset::OmegaPreset& preset) {
-            // Conversión mínima: metadata y gain
-            mPatchDocument.metadata.name = preset.getName().toStdString();
-            mPatchDocument.metadata.author = preset.getAuthor().toStdString();
-            mPatchDocument.masterGainDb = preset.getMasterGainDb();
-            
-            // TODO: Mapear módulos desde el ValueTree del preset si es necesario.
-            // Por ahora, solo mantenemos la estructura básica para evitar cuelgues.
-            
-            recompile();
-        }
+        // void applyPreset(const Preset::OmegaPreset& preset) { ... }
 
         /**
          * @brief Actualiza un parÃ¡metro individual y recompila el snapshot.

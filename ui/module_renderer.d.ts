@@ -34,6 +34,7 @@ export declare class ModuleRenderer {
     private _updateKnobVisual;
     private syncAllFromStore;
     private updateTelemetryUI;
+    private _inferPortColor;
     onStateUpdate(state: any): void;
 }
 export default ModuleRenderer;

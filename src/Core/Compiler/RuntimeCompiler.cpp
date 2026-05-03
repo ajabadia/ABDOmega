@@ -1,6 +1,6 @@
 #include "RuntimeCompiler.h"
-#include "../../Engine/Voice/VoiceArchitectureCompiler.h"
 #include "../../Core/Providers/ModulationTelemetryRegistry.h"
+#include "../../Core/Util/ParamIdRegistry.h"
 #include <algorithm>
 #include <map>
 
@@ -49,7 +49,7 @@ namespace Compiler {
                         }
                     }
                     if (!valueSet) unit.baseValues[pIdx] = pDef.defaultValue;
-                    unit.stableParamIds[pIdx] = static_cast<uint32_t>(pIdx); // Placeholder
+                    unit.stableParamIds[pIdx] = ParamIdRegistry::getInstance().getStableId(pDef.id);
                 }
             }
 
@@ -80,8 +80,14 @@ namespace Compiler {
         for (int i = 0; i < 256; ++i) snapshot.globalParams[i] = 0.0f;
         snapshot.globalParams[0] = doc.masterGainDb;
         
-        // 5. Finalización
-        snapshot.snapshotId = 1234; // TODO: Real Hash
+        // 5. Configuración de Voz Aséptica (Era 7.2.3)
+        // [TODO] Mapeo dinámico desde el PatchDocument. 
+        // Por ahora cargamos valores de seguridad asépticos.
+        snapshot.voiceConfig.cutoff = 2000.0f;
+        snapshot.voiceConfig.vcaGain = doc.masterGainDb > -90.0f ? 0.8f : 0.0f;
+        
+        // 6. Finalización
+        snapshot.snapshotId = 1234; 
         snapshot.isValid = true;
         snapshot.voicePlan.isInitialised = true;
 

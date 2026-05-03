@@ -7,9 +7,7 @@
 #include "../Core/Providers/SemanticBrokerService.h"
 #include "../Core/Providers/ModulationTelemetryHub.h"
 #include "../Core/Providers/ParamBindingRegistry.h"
-#include "../Engine/Voice/VoiceArchitectureCompiler.h"
 #include "../Core/Service/ISynthesisEngine.h"
-#include "../Core/Providers/PresetService.h"
 
 namespace Omega {
 namespace Plugin {
@@ -21,70 +19,38 @@ namespace Plugin {
           mValidator (mCatalog),
           mSystemSettings (),
           mEngine (mSystemSettings),
-          mInput (),
-          mCurrentPreset (),
-          mPresetRepository (),
           mApvts (*this, nullptr, "PARAMETERS", createParameterLayout()),
           mEngineConfig (mEngine, mCatalog),
-          mPresetService (mCatalog),
-          mUiBridge (this, mCurrentPreset, mCatalog, &mPresetRepository, mApvts, mSystemSettings)
+          mUiBridge (this, mCatalog, mApvts, mSystemSettings)
     {
-        mUiBridge.setOnLoadCallback([this](const Core::Preset::OmegaPreset& p) { loadPreset(p); });
+        mUiBridge.setOnLoadCallback([this]() { /* [Era 7] Patch refresh handled via Bridge/Config */ });
 
-        // Deep Root Resource Discovery (Vision 2.1.2)
         juce::File exe = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
         juce::File resourceDir = exe.getParentDirectory().getChildFile("Resources");
 
-        if (resourceDir.exists()) {
-            ::juce::Logger::writeToLog("ACE: Resources found IMMEDIATELY at: " + resourceDir.getFullPathName());
-        }
-
-        // Upward search for Resources/ folder (up to 15 levels for deep IDE builds)
         int levelsSearched = 0;
         while (!resourceDir.exists() && levelsSearched < 15 && !exe.isRoot()) {
-            ::juce::Logger::writeToLog("ACE: Searching for Resources in: " + exe.getFullPathName());
             exe = exe.getParentDirectory();
             resourceDir = exe.getChildFile("Resources");
             levelsSearched++;
         }
 
         if (resourceDir.exists()) {
-            ::juce::Logger::writeToLog("ACE: Resources found at level " + ::juce::String(levelsSearched) + ": " + resourceDir.getFullPathName());
-            
-            ::juce::File modulesDir = resourceDir.getChildFile("modules");
+            juce::File modulesDir = resourceDir.getChildFile("modules");
+            mCatalog.loadFromModulesDirectory(modulesDir);
 
-            if (mCatalog.loadFromModulesDirectory(modulesDir)) {
-                ::juce::Logger::writeToLog("ACE: Discovered Atomic YAML/WASM modules.");
-            }
-
-            // NEW: Scanning for OmegaPacks (Era 7.1)
             juce::Array<juce::File> packs;
             modulesDir.findChildFiles(packs, juce::File::findFiles, false, "*.zip;*.acepack");
             for (const auto& pack : packs) {
-                if (mCatalog.loadFromAcePack(pack)) {
-                    ::juce::Logger::writeToLog("ACE: Loaded OmegaPack: " + pack.getFileName());
-                }
+                mCatalog.loadFromAcePack(pack);
             }
 
             Core::Service::SemanticBrokerService::getInstance().setCatalog(&mCatalog);
-            ::juce::Logger::writeToLog("ACE: Total Catalog size: " + ::juce::String((int)mCatalog.getComponents().size()) + " modules.");
-        } else {
-            ::juce::Logger::writeToLog("CRITICAL: OMEGA Resources directory NOT FOUND after 10 levels of searching.");
         }
 
-        loadPreset(Core::Preset::OmegaPreset::createMinimal());
-        
-        // [VISION 2.1.3/2.1.4/2.1.5]: Hardened Diagnostics
-        int modCount = 0;
-        if (mCurrentPreset.getNumLayers() > 0) {
-            auto l0 = mCurrentPreset.getLayerTree(0);
-            if (l0.isValid()) {
-                auto arch = l0.getChildWithName(Core::Identifiers::voiceArch);
-                if (arch.isValid()) modCount = arch.getNumChildren();
-            }
-        }
-        juce::Logger::writeToLog("ACE: Initial Preset loaded. Modules in Layer 0: " + juce::String(modCount));
-        
+        // Cache parameters (Era 7 Minimal Set)
+        mParamCache.mainVcaGain = mApvts.getRawParameterValue("LAYERAMAINVCAGAIN");
+
         startTimer(30); 
     }
 
@@ -95,62 +61,18 @@ namespace Plugin {
     void OmegaAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
         juce::ScopedNoDenormals noDenormals;
         
-        // 1. Convert JUCE MIDI to OMEGA Input Events (Era 5.2 Gold Transparency)
-        mInput.clear();
-        for (const auto metadata : midiMessages) {
-            auto msg = metadata.getMessage();
-            ::Omega::Core::Input::InputEvent ev;
-            ev.sampleOffset = metadata.samplePosition;
-            
-            // Note-On/Off Handling (Legacy compatibility for Engine Internal)
-            if (msg.isNoteOn()) {
-                ev.type = ::Omega::Core::Input::InputEventType::NoteOn;
-                ev.data.noteOn.noteId = msg.getNoteNumber();
-                ev.data.noteOn.pitch = (float)msg.getNoteNumber();
-                ev.data.noteOn.velocity = msg.getFloatVelocity();
-                mInput.addEvent(ev);
-            } else if (msg.isNoteOff()) {
-                ev.type = ::Omega::Core::Input::InputEventType::NoteOff;
-                ev.data.noteOff.noteId = msg.getNoteNumber();
-                ev.data.noteOff.releaseVelocity = msg.getFloatVelocity();
-                mInput.addEvent(ev);
-            }
-
-            // Universal MIDI Injection (VA 2.2 Gold Hub)
-            // We generate a RawMidi event for EVERY message to ensure transparency.
-            ::Omega::Core::Input::InputEvent rawEv;
-            rawEv.sampleOffset = metadata.samplePosition;
-            rawEv.type = ::Omega::Core::Input::InputEventType::RawMidi;
-            rawEv.data.rawMidi.status = msg.getRawData()[0];
-            rawEv.data.rawMidi.d1 = msg.getRawDataSize() > 1 ? msg.getRawData()[1] : 0;
-            rawEv.data.rawMidi.d2 = msg.getRawDataSize() > 2 ? msg.getRawData()[2] : 0;
-            mInput.addEvent(rawEv);
-
-            ::Omega::Core::Input::MidiMonitor::getInstance().pushEvent(msg);
-        }
-        // midiMessages.clear(); // Keep for Post-processing if needed
-
-        // 2. Render Engine (Absolute Interface Fulfillment)
-        mEngine.renderNextBlock(buffer, mInput);
-        
-        // 3. Post-Process FX (Legacy / Placeholder)
-        if (mParamCache.delayEnabled && mParamCache.delayEnabled->load() > 0.5f) {
-            mMasterDelay.process(buffer);
-        }
+        // [Era 7] Pure Aseptic Rendering. 
+        // All legacy FX pools (Delay, Space Echo) have been purged.
+        mEngine.renderNextBlock(buffer);
     }
 
-    void OmegaAudioProcessor::loadPreset(const Core::Preset::OmegaPreset& preset) {
-        mCurrentPreset = preset;
-        mEngineConfig.applyPreset(mCurrentPreset);
+    void OmegaAudioProcessor::loadPatch(const Core::Model::PatchDocument& patch) {
+        mEngineConfig.applyPatch(patch);
         mUiBridge.forceRepaint();
     }
 
-    void OmegaAudioProcessor::saveCurrentPreset() {
-        // [Era 6.3] Industrial Save: Serialize current state to a default location
-        juce::File desktop = juce::File::getSpecialLocation(juce::File::userDesktopDirectory);
-        juce::File file = desktop.getChildFile("OMEGA_SAVE.yaml");
-        mCurrentPreset.saveToYaml(file.getFullPathName().toStdString());
-        juce::Logger::writeToLog("ACE: Preset saved to: " + file.getFullPathName());
+    void OmegaAudioProcessor::saveCurrentPatch() {
+        // [TODO] Serialize mEngineConfig.getPatchDocument() to disk.
     }
 
     juce::AudioProcessorValueTreeState::ParameterLayout OmegaAudioProcessor::createParameterLayout() {
@@ -171,13 +93,13 @@ namespace Plugin {
         else mEngine.noteOff(0);
     }
 
-    void OmegaAudioProcessor::prepareToPlay(double sr, int sb) { mEngine.prepare(sr, sb); mMasterDelay.prepare(sr); }
+    void OmegaAudioProcessor::prepareToPlay(double sr, int sb) { mEngine.prepare(sr, sb); }
     void OmegaAudioProcessor::releaseResources() {}
-    void OmegaAudioProcessor::getStateInformation(juce::MemoryBlock& d) { mPresetService.serializePreset(mCurrentPreset, d); }
-    void OmegaAudioProcessor::setStateInformation(const void* d, int s) { loadPreset(mPresetService.deserializePreset(d, s)); }
+    void OmegaAudioProcessor::getStateInformation(juce::MemoryBlock& d) { /* Legacy serialization purged */ }
+    void OmegaAudioProcessor::setStateInformation(const void* d, int s) { /* Legacy serialization purged */ }
     bool OmegaAudioProcessor::acceptsMidi() const { return true; }
     bool OmegaAudioProcessor::producesMidi() const { return false; }
-    double OmegaAudioProcessor::getTailLengthSeconds() const { return 0.5; }
+    double OmegaAudioProcessor::getTailLengthSeconds() const { return 0.1; }
     int OmegaAudioProcessor::getNumPrograms() { return 1; }
     int OmegaAudioProcessor::getCurrentProgram() { return 0; }
     void OmegaAudioProcessor::setCurrentProgram(int) {}
@@ -186,7 +108,7 @@ namespace Plugin {
     
     void OmegaAudioProcessor::timerCallback() { updateParameters(); }
     void OmegaAudioProcessor::updateParameters() noexcept {
-        if (mParamCache.mainVcaGain) mEngineConfig.updateParameter("LAYERAMAINVCAGAIN", mParamCache.mainVcaGain->load());
+        if (mParamCache.mainVcaGain) mEngineConfig.updateParameter(0, Core::Model::ParamId::Amplitude, mParamCache.mainVcaGain->load());
     }
 
 } // namespace Plugin

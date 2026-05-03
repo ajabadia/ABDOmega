@@ -1,6 +1,6 @@
 /**
  * OMEGA Synthesizer - Main Entry Point (TypeScript)
- * Era 6.1 - Absolute Aseptic Boot
+ * Era 7.2.3 - Absolute Aseptic Boot
  */
 
 import { OmegaLog } from './omega_log.js';
@@ -11,18 +11,15 @@ import { Preferences } from './preferences.js';
 import { ServiceMode } from './service.js';
 import { PresetBrowser } from './components/PresetBrowser.js';
 import { ModuleRenderer } from './module_renderer.js';
-import { ModuleOscilloscope } from './components/ModuleOscilloscope.js';
-import { ModuleMidiTrigger } from './components/ModuleMidiTrigger.js';
-import { ModuleMidiViewer } from './components/ModuleMidiViewer.js';
 import { ModulePatchbayMatrix } from './components/ModulePatchbayMatrix.js';
 import { ModulePatchModal } from './components/ModulePatchModal.js';
-import { ModuleMidiToCv } from './components/ModuleMidiToCv.js';
 import { ModuleBrowser } from './components/ModuleBrowser.js';
 import { InventoryStore } from './InventoryStore.js';
 import { RpcCommandDispatcher } from './RpcCommandDispatcher.js';
 import { RuntimeStore, GraphStore, SessionStore } from './runtimeStores.js';
 import { SchemaStore } from './SchemaStore.js';
 import { ModuleRegistry } from './ModuleRegistry.js';
+import { RuntimeEventHub } from './logic/RuntimeEventHub.js';
 
 // Bridge to window for legacy component compatibility (limited)
 const win = window as any;
@@ -49,13 +46,8 @@ win.OmegaLog = OmegaLog;
 const manager = new ModuleManager();
 win.moduleManager = manager;
 
-// Component Registry
 ModuleRegistry.register("ModuleRenderer", ModuleRenderer);
-ModuleRegistry.register("ModuleOscilloscope", ModuleOscilloscope);
-ModuleRegistry.register("ModuleMidiTrigger", ModuleMidiTrigger);
-ModuleRegistry.register("ModuleMidiViewer", ModuleMidiViewer);
 ModuleRegistry.register("ModulePatchbayMatrix", ModulePatchbayMatrix);
-ModuleRegistry.register("ModuleMidiToCv", ModuleMidiToCv);
 ModuleRegistry.register("ModuleBrowser", ModuleBrowser);
 
 win.Preferences = Preferences;
@@ -63,7 +55,6 @@ win.ServiceMode = ServiceMode;
 win.ModuleRenderer = ModuleRenderer;
 
 // 4. Global Aseptic Hub - Unified Era 7 Pipeline (CRITICAL: MUST BOOT FIRST)
-import { RuntimeEventHub } from './logic/RuntimeEventHub.js';
 
 // Initialize System
 document.addEventListener('DOMContentLoaded', () => {

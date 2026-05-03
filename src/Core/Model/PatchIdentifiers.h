@@ -98,11 +98,12 @@ namespace Model {
         EnvDepth = 54,
         LfoDepth = 55,
         
-        // Envolventes
+        // Envolventes / VCA
         Attack = 100,
         Decay = 101,
         Sustain = 102,
         Release = 103,
+        Amplitude = 150,
         
         // FX / Global
         Mix = 200,

@@ -62,9 +62,9 @@
 }
 
 .cat-item.active {
-    background: var(--juno-red);
+    background: #ff3e3e;
     color: #fff;
-    box-shadow: 0 0 10px rgba(255, 75, 75, 0.3);
+    box-shadow: 0 0 10px rgba(255, 62, 62, 0.3);
 }
 
 /* Main Grid */
@@ -184,7 +184,7 @@
 .btn-add-to-rack {
     width: 100%;
     padding: 15px;
-    background: var(--juno-orange);
+    background: #ff8c00;
     color: #fff;
     border: none;
     border-radius: 4px;
@@ -194,6 +194,6 @@
 }
 
 .btn-add-to-rack:hover {
-    background: #ffae00;
-    box-shadow: 0 0 15px rgba(255, 166, 0, 0.4);
+    background: #ffaa00;
+    box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);
 }

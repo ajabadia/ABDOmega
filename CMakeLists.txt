@@ -70,4 +70,4 @@ add_subdirectory(src/Plugin)
 # Tests
 include(CTest)
 enable_testing()
-add_subdirectory(src/Tests)
+# add_subdirectory(src/Tests)

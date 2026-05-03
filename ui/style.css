@@ -9,17 +9,12 @@
     --omega-neutral: #1a1a1a;
     --neon-cyan: #00f2ff;
     --neon-amber: #ffaa00;
-    --juno-orange: #ff7700;
-    --juno-red: #ff3c3c;
-    --jp-blue: #2a3d52;
-    --korg-black: #0d0d0d;
-    --korg-silver: #c0c0c0;
-    --space-green: #2b3a2a;
     
-    /* OMEGA 2.0 Modular Signal Colors */
-    --signal-midi: #ca00ff;
-    --signal-cv: #00f2ff;
-    --signal-audio: #39ff14;
+    /* OMEGA 2.0 Modular Signal Colors (Era 7.2.3 Aligned) */
+    --signal-midi: #ff8c00;
+    --signal-cv: var(--neon-amber);
+    --signal-audio: var(--neon-cyan);
+    --signal-gate: #ffffff;
 
     /* OMEGA ERA 7.2.3 — UNIFIED SKIN TOKENS */
     
@@ -27,24 +22,26 @@
     --industrial-bg: #151515;
     --industrial-border: rgba(255,255,255,0.08);
     --industrial-accent: var(--neon-cyan);
-    --industrial-glass-blur: 0px;
+    --industrial-text: #eee;
 
     /* Skin: Carbon (Dark/High-Tech) */
     --carbon-bg: #0a0a0a;
     --carbon-border: rgba(0, 242, 255, 0.15);
     --carbon-accent: var(--neon-cyan);
-    --carbon-texture: linear-gradient(45deg, #111 25%, transparent 25%), linear-gradient(-45deg, #111 25%, transparent 25%);
+    --carbon-text: #fff;
 
     /* Skin: Glass (Futuristic/Transparent) */
     --glass-bg: rgba(20, 25, 30, 0.4);
     --glass-border: rgba(255, 255, 255, 0.12);
     --glass-accent: #fff;
+    --glass-text: #fff;
     --glass-blur: 12px;
 
     /* Skin: Minimal (Technical/Clean) */
     --minimal-bg: transparent;
     --minimal-border: rgba(255,255,255,0.05);
     --minimal-accent: #888;
+    --minimal-text: #aaa;
 }
 
 body, html {
@@ -249,6 +246,9 @@ body, html {
     display: flex;
     align-items: center;
     padding: 0 10px;
+    position: relative;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .ModuleOscilloscope.master-view {
@@ -258,8 +258,75 @@ body, html {
 }
 
 .rack-row.lower {
-    height: var(--rack-height);
+    height: var(--rack-height, 630px);
     flex-grow: 1;
+    background: rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+}
+
+/* --- ERA 7 INDUSTRIAL CONTAINERS (Consolidated) --- */
+.layout-container {
+    position: absolute;
+    pointer-events: none;
+    border-style: solid;
+    border-width: 1px;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+    box-sizing: border-box;
+}
+
+.container-variant-header {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 100%);
+    border-bottom-width: 2px;
+}
+
+.container-variant-inset {
+    border-color: rgba(0, 0, 0, 0.6);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 100%);
+    box-shadow: 
+        inset 0 4px 12px rgba(0, 0, 0, 0.8),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05);
+}
+
+.container-variant-section {
+    border-color: rgba(255, 255, 255, 0.05);
+    border-left: 2px solid var(--industrial-accent);
+    background: transparent;
+}
+
+.container-label {
+    position: absolute;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    color: var(--industrial-accent);
+    font-size: calc(7px * var(--render-scale, 1));
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.label-pos-top { top: -8px; left: 10px; }
+.label-pos-bottom { bottom: -8px; left: 10px; }
+.label-pos-inside-top { top: 5px; left: 10px; }
+
+.active-pulse {
+    animation: container-pulse 2s ease-out;
+}
+
+@keyframes container-pulse {
+    0% { background-color: rgba(0, 242, 255, 0.1); }
+    100% { background-color: transparent; }
 }
 
 /* Custom Scrollbar for Racks */
@@ -476,11 +543,51 @@ body, html {
     transition: background 0.3s ease;
 }
 
-/* Base Skin Overrides */
-.skin-carbon.aseptic-module { --omega-module-bg: var(--carbon-bg); --omega-module-border: var(--carbon-border); }
-.skin-glass.aseptic-module { --omega-module-bg: var(--glass-bg); --omega-module-border: var(--glass-border); backdrop-filter: blur(var(--glass-blur)); }
-.skin-minimal.aseptic-module { --omega-module-bg: #050505; --omega-module-border: var(--minimal-border); }
-.skin-industrial.aseptic-module { --omega-module-bg: var(--industrial-bg); --omega-module-border: var(--industrial-border); }
+/* Base Skin Overrides (Mapping to Semantic wb- tokens) */
+.skin-carbon.aseptic-module { 
+    --omega-module-bg: var(--carbon-bg); 
+    --omega-module-border: var(--carbon-border);
+    --wb-surface: var(--carbon-bg);
+    --wb-outline: var(--carbon-border);
+    --wb-accent: var(--carbon-accent);
+    --wb-text: var(--carbon-text);
+}
+.skin-glass.aseptic-module { 
+    --omega-module-bg: var(--glass-bg); 
+    --omega-module-border: var(--glass-border); 
+    backdrop-filter: blur(var(--glass-blur)); 
+    --wb-surface: var(--glass-bg);
+    --wb-outline: var(--glass-border);
+    --wb-accent: var(--glass-accent);
+    --wb-text: var(--glass-text);
+}
+.skin-minimal.aseptic-module { 
+    --omega-module-bg: #050505; 
+    --omega-module-border: var(--minimal-border); 
+    --wb-surface: #050505;
+    --wb-outline: var(--minimal-border);
+    --wb-accent: var(--minimal-accent);
+    --wb-text: var(--minimal-text);
+}
+.skin-industrial.aseptic-module { 
+    --omega-module-bg: var(--industrial-bg); 
+    --omega-module-border: var(--industrial-border); 
+    --wb-surface: var(--industrial-bg);
+    --wb-outline: var(--industrial-border);
+    --wb-accent: var(--industrial-accent);
+    --wb-text: var(--industrial-text);
+}
+
+.cell-label {
+    font-size: 8px;
+    font-weight: 900;
+    color: var(--wb-text);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
 
 .module-header {
     padding: 6px 10px;
@@ -517,7 +624,7 @@ body, html {
 }
 
 .module-close-btn:hover {
-    color: var(--juno-red);
+    color: #ff3e3e;
     background: rgba(255,0,0,0.1);
 }
 
@@ -569,131 +676,6 @@ body, html {
     to { opacity: 1; transform: scale(1.1); }
 }
 
-/* --- OMEGA UNIVERSAL KIT --- */
-.panel {
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    height: 100%;
-    box-sizing: border-box;
-    width: fit-content;
-    min-width: 120px;
-    background: #151515;
-}
-
-.universal-panel {
-    background: linear-gradient(145deg, #18191b 0%, #0d0e10 100%);
-    border-left: 4px solid #444;
-}
-
-.module-grid {
-    gap: 12px !important;
-}
-
-.control-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-}
-
-.control-group label {
-    font-size: 10px;
-    color: #666;
-    text-transform: uppercase;
-    font-weight: 800;
-    letter-spacing: 1px;
-}
-
-/* --- JUNO FAMILY KIT --- */
-.juno-panel {
-    background-image: url('juno_bg.png');
-    background-size: cover;
-    background-repeat: no-repeat;
-    border-left: 4px solid var(--juno-orange);
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
-}
-
-.juno-panel .module-header { border-bottom-color: var(--juno-orange); color: #eee; }
-.juno-panel label { color: #aaa; }
-
-.juno-panel .knob {
-    background: radial-gradient(circle, #333 0%, #111 100%);
-    border-color: #444;
-}
-
-.juno-panel .knob-marker { background-color: var(--juno-red); width: 3px; }
-
-/* --- JP FAMILY KIT --- */
-.jp-panel {
-    background-image: url('jp8000_bg.png');
-    background-size: cover;
-    background-repeat: no-repeat;
-    border-left: 4px solid var(--neon-cyan);
-    color: #eee;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
-}
-
-.jp-panel label { color: var(--neon-cyan); opacity: 0.7; }
-
-.jp-panel .knob {
-    background: radial-gradient(circle, #666 0%, #333 100%);
-    border-color: #888;
-}
-
-.jp-panel .knob-marker { background-color: #fff; box-shadow: 0 0 5px #fff; }
-
-/* --- KORG MS-20 FAMILY KIT --- */
-.korg-ms20-panel {
-    background-image: url('ms20_bg.png');
-    background-size: cover;
-    background-repeat: no-repeat;
-    border-left: 4px solid #fff;
-    color: #eee !important;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
-}
-
-.korg-ms20-panel label { color: #fff; font-family: 'Consolas', monospace; font-size: 9px; }
-
-.korg-ms20-panel .knob {
-    border-radius: 2px; /* Más anguloso */
-    background: #111;
-    border: 2px solid #444;
-}
-
-/* --- KORG PROPHECY FAMILY KIT --- */
-.korg-prophecy-panel {
-    background-image: url('juno_bg.png'); /* Temporarily use juno_bg for prophecy until a silver one is final */
-    background-size: cover;
-    background-repeat: no-repeat;
-    border-left: 4px solid #444;
-    color: #111 !important;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.1); /* Lighter shadow for silver panel */
-}
-
-.korg-prophecy-panel label { color: #222; font-weight: 900; }
-.korg-prophecy-panel .module-header { color: #000; border-bottom-color: #444; }
-
-.korg-prophecy-panel .knob {
-    background: radial-gradient(circle, #eee 0%, #aaa 100%);
-    border-color: #999;
-}
-
-.korg-prophecy-panel .knob-marker { background-color: #000; }
-
-/* --- SPACE ECHO FAMILY KIT --- */
-.space-panel {
-    background-image: url('space_echo_bg.png');
-    background-size: cover;
-    background-repeat: no-repeat;
-    border-left: 4px solid #88ff88;
-    color: #fff;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
-}
-
-.space-panel label { color: #88ff88; font-style: italic; }
-
 .v-slider {
     -webkit-appearance: none;
     width: 24px;
@@ -736,52 +718,47 @@ button.sq.active.juno-red {
     width: var(--knob-size, 38px);
     height: var(--knob-size, 38px);
     border-radius: 50%;
-    background: var(--module-knob-bg, radial-gradient(circle, #444 0%, #222 100%));
-    border: 2px solid var(--module-knob-border, #666);
+    /* Era 7: Brushed Aluminum Texture */
+    background: 
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 50%),
+        radial-gradient(circle, #444 0%, #222 100%);
+    border: 1px solid rgba(255,255,255,0.05);
     position: relative;
     cursor: ns-resize;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    box-shadow: 
+        0 4px 10px rgba(0,0,0,0.6), 
+        inset 0 2px 3px rgba(255,255,255,0.1),
+        inset 0 -2px 3px rgba(0,0,0,0.4);
     transition: transform 0.1s ease;
+}
+
+.knob::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, 
+        rgba(255,255,255,0.02) 0deg 15deg, 
+        rgba(0,0,0,0.02) 15deg 30deg);
+    pointer-events: none;
 }
 
 .knob:active {
     transform: scale(1.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.8);
 }
 
 .knob-marker {
     position: absolute;
-    top: 3px;
+    top: 4px;
     left: 50%;
     width: 3px;
     height: 10px;
-    background: var(--module-accent, #fff);
-    border-radius: 2px;
-    transform-origin: 50% 16px;
-    box-shadow: 0 0 5px var(--module-glow, transparent);
-}
-
-.echo-tape-area {
-    height: 100px;
-    background: #111;
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    border: 2px solid #444;
-}
-
-.reel {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: #333;
-    border: 3px dashed #666;
-    animation: rotate-reel 2s linear infinite;
-}
-
-@keyframes rotate-reel {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    background: var(--wb-accent, #fff);
+    border-radius: 1px;
+    transform-origin: 50% 15px;
+    box-shadow: 0 0 8px var(--wb-accent);
+    z-index: 5;
 }
 
 button.sq.active.juno-orange {
@@ -1585,51 +1562,92 @@ button.sq.active.juno-orange {
     100% { opacity: 1; }
 }
 
-/* Vertical Knob Control */
-.knob-control {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 0;
+/* --- CRT Screen Effect (Global Overlay) --- */
+.crt-screen {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: 
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.015), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.015));
+    background-size: 100% 4px, 3px 100%;
+    pointer-events: none;
+    z-index: 100000;
+    opacity: 0.8;
 }
 
-.knob-control label {
-    font-size: 0.6rem;
-    color: var(--text-dim);
-    font-weight: bold;
-    text-transform: uppercase;
-}
-
-.knob {
-    width: 36px;
-    height: 36px;
-    background: radial-gradient(circle at center, #444 0%, #222 70%, #111 100%);
-    border-radius: 50%;
-    border: 2px solid #333;
-    position: relative;
-    cursor: ns-resize;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.5), inset 0 0 5px rgba(255,255,255,0.1);
-}
-
-.knob-marker {
+.crt-screen::after {
+    content: " ";
+    display: block;
     position: absolute;
-    top: 4px;
-    left: 50%;
-    width: 2px;
-    height: 10px;
-    background-color: #fff;
-    transform-origin: bottom center;
-    transform: translateX(-50%) rotate(var(--knob-angle, -135deg));
-    border-radius: 2px;
-    box-shadow: 0 0 5px rgba(255,255,255,0.5);
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: rgba(18, 16, 16, 0.03);
+    opacity: 0;
+    z-index: 100001;
+    pointer-events: none;
+    animation: flicker 0.15s infinite;
 }
 
-/* Silver Metallic Theme (Korg style) */
-.silver-metallic {
-    background: linear-gradient(135deg, #e0e0e0 0%, #b0b0b0 50%, #808080 100%) !important;
-    border: 1px solid #666 !important;
-    box-shadow: inset 0 0 10px rgba(255,255,255,0.5), 2px 2px 5px rgba(0,0,0,0.3) !important;
+@keyframes flicker {
+    0% { opacity: 0.27; }
+    50% { opacity: 0.32; }
+    100% { opacity: 0.27; }
+}
+
+/* Port & Jack High Fidelity (Editor Parity) */
+.port-socket {
+    width: calc(24px * var(--render-scale, 1.5));
+    height: calc(24px * var(--render-scale, 1.5));
+    background: #000;
+    border: 2px solid #444;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    transition: border-color 0.3s;
+}
+
+.port-socket:hover { border-color: #666; }
+
+.port-inner {
+    width: 60%;
+    height: 60%;
+    background: #111;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+}
+
+.port-led {
+    width: 25%;
+    height: 25%;
+    border-radius: 50%;
+    background: var(--port-color, var(--neon-cyan));
+    opacity: 0.3;
+    box-shadow: 0 0 8px var(--port-color);
+    transition: opacity 0.2s, box-shadow 0.2s;
+}
+
+/* LED Activity Heatmap */
+.port-led.active {
+    opacity: 1;
+    box-shadow: 0 0 12px var(--port-color), 0 0 4px white;
+}
+
+/* Normalized Scaling for Labels */
+.cell-label {
+    font-size: calc(8px * var(--render-scale, 1.5));
+    font-weight: 900;
+    color: var(--wb-text);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
 .knob.silver {

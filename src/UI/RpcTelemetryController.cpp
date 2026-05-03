@@ -59,28 +59,6 @@ namespace UI {
         // 1. DISCRETE TIER (Always collected - Very cheap)
         for (const auto& pinId : mDiscretePins) {
             int idx = registry.getPinIndex(pinId);
-            if (idx == -1 && pinId != "system:midi_monitor") continue;
-
-            // MIDI monitor is special (only push if has events)
-            if (pinId == "system:midi_monitor") {
-                if (includeStreaming) { // Only push MIDI monitor on "slow" frames or if significant
-                    auto events = Core::Input::MidiMonitor::getInstance().getRecentEvents(32);
-                    if (!events.empty()) {
-                        juce::Array<juce::var> midiArr;
-                        for (const auto& e : events) {
-                            juce::DynamicObject::Ptr obj = new juce::DynamicObject();
-                            obj->setProperty("type", (int)e.type);
-                            obj->setProperty("ch", (int)e.channel);
-                            obj->setProperty("d1", (int)e.data1);
-                            obj->setProperty("d2", (int)e.data2); 
-                            midiArr.add(juce::var(obj.get()));
-                        }
-                        results->setProperty(juce::String(pinId), midiArr);
-                    }
-                }
-                continue;
-            }
-
             juce::DynamicObject::Ptr pinData = new juce::DynamicObject();
             pinData->setProperty("pk", (double)hub.getPeakAndReset(idx));
             pinData->setProperty("v",  (double)hub.getLatest(idx));

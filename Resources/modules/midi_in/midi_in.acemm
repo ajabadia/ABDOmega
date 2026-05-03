@@ -1,4 +1,4 @@
-schemaVersion: 7.2.3
+schemaVersion: 7.0
 id: midi_in
 metadata:
   name: MIDI IN
@@ -8,14 +8,24 @@ metadata:
     - industrial
     - infrastructure
   rack:
-    slot: top
+    slot: upper
     hp: 4
     height_mode: compact
   status: beta
+  registry:
+    - id: led_activity
+      label: MIDI ACT
+      roles: [telemetry, internal]
+      direction: internal
+    - id: midi_out
+      label: MIDI OUT
+      roles: [output, stream]
+      direction: output
+      type: midi
 ui:
   dimensions:
     width: 60
-    height: 420
+    height: 140
   controls:
     - id: led_activity
       type: knob
@@ -23,12 +33,13 @@ ui:
       bind: led_activity
       label: MIDI ACT
       pos:
-        x: 26
-        'y': 107
+        x: 30
+        'y': 35
       presentation:
         tab: MAIN
         variant: red_3mm
         component: led
+        group: STATUS
         offsetX: 0
         offsetY: 0
         container: MONITORING
@@ -49,14 +60,16 @@ ui:
       label: MIDI OUT
       pos:
         x: 30
-        'y': 102
+        'y': 85
       presentation:
         tab: MAIN
         variant: industrial
         component: port
+        color: orange
+        group: BUS
         offsetX: 0
         offsetY: 0
-        container: OUTPUT_BUS
+        container: MONITORING
         attachments:
           - type: label
             position: bottom
@@ -73,26 +86,35 @@ ui:
         label: MIDI IN
         pos:
           x: 0
-          'y': 34
+          'y': 15
         size:
           w: full
-          h: 119
+          h: 110
         variant: header
         tab: MAIN
         collapsed: false
-      - id: OUTPUT_BUS
-        label: MIDI Bus
+      - id: STATUS
+        label: Status
         pos:
-          x: 0
-          'y': 60
+          x: 5
+          'y': 25
         size:
-          w: full
-          h: 120
+          w: 50
+          h: 45
         variant: inset
-        tab: MIDI
-        collapsed: false
+        tab: MAIN
+      - id: BUS
+        label: MIDI Data
+        pos:
+          x: 5
+          'y': 75
+        size:
+          w: 50
+          h: 45
+        variant: inset
+        tab: MAIN
     gridSnap: 5
-    activeTab: MIDI
+    activeTab: MAIN
 resources:
   wasm: midi_in.wasm
   contract: midi_in.contract.json

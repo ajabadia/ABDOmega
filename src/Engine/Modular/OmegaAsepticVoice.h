@@ -1,0 +1,83 @@
+#pragma once
+
+#include <cmath>
+#include <algorithm>
+#include <array>
+#include <juce_dsp/juce_dsp.h>
+
+/** [BUILD_FORCE_30] Absolute Aseptic Restoration of OMEGA Voice (Era 7). **/
+#include "../../Core/Providers/EngineConfig.h"
+#include "../../Core/Providers/ModulationTelemetryHub.h"
+
+namespace Omega {
+namespace Engine {
+namespace Modular {
+
+    using namespace ::Omega::Core::Providers;
+    using namespace ::Omega::Core::Service;
+
+    /**
+     * @brief OMEGA 2.0 Aseptic Modular Voice.
+     * Decoupled from legacy hardware emulations and "Fixed Architecture" naming.
+     */
+    class OmegaAsepticVoice {
+    public:
+        OmegaAsepticVoice() = default;
+
+        void prepare(double sampleRate, int samplesPerBlock) {
+            mSampleRate = sampleRate;
+            mAdsr.setSampleRate(sampleRate);
+            mVcfLpf.prepare({sampleRate, (uint32_t)samplesPerBlock, 1});
+            mVcfLpf.setType(::juce::dsp::FirstOrderTPTFilterType::lowpass);
+        }
+
+        void reset() { mAdsr.reset(); mVcfLpf.reset(); mIsActive = false; }
+        
+        void handleNoteOn(float noteNumber, float frequencyHz, float velocity) {
+            mBaseFrequency = frequencyHz; mVelocity = velocity;
+            mAdsr.noteOn(); mIsActive = true;
+            mPhase = 0.0f;
+        }
+
+        void noteOff() { mAdsr.noteOff(); }
+        bool isActive() const { return mIsActive || mAdsr.isActive(); }
+        
+        float getAmpEnvelopeLevel() const { 
+           return mAdsr.getNextSample(); 
+        }
+
+        void renderSample(float& outL, float& outR, float lfoVal, const ::Omega::Core::Service::VoiceConfig& cfg) 
+        {
+            float env = mAdsr.getNextSample();
+            if (!isActive()) { outL = outR = 0.0f; return; }
+
+            float pitchMod = (lfoVal * cfg.dcoLfoDepth) + cfg.jpDetune * 0.01f;
+            float currentFreq = mBaseFrequency * std::pow(2.0f, pitchMod);
+            
+            float phaseInc = (float)(currentFreq / mSampleRate);
+            mPhase += phaseInc;
+            if (mPhase >= 1.0f) mPhase -= 1.0f;
+            
+            float rawOsc = std::sin(mPhase * 2.0f * 3.14159265f); 
+            
+            float finalCutoff = std::clamp(cfg.cutoff + (env * cfg.vcfEnvDepth * 10000.0f), 20.0f, 20000.0f);
+            mVcfLpf.setCutoffFrequency(finalCutoff);
+            float filterOut = mVcfLpf.processSample(0, rawOsc);
+            
+            float finalSig = filterOut * env * 0.8f * mVelocity;
+            outL = finalSig;
+            outR = finalSig;
+        }
+
+    private:
+        double mSampleRate = 44100.0;
+        mutable ::juce::ADSR mAdsr;
+        ::juce::dsp::FirstOrderTPTFilter<float> mVcfLpf;
+        bool mIsActive = false;
+        float mBaseFrequency = 440.0f, mVelocity = 1.0f;
+        float mPhase = 0.0f;
+    };
+
+} // namespace Modular
+} // namespace Engine
+} // namespace Omega

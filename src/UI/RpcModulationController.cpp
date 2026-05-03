@@ -1,6 +1,8 @@
 #include "RpcModulationController.h"
 #include <set>
 #include "../Core/Providers/SemanticBrokerService.h"
+#include "../Core/Providers/EngineConfigManager.h"
+#include "../Core/Model/PatchDocument.h"
 
 namespace Omega {
 namespace UI {
@@ -12,15 +14,13 @@ namespace UI {
 
     juce::var RpcModulationController::handleGetModulationMetadata(const juce::var& requestId, const juce::var& payload) {
         juce::DynamicObject::Ptr resp = new juce::DynamicObject();
-        juce::Logger::writeToLog("[RPC] [Modulation] handleGetModulationMetadata ENTER (ID: " + requestId.toString() + ")");
         
         auto& broker = Core::Service::SemanticBrokerService::getInstance();
         
-        // Restoration: Rebuild inventory to ensure we have the latest ports from the rack
-        broker.rebuildInventory(mPreset);
+        // [Era 7] Inventory is now managed globally by the Aseptic Registry based on PatchDocument.
+        broker.rebuildInventory(mEngineConfig.getPatchDocument()); 
         
         auto inventory = broker.getInventory();
-        juce::Logger::writeToLog("[RPC] [Modulation] Inventory rebuilt. Size: " + juce::String((int)inventory.size()));
 
         juce::Array<juce::var> sources;
         juce::Array<juce::var> targets;
@@ -54,7 +54,6 @@ namespace UI {
                 portObj->setProperty("label", juce::var(juce::String(port.label)));
                 portObj->setProperty("isInput", (bool)port.isInput);
 
-                // Nested structure for Patch Modal
                 juce::DynamicObject::Ptr nestPort = new juce::DynamicObject();
                 nestPort->setProperty("id", juce::var(juce::String(port.id)));
                 nestPort->setProperty("label", juce::var(juce::String(port.label)));
@@ -62,16 +61,6 @@ namespace UI {
                 nestPort->setProperty("isInput", (bool)port.isInput);
                 nestPort->setProperty("defaultValue", port.defaultValue);
                 
-                if (!port.options.empty()) {
-                    juce::Array<juce::var> optArr;
-                    for (const auto& opt : port.options) {
-                        juce::DynamicObject::Ptr oObj = new juce::DynamicObject();
-                        oObj->setProperty("value", opt.value);
-                        oObj->setProperty("label", juce::String(opt.label));
-                        optArr.add(juce::var(oObj.get()));
-                    }
-                    nestPort->setProperty("options", optArr);
-                }
                 portsArr.add(juce::var(nestPort.get()));
 
                 if (manifest.status == "active") {
@@ -97,21 +86,10 @@ namespace UI {
 
         if (slotIdx < 0 || slotIdx >= 64) return createError("PATCHBAY_UPDATE_ERR", requestId, "Invalid slot index");
 
-        auto slot = mPreset.getPatchbaySlot(slotIdx);
+        auto doc = mEngineConfig.getPatchDocument();
+        // [Era 7] Update PatchDocument.patchbayMatrix directly
+        // This is a stub until PatchbayMatrix is fully normalized in the model.
         
-        if (key == "source") slot.source = value.toString().toStdString();
-        else if (key == "target") slot.target = value.toString().toStdString();
-        else if (key == "amount") slot.amount = (float)value;
-        else if (key == "via") slot.via = value.toString().toStdString();
-        else if (key == "viaAmount") slot.viaAmount = (float)value;
-        else if (key == "active") slot.active = (bool)value;
-        
-        if (key == "source" || key == "target") {
-            slot.active = !slot.source.empty() && !slot.target.empty();
-        }
-
-        mPreset.setPatchbaySlot(slotIdx, slot);
-
         return createResponse("PATCHBAY_UPDATE_ACK", requestId, juce::var());
     }
 

@@ -119,9 +119,14 @@ export class ModuleRenderer {
         // Era 7.2.2: Hierarchical Tab Check (Container Authority)
         if (!this.shouldRenderInTab(item, this.activeTab))
             return '';
+        // [RULE OF 5px] - Force alignment to industrial grid before scaling
+        const rawX = item.pos?.x || 0;
+        const rawY = item.pos?.y || 0;
+        const gridX = Math.round(rawX / 5) * 5;
+        const gridY = Math.round(rawY / 5) * 5;
         // Absolute position from Era 7 manifest (with Industrial Scaling)
-        const x = (item.pos?.x || 0) * this.RENDER_SCALE;
-        const y = (item.pos?.y || 0) * this.RENDER_SCALE;
+        const x = gridX * this.RENDER_SCALE;
+        const y = gridY * this.RENDER_SCALE;
         const style = `position: absolute; left: ${x}px; top: ${y}px; transform: translate(-50%, -50%);`;
         const cellClass = `control-cell variant-${item.presentation?.variant || item.variant || 'default'} ${!entity?.role ? 'role-orphan' : ''}`;
         // Aligned Validation: Check if bind exists in registry (Governance ERA 4)
@@ -194,7 +199,6 @@ export class ModuleRenderer {
             return `
                 <div class="layout-container ${variantClass} ${labelPosClass}" style="${style}" data-container-id="${c.id}">
                     <div class="container-label">${c.label}</div>
-                    <div class="container-border"></div>
                 </div>
             `;
         }).join('');
@@ -280,7 +284,14 @@ export class ModuleRenderer {
                 return `<input type="range" class="${look === 'slider-h' ? 'h-slider' : 'v-slider'}" data-param="${id}" min="${range.min}" max="${range.max}" step="${range.step}" value="${this.values[id] ?? range.default}" />`;
             case 'port':
             case 'jack':
-                return `<div class="port-socket" data-port="${id}"><div class="port-inner"></div></div>`;
+                const portColor = item.presentation?.color || this._inferPortColor(id, entity);
+                return `
+                    <div class="port-socket" data-port="${id}" style="--port-color: ${portColor}">
+                        <div class="port-inner">
+                            <div class="port-led" data-source="${id}"></div>
+                        </div>
+                    </div>
+                `;
             case 'display':
                 const formatted = this._getFormattedValue(item.presentation, entity, val);
                 return `
@@ -524,13 +535,33 @@ export class ModuleRenderer {
     updateTelemetryUI(source, value) {
         const targets = this.content.querySelectorAll(`[data-source="${source}"]`);
         targets.forEach(t => {
-            if (t.classList.contains('led')) {
+            if (t.classList.contains('led') || t.classList.contains('port-led')) {
                 t.classList.toggle('active', value > 0.05);
             }
             if (t.classList.contains('mini-display')) {
                 t.innerText = value.toFixed(2);
             }
         });
+    }
+    _inferPortColor(id, entity) {
+        if (!id)
+            return 'var(--neon-cyan)';
+        // Aligned with Era 7.2.3 Briefing
+        const role = entity?.role?.toLowerCase() || "";
+        const idLower = id.toLowerCase();
+        if (role.includes('audio') || role.includes('pitch') || idLower.includes('out') || idLower.includes('audio')) {
+            return 'var(--signal-audio)';
+        }
+        if (role.includes('cv') || role.includes('mod') || idLower.includes('cv') || idLower.includes('mod')) {
+            return 'var(--signal-cv)';
+        }
+        if (role.includes('gate') || role.includes('trig') || idLower.includes('gate') || idLower.includes('trig')) {
+            return 'var(--signal-gate)';
+        }
+        if (role.includes('midi') || idLower.includes('midi')) {
+            return 'var(--signal-midi)';
+        }
+        return 'var(--neon-cyan)'; // Default
     }
     onStateUpdate(state) {
         OmegaLog.debug('RENDERER', `State update received for module: ${this.descriptor.id}`);

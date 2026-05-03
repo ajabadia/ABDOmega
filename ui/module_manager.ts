@@ -7,19 +7,17 @@ import { type PatchDocumentV7 } from './omega_types.js';
 
 export class ModuleManager {
     private activeModules: Map<string, any> = new Map();
-    private oscilloscopes: any[] = [];
-    private midiViewer: any = null;
     private lastState: any = null;
 
     private isRendering: boolean = false;
     private lastFingerprint: string = "";
     private pendingState: any = null;
+    private renderGeneration: number = 0;
 
     constructor() {
         this.activeModules = new Map();
-        this.oscilloscopes = [];
-        this.midiViewer = null;
 
+        console.log("%c[!!!] MODULE_MANAGER_V7_ACTIVE [Build 2026.05.03]", "background: #00f2ff; color: #000; font-weight: bold; padding: 2px 5px;");
         OmegaLog.info('MANAGER', "ModuleManager Constructor Initialized.");
 
         // Era 7: Reactive Subscription
@@ -54,13 +52,15 @@ export class ModuleManager {
     }
 
     async updateRack(state: any): Promise<void> {
+        OmegaLog.info('MANAGER', "updateRack entry point");
         if (this.isRendering) {
-            OmegaLog.debug('MANAGER', "Render in progress. Queuing next update...");
+            OmegaLog.info('MANAGER', "Render in progress. Queuing next update...");
             this.pendingState = state;
             return;
         }
 
         this.isRendering = true;
+        const currentGeneration = ++this.renderGeneration;
         this.pendingState = null;
 
         try {
@@ -72,7 +72,7 @@ export class ModuleManager {
             const patch = safeState.patch as PatchDocumentV7;
             
             if (!patch) {
-                OmegaLog.debug('MANAGER', "No Era 7 patch found in state. Skipping structural update.");
+                OmegaLog.info('MANAGER', "No Era 7 patch found in state. Skipping structural update.");
                 this.isRendering = false;
                 return;
             }
@@ -83,7 +83,7 @@ export class ModuleManager {
             const isRackEmpty = patchModules.length === 0;
 
             if (fingerprint === this.lastFingerprint && !isRackEmpty) {
-                OmegaLog.debug('MANAGER', "Structure stable (Fingerprint match). Skipping full re-render.");
+                OmegaLog.info('MANAGER', "Structure stable (Fingerprint match). Skipping full re-render.");
                 this.activeModules.forEach(mod => {
                     if (mod.onStateUpdate) mod.onStateUpdate(state);
                 });
@@ -91,12 +91,6 @@ export class ModuleManager {
                 return;
             }
 
-            // [Era 7] Empty Rack Handshake Guard
-            if (isRackEmpty && this.activeModules.size > 0) {
-                OmegaLog.info('MANAGER', "Era 7 Patch is empty but racks are already populated. Holding current state for handshake.");
-                this.isRendering = false;
-                return;
-            }
 
             this.lastFingerprint = fingerprint;
             OmegaLog.info('MANAGER', `Structural change detected. Rebuilding racks... (Empty: ${isRackEmpty})`);
@@ -108,8 +102,6 @@ export class ModuleManager {
             if (lower) lower.innerHTML = '';
             
             this.activeModules.clear();
-            this.oscilloscopes = [];
-            this.midiViewer = null;
 
             if (isRackEmpty) {
                 OmegaLog.info('MANAGER', "Rack is now officially empty.");
@@ -130,11 +122,26 @@ export class ModuleManager {
                     if (!this.activeModules.has(instId)) {
                         const manifest = (window as any).schemaStore?.getSchema(componentId);
                         
-                        // Era 7 Industrial Routing
-                        let rackValue = (mod.rack || manifest?.rack || 'lower').toLowerCase();
-                        const targetRack = rackValue === 'upper' ? document.getElementById('upper-rack') : document.getElementById('lower-rack');
-                        const rackType = rackValue === 'upper' ? 'aux' : 'main';
+                        // Era 7 Industrial Routing (1U vs 3U)
+                        // Priority: Manifest (slot/height) > Patch Metadata
+                        const manifestRack = manifest?.rack?.slot || manifest?.rack || '';
+                        let rackValue = (manifestRack || mod.rack || 'lower').toString().toLowerCase();
+                        const isCompact = manifest?.height_mode === 'compact' || manifest?.metadata?.rack?.height_mode === 'compact' || manifest?.rack?.height_mode === 'compact';
+                        
+                        // [Era 7] Route to upper-rack if 'upper', 'top' or 'compact'
+                        const isUpper = rackValue === 'upper' || rackValue === 'top' || isCompact;
+                        const targetRack = isUpper ? document.getElementById('upper-rack') : document.getElementById('lower-rack');
+                        const rackType = isUpper ? 'aux' : 'main';
+
+                        console.log(`%c[!!!] ROUTING DEBUG: mod=${instId} (${componentId}) | manifestRack=${manifestRack} | isCompact=${isCompact} | isUpper=${isUpper} | targetFound=${!!targetRack}`, "color: #00f2ff; font-weight: bold;");
+
+                        if (isUpper && !document.getElementById('upper-rack')) {
+                            console.error(`%c[!!!] CRITICAL: upper-rack element not found in DOM!`, "color: #ff0000; font-weight: bold;");
+                        }
+
                         const className = manifest?.ui_class || "ModuleRenderer";
+
+                        if (currentGeneration !== this.renderGeneration) return;
 
                         await this.addModule(instId, className, rackType, targetRack, {
                             label: mod.label || componentId.toUpperCase(),
@@ -227,9 +234,7 @@ export class ModuleManager {
             }
             
             if (!schema.ui_class) {
-                if (schema.tags?.includes("midi_to_cv") || schema.tags?.includes("utility")) {
-                    className = "ModuleMidiToCv";
-                }
+                className = "ModuleRenderer";
             }
             
             await this.addModule(id, className, rackType, targetRack, { 
@@ -346,10 +351,6 @@ export class ModuleManager {
             
             if (instance.init) await instance.init();
             if (instance.onStateUpdate && this.lastState) instance.onStateUpdate(this.lastState);
-
-            // Specialized registration
-            if (className === "ModuleOscilloscope") this.oscilloscopes.push(instance);
-            if (className === "ModuleMidiViewer") this.midiViewer = instance;
         } else {
             console.error(`[ModuleManager] Module class not found in registry: ${className}`);
         }
@@ -361,10 +362,6 @@ export class ModuleManager {
                 if (el) el.remove();
                 if (mod.dispose) mod.dispose();
                 this.activeModules.delete(id);
-                
-                // Specialized cleanup
-                this.oscilloscopes = this.oscilloscopes.filter(o => o !== mod);
-                if (this.midiViewer === mod) this.midiViewer = null;
             }
         });
     }

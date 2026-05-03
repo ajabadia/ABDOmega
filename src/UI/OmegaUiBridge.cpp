@@ -2,29 +2,29 @@
 #include "../Plugin/OmegaAudioProcessor.h"
 #include <juce_core/juce_core.h>
 #include "../Core/Model/PatchIdentifiers.h"
+#include "../Core/Providers/EngineConfigManager.h"
 
 namespace Omega {
 namespace UI {
 
     OmegaUiBridge::OmegaUiBridge(Plugin::OmegaAudioProcessor* processor,
-                                 Core::Preset::OmegaPreset& preset, 
                                  Core::Ace::AceCatalog& catalog,
-                                 Core::Preset::PresetRepository* repository,
                                  juce::AudioProcessorValueTreeState& apvts,
                                  Core::Service::SystemSettingsManager& settings)
-        : mProcessor(processor), mPreset(preset), mApvts(apvts)
+        : mProcessor(processor), mApvts(apvts)
     {
-        mPresetController = std::make_unique<RpcPresetController>(mPreset, catalog, repository, mProcessor->getEngineConfigManager());
+        auto& config = mProcessor->getEngineConfigManager();
+
+        mPresetController = std::make_unique<RpcPresetController>(catalog, config);
         mTelemetryController = std::make_unique<RpcTelemetryController>(settings);
-        mSystemController = std::make_unique<RpcSystemController>(settings, repository);
+        mSystemController = std::make_unique<RpcSystemController>(settings);
         mMetadataController = std::make_unique<RpcMetadataController>(mProcessor);
         mInputController = std::make_unique<RpcInputController>(mProcessor);
-        mModulationController = std::make_unique<RpcModulationController>(mPreset);
-        mParameterController = std::make_unique<RpcParameterController>(mProcessor, mApvts, mPreset);
+        mModulationController = std::make_unique<RpcModulationController>(config);
+        mParameterController = std::make_unique<RpcParameterController>(mProcessor, mApvts);
         
         mPresetController->setOnConfigChangedCallback([this]() { forceRepaint(); });
 
-        // --- CONTEXTUAL COMMAND REGISTRATION ---
         mPresetController->registerCommands(mDispatcher, mOnLoadPreset);
         mTelemetryController->registerCommands(mDispatcher, mScopeState);
         mSystemController->registerCommands(mDispatcher, mProcessor);
@@ -33,22 +33,10 @@ namespace UI {
         mModulationController->registerCommands(mDispatcher);
         mParameterController->setupParameterCommands(mDispatcher);
 
-        // [Era 6] Final Nominal Bootstrap Commands
         mDispatcher.registerHandler("uiReady", [this](const juce::var& rid, const juce::var&) {
             forceRepaint();
             return createResponse("UI_READY_ACK", rid, juce::var());
         });
-
-        // [Era 6] Fail-Fast: Catch legacy protocols in the dispatcher
-        mDispatcher.registerHandler("setParam", [this](const juce::var& rid, const juce::var&) {
-            return createError("CONTRACTVIOLATION", rid, "Legacy protocol 'setParam' is deprecated. Use 'setParameter' command.");
-        });
-        mDispatcher.registerHandler("menuAction", [this](const juce::var& rid, const juce::var&) {
-            return createError("CONTRACTVIOLATION", rid, "Legacy protocol 'menuAction' is deprecated. Use 'newPreset' or 'exit' directly.");
-        });
-
-        auto& reg = Core::Providers::ModulationTelemetryRegistry::getInstance();
-        reg.registerPin("system", "midi_monitor", Core::Providers::TelemetryType::Discrete, "MIDI Monitor");
 
         mScopeState = juce::var(new juce::DynamicObject());
 
@@ -57,7 +45,6 @@ namespace UI {
                 mApvts.addParameterListener(p->getParameterID(), this);
         }
 
-        // [Era 6] Start Telemetry Push Timer (60Hz)
         startTimerHz(60);
     }
 
@@ -71,42 +58,29 @@ namespace UI {
 
     juce::String OmegaUiBridge::handleMessageFromUi(const juce::String& jsonMessage) {
         juce::var jsonVar = juce::JSON::parse(jsonMessage);
-        if (jsonVar.isVoid()) return createError("INVALID_JSON", 0, "Empty or invalid message body.");
+        if (jsonVar.isVoid()) return createError("INVALID_JSON", 0, "Empty message body.");
 
         juce::var type = jsonVar["type"];
         juce::var requestId = jsonVar.hasProperty("requestId") ? jsonVar["requestId"] : jsonVar["id"];
         juce::var payload = jsonVar["payload"];
 
-        juce::var result = handleMessageFromUiAsVar(type.toString(), requestId, payload);
+        juce::var result = mDispatcher.dispatch(type.toString(), requestId, payload);
         return juce::JSON::toString(result);
     }
 
     juce::var OmegaUiBridge::handleMessageFromUiAsVar(const juce::String& type, const juce::var& requestId, const juce::var& payload) {
-        DBG("[BRIDGE] CRITICAL: handleMessageFromUiAsVar CALLED - Type: " + type);
-        juce::Logger::writeToLog("[BRIDGE] RECV: " + type + " [ID: " + requestId.toString() + "]");
-        // [Era 6 Absolute] Universal Routing via Dispatcher
         return mDispatcher.dispatch(type, requestId, payload);
     }
 
     void OmegaUiBridge::timerCallback() {
-        // [Era 6] Multi-Tier Telemetry Push (Phased)
-        // Phase 1: Discrete (PK/V) - Always collected at 60Hz (Ultra-Cheap)
-        // Phase 2: Streaming (H)   - Collected every 4 frames at 15Hz (Expensive serialization)
-        
         mTelemetryFrameCounter++;
         bool includeStreaming = (mTelemetryFrameCounter % 4 == 0);
-        
         juce::var data = mTelemetryController->collectTelemetry(includeStreaming);
         
         if (!data.isVoid()) {
             juce::DynamicObject::Ptr push = new juce::DynamicObject();
             push->setProperty("type", "telemetryUpdate");
             push->setProperty("payload", data);
-            
-            // Add tier meta-info if streaming was included
-            if (includeStreaming) push->setProperty("tier", "streaming");
-            else push->setProperty("tier", "discrete");
-
             notifyUi(juce::var(push.get()));
         }
     }
@@ -141,16 +115,12 @@ namespace UI {
     }
 
     void OmegaUiBridge::setUiMessageCallback(MessageCallback callback) { mUiCallback = callback; }
-    void OmegaUiBridge::setOnLoadCallback(std::function<void(const Core::Preset::OmegaPreset&)> callback) { mOnLoadPreset = callback; }
+    void OmegaUiBridge::setOnLoadCallback(std::function<void()> callback) { mOnLoadPreset = callback; }
 
     void OmegaUiBridge::forceRepaint() {
-        DBG("[OmegaUiBridge] forceRepaint triggered - Broadcasting onStateUpdate");
         juce::DynamicObject::Ptr push = new juce::DynamicObject();
         push->setProperty("type", "onStateUpdate");
         
-        juce::var payload = mPresetController->presetToVar(mPreset);
-        
-        // [Era 7] Inject the actual PatchDocument into the payload
         auto& config = mProcessor->getEngineConfigManager();
         auto doc = config.getPatchDocument();
         
@@ -174,12 +144,12 @@ namespace UI {
             modules.add(mo.get());
         }
         patchObj->setProperty("modules", modules);
-        if (auto* root = payload.getDynamicObject()) {
-            root->setProperty("patch", patchObj.get());
-            root->setProperty("schemaVersion", "7.0");
-        }
         
-        push->setProperty("payload", payload);
+        juce::DynamicObject::Ptr payload = new juce::DynamicObject();
+        payload->setProperty("patch", patchObj.get());
+        payload->setProperty("schemaVersion", "7.0");
+
+        push->setProperty("payload", juce::var(payload.get()));
         notifyUi(juce::var(push.get()));
     }
 

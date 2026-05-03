@@ -14,6 +14,7 @@ export declare class ModulePatchbayMatrix {
     private ensureElements;
     private syncMaxSlots;
     private loadMetadata;
+    private buildMetadataFromInventory;
     toggleWorkspace(open: boolean): void;
     private isWorkspaceOpen;
     onStateUpdate(state: any): void;

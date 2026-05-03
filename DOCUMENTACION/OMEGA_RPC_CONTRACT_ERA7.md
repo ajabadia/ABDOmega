@@ -112,4 +112,25 @@ Para garantizar la consistencia industrial, el motor de renderizado de la Era 7 
 | `led` | Indicador luminoso | Visualizador de estado basado en umbrales de señal. |
 
 ---
+## 8. Especificación de Racks y Layout (Mecánica)
+
+Para garantizar que los módulos se posicionen y escalen correctamente en la interfaz, el motor de la Era 7 sigue estas métricas industriales:
+
+### A. Racks Disponibles
+| Nombre | ID (slot) | Altura Estándar | Propósito |
+| :--- | :--- | :--- | :--- |
+| **Main Rack** | `lower` / `main` | 420 px (3U) | Módulos de síntesis, efectos y generadores. |
+| **Aux Rack** | `upper` / `top` | 140 px (1U) | Utilidades, puentes MIDI, osciloscopios y monitoreo. |
+
+### B. Modos de Altura (`height_mode`)
+- **`full`**: El módulo ocupa la altura completa de la rack de 3U (420px).
+- **`compact`**: El módulo se escala para la rack de 1U (140px). **Obligatorio para módulos en el slot `upper`**.
+
+### C. Escala de Ancho (HP)
+La unidad de medida horizontal es el **HP** (Horizontal Pitch).
+- **Relación**: 1 HP = 15 píxeles reales.
+- **Ancho Mínimo**: 4 HP (60px).
+- **Alineación**: Se recomienda que los módulos tengan anchos en múltiplos de 2 o 4 HP para evitar huecos en la rack.
+
+---
 *OMEGA — Especificación de Protocolo Era 7 Industrial*

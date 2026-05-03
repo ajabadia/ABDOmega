@@ -278,6 +278,7 @@
       const isEra7 = schema.version >= 7 || schema.ui !== void 0;
       if (isEra7) {
         console.log(`[SchemaStore] Detected Era 7 Module: ${schema.id}. Preserving industrial integrity.`);
+        this.validateIntegrity(schema);
         if (schema.metadata) {
           schema.name = schema.name || schema.metadata.name;
           schema.hp = schema.hp || schema.metadata.rack?.hp;
@@ -285,38 +286,39 @@
         }
         return schema;
       }
-      if (!schema.items || !schema.layout) {
-        console.warn(`[SchemaStore] Manifest for legacy module ${schema.id} is incomplete. Synthesizing...`);
-        if (!schema.layout) {
-          schema.layout = {
-            hp: schema.hp || 12,
-            columns: 2,
-            gap: 12
-          };
-        }
-        schema.hp = schema.hp || schema.layout.hp;
-        schema.name = schema.name || schema.id;
-        if (!schema.items && schema.controls) {
-          schema.items = schema.controls.map((ctrl, idx) => ({
-            paramId: ctrl.id,
-            label: ctrl.label || ctrl.id,
-            look: ctrl.type || "knob",
-            row: Math.floor(idx / 2),
-            col: idx % 2
-          }));
-        }
-        if (!schema.items && schema.registry) {
-          const controls = schema.registry.filter((r) => r.front === true);
-          schema.items = controls.map((r, idx) => ({
-            paramId: r.id,
-            label: r.label || r.id,
-            look: "knob",
-            row: Math.floor(idx / 2),
-            col: idx % 2
-          }));
-        }
-      }
       return schema;
+    }
+    validateIntegrity(schema) {
+      if (!schema.compliance) {
+        schema.compliance = { status: "ok", issues: [], firmwareHash: "" };
+      }
+      const ids = /* @__PURE__ */ new Set();
+      const duplicates = /* @__PURE__ */ new Set();
+      if (schema.registry && Array.isArray(schema.registry)) {
+        schema.registry.forEach((item) => {
+          if (ids.has(item.id)) {
+            duplicates.add(item.id);
+          }
+          ids.add(item.id);
+        });
+      }
+      if (schema.ui && schema.ui.controls) {
+        schema.ui.controls.forEach((ctrl) => {
+        });
+      }
+      if (duplicates.size > 0) {
+        schema.compliance.status = "invalid";
+        duplicates.forEach((id) => {
+          const issue = {
+            severity: "invalid",
+            code: "DoubleIdentity",
+            scope: "registry",
+            message: `ID collision detected: '${id}' is defined multiple times in the registry. Each entity must have a unique canonical ID.`
+          };
+          schema.compliance.issues.push(issue);
+          console.error(`[GOVERNANCE] [${schema.id}] ${issue.message}`);
+        });
+      }
     }
     getSchema(id) {
       return this.schemas.get(id);
@@ -652,16 +654,14 @@
   // module_manager.js
   var ModuleManager = class {
     activeModules = /* @__PURE__ */ new Map();
-    oscilloscopes = [];
-    midiViewer = null;
     lastState = null;
     isRendering = false;
     lastFingerprint = "";
     pendingState = null;
+    renderGeneration = 0;
     constructor() {
       this.activeModules = /* @__PURE__ */ new Map();
-      this.oscilloscopes = [];
-      this.midiViewer = null;
+      console.log("%c[!!!] MODULE_MANAGER_V7_ACTIVE [Build 2026.05.03]", "background: #00f2ff; color: #000; font-weight: bold; padding: 2px 5px;");
       OmegaLog.info("MANAGER", "ModuleManager Constructor Initialized.");
       if (window.runtimeStore) {
         OmegaLog.info("MANAGER", "Subscribing to RuntimeStore...");
@@ -692,12 +692,14 @@
       return list.map((item) => Array.isArray(item) ? item[0] : item);
     }
     async updateRack(state) {
+      OmegaLog.info("MANAGER", "updateRack entry point");
       if (this.isRendering) {
-        OmegaLog.debug("MANAGER", "Render in progress. Queuing next update...");
+        OmegaLog.info("MANAGER", "Render in progress. Queuing next update...");
         this.pendingState = state;
         return;
       }
       this.isRendering = true;
+      const currentGeneration = ++this.renderGeneration;
       this.pendingState = null;
       try {
         OmegaLog.debug("MANAGER", "updateRack checking stability...");
@@ -705,7 +707,7 @@
         this.lastState = safeState;
         const patch = safeState.patch;
         if (!patch) {
-          OmegaLog.debug("MANAGER", "No Era 7 patch found in state. Skipping structural update.");
+          OmegaLog.info("MANAGER", "No Era 7 patch found in state. Skipping structural update.");
           this.isRendering = false;
           return;
         }
@@ -713,16 +715,11 @@
         const fingerprint = patchModules.map((m) => `${m.instanceId}:${m.componentId}:${m.theme || ""}`).join("|");
         const isRackEmpty = patchModules.length === 0;
         if (fingerprint === this.lastFingerprint && !isRackEmpty) {
-          OmegaLog.debug("MANAGER", "Structure stable (Fingerprint match). Skipping full re-render.");
+          OmegaLog.info("MANAGER", "Structure stable (Fingerprint match). Skipping full re-render.");
           this.activeModules.forEach((mod) => {
             if (mod.onStateUpdate)
               mod.onStateUpdate(state);
           });
-          this.isRendering = false;
-          return;
-        }
-        if (isRackEmpty && this.activeModules.size > 0) {
-          OmegaLog.info("MANAGER", "Era 7 Patch is empty but racks are already populated. Holding current state for handshake.");
           this.isRendering = false;
           return;
         }
@@ -735,8 +732,6 @@
         if (lower)
           lower.innerHTML = "";
         this.activeModules.clear();
-        this.oscilloscopes = [];
-        this.midiViewer = null;
         if (isRackEmpty) {
           OmegaLog.info("MANAGER", "Rack is now officially empty.");
           this.isRendering = false;
@@ -752,10 +747,19 @@
             newActiveIds.add(instId);
             if (!this.activeModules.has(instId)) {
               const manifest = window.schemaStore?.getSchema(componentId);
-              let rackValue = (mod.rack || manifest?.rack || "lower").toLowerCase();
-              const targetRack = rackValue === "upper" ? document.getElementById("upper-rack") : document.getElementById("lower-rack");
-              const rackType = rackValue === "upper" ? "aux" : "main";
+              const manifestRack = manifest?.rack?.slot || manifest?.rack || "";
+              let rackValue = (manifestRack || mod.rack || "lower").toString().toLowerCase();
+              const isCompact = manifest?.height_mode === "compact" || manifest?.metadata?.rack?.height_mode === "compact" || manifest?.rack?.height_mode === "compact";
+              const isUpper = rackValue === "upper" || rackValue === "top" || isCompact;
+              const targetRack = isUpper ? document.getElementById("upper-rack") : document.getElementById("lower-rack");
+              const rackType = isUpper ? "aux" : "main";
+              console.log(`%c[!!!] ROUTING DEBUG: mod=${instId} (${componentId}) | manifestRack=${manifestRack} | isCompact=${isCompact} | isUpper=${isUpper} | targetFound=${!!targetRack}`, "color: #00f2ff; font-weight: bold;");
+              if (isUpper && !document.getElementById("upper-rack")) {
+                console.error(`%c[!!!] CRITICAL: upper-rack element not found in DOM!`, "color: #ff0000; font-weight: bold;");
+              }
               const className = manifest?.ui_class || "ModuleRenderer";
+              if (currentGeneration !== this.renderGeneration)
+                return;
               await this.addModule(instId, className, rackType, targetRack, {
                 label: mod.label || componentId.toUpperCase(),
                 componentId,
@@ -820,9 +824,7 @@
           manifest.theme = item.theme;
         }
         if (!schema.ui_class) {
-          if (schema.tags?.includes("midi_to_cv") || schema.tags?.includes("utility")) {
-            className = "ModuleMidiToCv";
-          }
+          className = "ModuleRenderer";
         }
         await this.addModule(id, className, rackType, targetRack, {
           label,
@@ -917,10 +919,6 @@
           await instance.init();
         if (instance.onStateUpdate && this.lastState)
           instance.onStateUpdate(this.lastState);
-        if (className === "ModuleOscilloscope")
-          this.oscilloscopes.push(instance);
-        if (className === "ModuleMidiViewer")
-          this.midiViewer = instance;
       } else {
         console.error(`[ModuleManager] Module class not found in registry: ${className}`);
       }
@@ -934,9 +932,6 @@
           if (mod.dispose)
             mod.dispose();
           this.activeModules.delete(id);
-          this.oscilloscopes = this.oscilloscopes.filter((o) => o !== mod);
-          if (this.midiViewer === mod)
-            this.midiViewer = null;
         }
       });
     }
@@ -1025,7 +1020,7 @@
     updateVersion(version, build, timestamp) {
       const topEl = document.getElementById("top-bar-version");
       if (topEl) {
-        topEl.textContent = `OMEGA Era 6 [Build ${build || "ASEPTIC"}]`;
+        topEl.textContent = `OMEGA Era 7.2.3 [Build ${build || "SYS_READY"}]`;
       }
       document.querySelectorAll(".splash-version, #app-title-mini, #about-version, .about-version").forEach((el) => {
         const htmlEl = el;
@@ -1094,7 +1089,11 @@
             c.style.display = c.style.display === "none" ? "block" : "none";
           break;
         case "toggle_matrix":
-          this.showModal("modulation-modal");
+          if (window.patchbayHub) {
+            window.patchbayHub.toggleWorkspace(true);
+          } else {
+            this.showModal("modulation-modal");
+          }
           break;
         case "toggle_module_browser":
           if (window.moduleBrowser) {
@@ -1275,14 +1274,6 @@
     setupMenus() {
       document.querySelectorAll(".menu-item").forEach((item) => {
         const htmlItem = item;
-        if (htmlItem.id === "btn-global-matrix") {
-          htmlItem.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.handleMenuAction("toggle_matrix");
-          };
-          return;
-        }
         htmlItem.addEventListener("click", (e) => {
           const target = e.target;
           const dropdown = htmlItem.querySelector(".dropdown");
@@ -1787,8 +1778,12 @@
       const label = item.label || (entity ? entity.label : id || "");
       if (!this.shouldRenderInTab(item, this.activeTab))
         return "";
-      const x = (item.pos?.x || 0) * this.RENDER_SCALE;
-      const y = (item.pos?.y || 0) * this.RENDER_SCALE;
+      const rawX = item.pos?.x || 0;
+      const rawY = item.pos?.y || 0;
+      const gridX = Math.round(rawX / 5) * 5;
+      const gridY = Math.round(rawY / 5) * 5;
+      const x = gridX * this.RENDER_SCALE;
+      const y = gridY * this.RENDER_SCALE;
       const style = `position: absolute; left: ${x}px; top: ${y}px; transform: translate(-50%, -50%);`;
       const cellClass = `control-cell variant-${item.presentation?.variant || item.variant || "default"} ${!entity?.role ? "role-orphan" : ""}`;
       if (id && !entity) {
@@ -1856,7 +1851,6 @@
         return `
                 <div class="layout-container ${variantClass} ${labelPosClass}" style="${style}" data-container-id="${c.id}">
                     <div class="container-label">${c.label}</div>
-                    <div class="container-border"></div>
                 </div>
             `;
       }).join("");
@@ -1943,7 +1937,14 @@
           return `<input type="range" class="${look === "slider-h" ? "h-slider" : "v-slider"}" data-param="${id}" min="${range.min}" max="${range.max}" step="${range.step}" value="${this.values[id] ?? range.default}" />`;
         case "port":
         case "jack":
-          return `<div class="port-socket" data-port="${id}"><div class="port-inner"></div></div>`;
+          const portColor = item.presentation?.color || this._inferPortColor(id, entity);
+          return `
+                    <div class="port-socket" data-port="${id}" style="--port-color: ${portColor}">
+                        <div class="port-inner">
+                            <div class="port-led" data-source="${id}"></div>
+                        </div>
+                    </div>
+                `;
         case "display":
           const formatted = this._getFormattedValue(item.presentation, entity, val);
           return `
@@ -2170,7 +2171,7 @@
     updateTelemetryUI(source, value) {
       const targets = this.content.querySelectorAll(`[data-source="${source}"]`);
       targets.forEach((t) => {
-        if (t.classList.contains("led")) {
+        if (t.classList.contains("led") || t.classList.contains("port-led")) {
           t.classList.toggle("active", value > 0.05);
         }
         if (t.classList.contains("mini-display")) {
@@ -2178,680 +2179,30 @@
         }
       });
     }
+    _inferPortColor(id, entity) {
+      if (!id)
+        return "var(--neon-cyan)";
+      const role = entity?.role?.toLowerCase() || "";
+      const idLower = id.toLowerCase();
+      if (role.includes("audio") || role.includes("pitch") || idLower.includes("out") || idLower.includes("audio")) {
+        return "var(--signal-audio)";
+      }
+      if (role.includes("cv") || role.includes("mod") || idLower.includes("cv") || idLower.includes("mod")) {
+        return "var(--signal-cv)";
+      }
+      if (role.includes("gate") || role.includes("trig") || idLower.includes("gate") || idLower.includes("trig")) {
+        return "var(--signal-gate)";
+      }
+      if (role.includes("midi") || idLower.includes("midi")) {
+        return "var(--signal-midi)";
+      }
+      return "var(--neon-cyan)";
+    }
     onStateUpdate(state) {
       OmegaLog.debug("RENDERER", `State update received for module: ${this.descriptor.id}`);
       this.syncAllFromStore();
     }
   };
-
-  // components/ModuleOscilloscope.js
-  var ModuleOscilloscope = class {
-    el;
-    content;
-    canvas;
-    ctx;
-    options;
-    isPowered = true;
-    sourceA = 10;
-    // Default DCO Main
-    sourceB = 13;
-    // Default VCF Out
-    isDual = true;
-    isFrozen = false;
-    syncEnabled = true;
-    timebase = 1;
-    dataA = [];
-    dataB = [];
-    allSources = [];
-    filteredSources = [];
-    pollingInterval;
-    animationId = 0;
-    resizeObserver = null;
-    // Modal state
-    modalActive = false;
-    modalCanvas = null;
-    modalCtx = null;
-    modalTimebase = 1;
-    constructor(el, content, options) {
-      this.el = el;
-      this.content = content;
-      this.options = options;
-      this.canvas = document.createElement("canvas");
-      this.ctx = this.canvas.getContext("2d");
-      this.render();
-    }
-    async init() {
-      this.setupResizeObserver();
-      await this.fetchSourcesWithRetry();
-      this.startPolling();
-      this.startDrawLoop();
-      this.bindEvents();
-      this.bindModalEvents();
-      setTimeout(() => this.resize(), 100);
-      setTimeout(() => this.resize(), 500);
-    }
-    generateGroupedOptions(list) {
-      const groups = {};
-      for (const opt of list) {
-        const groupName = opt.instance || "Global";
-        if (!groups[groupName])
-          groups[groupName] = [];
-        groups[groupName].push(opt);
-      }
-      let html = "";
-      for (const [group, items] of Object.entries(groups)) {
-        html += `<optgroup label="${group.toUpperCase()}">`;
-        for (const item of items) {
-          const displayName = item.name.replace(group, "").trim() || item.name;
-          html += `<option value="${item.telemetryIndex}">${displayName}</option>`;
-        }
-        html += `</optgroup>`;
-      }
-      return html;
-    }
-    setupResizeObserver() {
-      const area = this.content.querySelector(".visualizer-container");
-      if (area && typeof ResizeObserver !== "undefined") {
-        this.resizeObserver = new ResizeObserver(() => {
-          requestAnimationFrame(() => this.resize());
-        });
-        this.resizeObserver.observe(area);
-      }
-      window.addEventListener("resize", () => {
-        requestAnimationFrame(() => this.resize());
-      });
-    }
-    async fetchSourcesWithRetry() {
-      if (window.rpcCommandDispatcher) {
-        try {
-          const resp = await window.rpcCommandDispatcher.dispatch({
-            type: "systemQuery",
-            target: "getModulationMetadata"
-          });
-          if (resp && resp.sources) {
-            this.allSources = resp.sources.filter((s) => s.telemetryIndex !== -1);
-            this.filteredSources = this.allSources;
-            this.updateSelectors();
-            return;
-          }
-        } catch (e) {
-        }
-      }
-      setTimeout(() => this.fetchSourcesWithRetry(), 2e3);
-    }
-    render() {
-      const isMaster = this.el.closest("#upper-rack") !== null;
-      if (isMaster)
-        this.el.classList.add("master-view");
-      this.content.innerHTML = `
-            <div class="ModuleOscilloscope-inner ${isMaster ? "master-layout" : ""}" style="display: flex; flex-direction: column; height: 100%;">
-                <div class="module-controls" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <button id="osc-power" class="juno-btn power-btn active" style="width:24px; height:24px; font-size:10px;" title="POWER">\u23FB</button>
-                        <span class="module-title" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">SCOPE ${this.options.label || "MASTER"}</span>
-                    </div>
-                    <div style="display: flex; gap: 5px;">
-                        <button id="osc-modal-trigger" class="btn-scope-focus" style="width:24px; height:24px;" title="Advanced Analyzer">\u26F6</button>
-                        <button id="osc-freeze" class="sq" style="width:24px; height:24px; font-size:10px;" title="FREEZE">\u2744\uFE0F</button>
-                    </div>
-                </div>
-
-                <div class="visualizer-container" style="flex: 1; min-height: 60px; position: relative; border: 1px solid #222; background: #000;">
-                    <canvas id="osc-canvas-mini"></canvas>
-                    <div id="osc-standby" style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:rgba(0,242,255,0.1); font-size: 8px; letter-spacing: 4px; display: none;">STANDBY</div>
-                </div>
-
-                <div class="scope-footer-row" style="display: flex; gap: 4px; margin-top: 4px;">
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-                        <label style="font-size: 7px; text-transform: uppercase; opacity: 0.5;">Src A</label>
-                        <select id="sel-src-a" class="scope-select" style="width: 100%; font-size: 9px; height: 18px; padding: 0 2px;"></select>
-                    </div>
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-                        <label style="font-size: 7px; text-transform: uppercase; opacity: 0.5;">Src B</label>
-                        <select id="sel-src-b" class="scope-select" style="width: 100%; font-size: 9px; height: 18px; padding: 0 2px;"></select>
-                    </div>
-                </div>
-            </div>
-        `;
-      this.canvas = this.content.querySelector("#osc-canvas-mini");
-      this.ctx = this.canvas.getContext("2d");
-    }
-    updateSelectors() {
-      const selA = this.content.querySelector("#sel-src-a");
-      const selB = this.content.querySelector("#sel-src-b");
-      const modSelA = document.getElementById("scope-modal-src-a");
-      const modSelB = document.getElementById("scope-modal-src-b");
-      if (!selA || !selB)
-        return;
-      const options = this.generateGroupedOptions(this.filteredSources);
-      selA.innerHTML = options;
-      selB.innerHTML = `<option value="-1">OFF</option>` + options;
-      if (modSelA && modSelB) {
-        modSelA.innerHTML = options;
-        modSelB.innerHTML = `<option value="-1">OFF</option>` + options;
-      }
-      selA.value = this.sourceA.toString();
-      selB.value = this.sourceB.toString();
-    }
-    bindEvents() {
-      const btnPower = this.content.querySelector("#osc-power");
-      const btnFreeze = this.content.querySelector("#osc-freeze");
-      const btnModal = this.content.querySelector("#osc-modal-trigger");
-      const selA = this.content.querySelector("#sel-src-a");
-      const selB = this.content.querySelector("#sel-src-b");
-      const standby = this.content.querySelector("#osc-standby");
-      btnPower.onclick = () => {
-        this.isPowered = !this.isPowered;
-        btnPower.classList.toggle("active", this.isPowered);
-        if (standby)
-          standby.style.display = this.isPowered ? "none" : "block";
-      };
-      btnFreeze.onclick = () => {
-        this.isFrozen = !this.isFrozen;
-        btnFreeze.classList.toggle("active", this.isFrozen);
-      };
-      btnModal.onclick = () => this.openModal();
-      selA.onchange = () => {
-        this.sourceA = parseInt(selA.value);
-        this.syncModalInputs();
-      };
-      selB.onchange = () => {
-        this.sourceB = parseInt(selB.value);
-        this.isDual = this.sourceB !== -1;
-        this.syncModalInputs();
-      };
-    }
-    bindModalEvents() {
-      const modal = document.getElementById("oscilloscope-modal");
-      if (!modal)
-        return;
-      const selA = document.getElementById("scope-modal-src-a");
-      const selB = document.getElementById("scope-modal-src-b");
-      const timebaseRange = document.getElementById("scope-modal-timebase");
-      const freezeBtn = document.getElementById("scope-modal-freeze");
-      const okBtn = modal.querySelector(".modal-ok-btn");
-      const closeBtn = modal.querySelector(".close-btn");
-      if (selA)
-        selA.onchange = () => {
-          this.sourceA = parseInt(selA.value);
-          this.updateSelectors();
-        };
-      if (selB)
-        selB.onchange = () => {
-          this.sourceB = parseInt(selB.value);
-          this.isDual = this.sourceB !== -1;
-          this.updateSelectors();
-        };
-      if (timebaseRange)
-        timebaseRange.oninput = () => {
-          this.modalTimebase = parseInt(timebaseRange.value) / 50;
-          const valLabel = document.getElementById("scope-val-timebase");
-          if (valLabel)
-            valLabel.innerText = `${timebaseRange.value}ms`;
-        };
-      if (freezeBtn)
-        freezeBtn.onclick = () => {
-          this.isFrozen = !this.isFrozen;
-          freezeBtn.classList.toggle("active", this.isFrozen);
-          const miniFreeze = this.content.querySelector("#osc-freeze");
-          if (miniFreeze)
-            miniFreeze.classList.toggle("active", this.isFrozen);
-        };
-      const close = () => {
-        modal.style.display = "none";
-        this.modalActive = false;
-      };
-      if (okBtn)
-        okBtn.onclick = close;
-      if (closeBtn)
-        closeBtn.onclick = close;
-    }
-    openModal() {
-      const modal = document.getElementById("oscilloscope-modal");
-      if (!modal)
-        return;
-      modal.style.display = "flex";
-      this.modalActive = true;
-      this.modalCanvas = document.getElementById("scope-large-canvas");
-      if (this.modalCanvas) {
-        this.modalCtx = this.modalCanvas.getContext("2d");
-        const rect = this.modalCanvas.parentElement.getBoundingClientRect();
-        this.modalCanvas.width = rect.width;
-        this.modalCanvas.height = rect.height;
-      }
-      this.syncModalInputs();
-    }
-    syncModalInputs() {
-      const modSelA = document.getElementById("scope-modal-src-a");
-      const modSelB = document.getElementById("scope-modal-src-b");
-      const modFreeze = document.getElementById("scope-modal-freeze");
-      if (modSelA)
-        modSelA.value = this.sourceA.toString();
-      if (modSelB)
-        modSelB.value = this.sourceB.toString();
-      if (modFreeze)
-        modFreeze.classList.toggle("active", this.isFrozen);
-    }
-    startPolling() {
-      this.pollingInterval = setInterval(async () => {
-        if (!this.isPowered || this.isFrozen)
-          return;
-        if (window.rpcCommandDispatcher) {
-          const indices = [this.sourceA];
-          if (this.isDual)
-            indices.push(this.sourceB);
-          try {
-            const data = await window.rpcCommandDispatcher.dispatch({
-              type: "getTelemetry",
-              value: { indices }
-            });
-            if (data) {
-              if (data[this.sourceA.toString()])
-                this.dataA = data[this.sourceA.toString()].history || [];
-              if (this.isDual && data[this.sourceB.toString()])
-                this.dataB = data[this.sourceB.toString()].history || [];
-            }
-          } catch (e) {
-          }
-        }
-      }, 33);
-    }
-    startDrawLoop() {
-      const loop = () => {
-        if (this.isPowered) {
-          this.draw(this.ctx, this.canvas, this.timebase);
-          if (this.modalActive && this.modalCtx && this.modalCanvas) {
-            this.draw(this.modalCtx, this.modalCanvas, this.modalTimebase);
-          }
-        }
-        this.animationId = requestAnimationFrame(loop);
-      };
-      loop();
-    }
-    resize() {
-      const area = this.content.querySelector(".visualizer-container");
-      if (area) {
-        const rect = area.getBoundingClientRect();
-        const w = Math.floor(rect.width);
-        const h = Math.floor(rect.height);
-        if (w > 2 && h > 2 && (this.canvas.width !== w || this.canvas.height !== h)) {
-          this.canvas.width = w;
-          this.canvas.height = h;
-        }
-      }
-    }
-    draw(ctx, canvas, tb) {
-      const { width, height } = canvas;
-      if (width === 0 || height === 0)
-        return;
-      ctx.clearRect(0, 0, width, height);
-      ctx.strokeStyle = "rgba(0,242,255,0.08)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, height / 2);
-      ctx.lineTo(width, height / 2);
-      ctx.stroke();
-      ctx.strokeStyle = "rgba(255,255,255,0.02)";
-      const gridX = 10;
-      const gridY = 8;
-      for (let i = 0; i <= gridX; i++) {
-        const x = width / gridX * i;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let i = 0; i <= gridY; i++) {
-        const y = height / gridY * i;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-      this.renderTrace(ctx, canvas, this.dataA, "#00f2ff", tb);
-      if (this.isDual) {
-        this.renderTrace(ctx, canvas, this.dataB, "#ffaa00", tb);
-      }
-    }
-    renderTrace(ctx, canvas, data, color, tb) {
-      if (!data || data.length < 2)
-        return;
-      const { width, height } = canvas;
-      const visibleCount = Math.floor(data.length * tb);
-      let startIndex = 0;
-      if (this.syncEnabled) {
-        const limit = Math.floor(data.length / 2);
-        for (let i = 0; i < limit; ++i) {
-          if ((data[i] || 0) < 0 && (data[i + 1] || 0) >= 0) {
-            startIndex = i;
-            break;
-          }
-        }
-      }
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = canvas.width > 400 ? 2.5 : 1.8;
-      ctx.lineJoin = "round";
-      const step = width / (visibleCount - 1);
-      for (let i = 0; i < visibleCount; i++) {
-        const idx = (startIndex + i) % data.length;
-        const x = i * step;
-        const val = data[idx] ?? 0;
-        const y = height / 2 - val * (height / 2.2);
-        if (i === 0)
-          ctx.moveTo(x, y);
-        else
-          ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.shadowBlur = canvas.width > 400 ? 10 : 6;
-      ctx.shadowColor = color;
-      ctx.globalAlpha = 0.4;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-    }
-    onStateUpdate(state) {
-      this.fetchSourcesWithRetry();
-    }
-    destroy() {
-      if (this.resizeObserver)
-        this.resizeObserver.disconnect();
-      if (this.pollingInterval)
-        clearInterval(this.pollingInterval);
-      if (this.animationId)
-        cancelAnimationFrame(this.animationId);
-    }
-  };
-  if (typeof window !== "undefined")
-    window.ModuleOscilloscope = ModuleOscilloscope;
-
-  // components/ModuleMidiTrigger.js
-  var ModuleMidiTrigger = class {
-    el;
-    content;
-    descriptor;
-    currentNote = 0;
-    // index in ["C", ...]
-    currentOctave = 5;
-    constructor(el, content, descriptor) {
-      this.el = el;
-      this.content = content;
-      this.descriptor = descriptor;
-      this.render();
-    }
-    async init() {
-      this.bind();
-    }
-    render() {
-      const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-      const octaves = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8];
-      this.content.innerHTML = `
-            <div class="midi-trigger-container" style="display: flex; flex-direction: column; height: 100%; padding: 10px; gap: 10px; justify-content: center; align-items: center;">
-                <div class="trigger-selectors" style="display: flex; gap: 5px; width: 100%;">
-                    <select id="trigger-note" class="pref-select" style="flex: 2;">
-                        ${notes.map((n, i) => `<option value="${i}" ${i === this.currentNote ? "selected" : ""}>${n}</option>`).join("")}
-                    </select>
-                    <select id="trigger-octave" class="pref-select" style="flex: 1;">
-                        ${octaves.map((o) => `<option value="${o}" ${o === this.currentOctave ? "selected" : ""}>${o}</option>`).join("")}
-                    </select>
-                </div>
-                
-                <div class="trigger-main" style="flex: 1; display: flex; justify-content: center; align-items: center; width: 100%;">
-                    <div id="big-fire-btn" class="sq juno-white" style="
-                        width: 80px; height: 80px; 
-                        border-radius: 50%; 
-                        display: flex; justify-content: center; align-items: center; 
-                        cursor: pointer; 
-                        box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
-                        transition: all 0.1s ease;
-                        font-weight: bold;
-                        border: 2px solid #00f2ff;
-                    ">
-                        FIRE
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    bind() {
-      const noteSel = this.content.querySelector("#trigger-note");
-      const octSel = this.content.querySelector("#trigger-octave");
-      const fireBtn = this.content.querySelector("#big-fire-btn");
-      noteSel.onchange = () => this.currentNote = parseInt(noteSel.value);
-      octSel.onchange = () => this.currentOctave = parseInt(octSel.value);
-      const trigger = (on) => {
-        const midiNote = (this.currentOctave + 2) * 12 + this.currentNote;
-        const velocity = on ? 127 : 0;
-        const status = on ? 144 : 128;
-        if (on) {
-          fireBtn.style.backgroundColor = "#00f2ff";
-          fireBtn.style.color = "#000";
-          fireBtn.style.boxShadow = "0 0 30px #00f2ff";
-          fireBtn.style.transform = "scale(0.95)";
-        } else {
-          fireBtn.style.backgroundColor = "";
-          fireBtn.style.color = "";
-          fireBtn.style.boxShadow = "0 0 15px rgba(0, 242, 255, 0.2)";
-          fireBtn.style.transform = "";
-        }
-        if (window.rpcCommandDispatcher) {
-          window.rpcCommandDispatcher.dispatch({
-            type: "sendMidi",
-            target: "system",
-            args: [status, midiNote, velocity]
-          });
-        }
-      };
-      fireBtn.onmousedown = () => trigger(true);
-      fireBtn.onmouseup = () => trigger(false);
-      fireBtn.onmouseleave = () => trigger(false);
-      fireBtn.ontouchstart = (e) => {
-        e.preventDefault();
-        trigger(true);
-      };
-      fireBtn.ontouchend = (e) => {
-        e.preventDefault();
-        trigger(false);
-      };
-    }
-    onStateUpdate(state) {
-    }
-    destroy() {
-    }
-  };
-  if (typeof window !== "undefined")
-    window.ModuleMidiTrigger = ModuleMidiTrigger;
-
-  // components/ModuleMidiViewer.js
-  var ModuleMidiViewer = class {
-    el;
-    content;
-    logEl;
-    descriptor;
-    maxLines = 32;
-    isPowered = true;
-    pollingInterval;
-    lastSeenTs = 0;
-    constructor(el, content, descriptor) {
-      this.el = el;
-      this.content = content;
-      this.descriptor = descriptor;
-      this.logEl = document.createElement("div");
-      this.render();
-    }
-    async init() {
-      this.addLogLine({ ts: Date.now() / 1e3, type: 0, ch: 0, d1: 0, d2: 0 }, "SYSTEM READY");
-      this.bindEvents();
-      await this.fetchMidiSources();
-      this.startPolling();
-    }
-    async fetchMidiSources() {
-      if (window.omegaRPC) {
-        try {
-          const resp = await window.omegaRPC.send("getModulationMetadata", {});
-          if (resp && resp.sources) {
-            this.sources = resp.sources.filter((s) => s.type === 3 && s.telemetryIndex !== -1);
-            this.updateSourceSelector();
-          }
-        } catch (e) {
-          console.error("[MidiProbe] Discovery failed", e);
-        }
-      }
-    }
-    updateSourceSelector() {
-      const sel = this.content.querySelector("#midi-source-sel");
-      if (!sel)
-        return;
-      let html = '<option value="64">GLOBAL TRAFFIC</option>';
-      const groups = {};
-      for (const s of this.sources) {
-        if (s.telemetryIndex === 64)
-          continue;
-        const g = s.instance || "Modules";
-        if (!groups[g])
-          groups[g] = [];
-        groups[g].push(s);
-      }
-      for (const [group, items] of Object.entries(groups)) {
-        html += `<optgroup label="${group.toUpperCase()}">`;
-        for (const item of items) {
-          const displayName = item.name.replace(group, "").trim() || item.name;
-          html += `<option value="${item.telemetryIndex}">${displayName}</option>`;
-        }
-        html += `</optgroup>`;
-      }
-      sel.innerHTML = html;
-      sel.value = this.selectedSource.toString();
-    }
-    sources = [];
-    selectedSource = 64;
-    // Default MIDI_TRAFFIC
-    render() {
-      this.content.innerHTML = `
-            <div class="midi-viewer-container" style="display: flex; flex-direction: column; height: 100%; font-family: 'Inter', sans-serif; font-size: 10px; color: #00f2ff; background: #050505; border: 1px solid rgba(0,242,255,0.2); border-radius: 4px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-                <div class="header-toolbar" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%); border-bottom: 1px solid rgba(0,242,255,0.3);">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="font-weight: 800; font-size: 10px; letter-spacing: 2px; color: #fff; text-shadow: 0 0 5px rgba(0,242,255,0.5);">MIDI PROBE</div>
-                        <select id="midi-source-sel" style="background: #000; color: #00f2ff; border: 1px solid #333; font-size: 9px; padding: 2px 5px; outline: none; border-radius: 3px;">
-                            <option value="64">GLOBAL TRAFFIC</option>
-                        </select>
-                    </div>
-                    <button id="midi-power-btn" class="sq active power-btn" style="width: 28px; height: 22px; font-size: 12px; color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 3px; background: linear-gradient(180deg, #333 0%, #111 100%); cursor: pointer;">\u23FB</button>
-                </div>
-                <!-- ... rest of render ... -->
-                <div class="midi-header" style="display: grid; grid-template-columns: 60px 80px 40px 1fr 50px; gap: 4px; padding: 5px 10px; background: rgba(0,242,255,0.05); font-weight: 900; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 9px; text-transform: uppercase; color: rgba(0,242,255,0.5);">
-                    <span>TIME</span>
-                    <span>STATUS</span>
-                    <span style="text-align: center;">CH</span>
-                    <span>NOTE</span>
-                    <span style="text-align: right;">VEL</span>
-                </div>
-                <div id="midi-log-body" style="flex: 1; overflow-y: auto; padding: 2px 0; background: #020202; scrollbar-width: thin;"></div>
-            </div>
-        `;
-      this.logEl = this.content.querySelector("#midi-log-body");
-    }
-    bindEvents() {
-      const pwrBtn = this.content.querySelector("#midi-power-btn");
-      const sel = this.content.querySelector("#midi-source-sel");
-      if (pwrBtn) {
-        pwrBtn.onclick = () => {
-          this.isPowered = !this.isPowered;
-          pwrBtn.classList.toggle("active", this.isPowered);
-          pwrBtn.style.boxShadow = this.isPowered ? "0 0 10px rgba(0,242,255,0.5)" : "none";
-          this.logEl.style.opacity = this.isPowered ? "1" : "0.2";
-          if (!this.isPowered)
-            this.addLogLine({ ts: Date.now() / 1e3, type: 0, ch: 0, d1: 0, d2: 0 }, "MONITOR PAUSED");
-        };
-      }
-      if (sel) {
-        sel.onchange = () => {
-          this.selectedSource = parseInt(sel.value);
-          this.lastSeenTs = 0;
-          this.addLogLine({ ts: Date.now() / 1e3, type: 0, ch: 0, d1: 0, d2: 0 }, `PROBE SWITCHED TO ID:${this.selectedSource}`);
-        };
-      }
-    }
-    startPolling() {
-      this.pollingInterval = setInterval(async () => {
-        if (!this.isPowered)
-          return;
-        if (window.omegaRPC) {
-          try {
-            const resp = await window.omegaRPC.send("getTelemetry", { indices: [this.selectedSource] });
-            const key = this.selectedSource.toString();
-            if (resp && resp[key] && Array.isArray(resp[key])) {
-              const events = resp[key];
-              events.slice().reverse().forEach((ev) => {
-                if (ev.ts > this.lastSeenTs) {
-                  this.addLogLine(ev);
-                  this.lastSeenTs = ev.ts;
-                }
-              });
-            }
-          } catch (e) {
-          }
-        }
-      }, 150);
-    }
-    formatStatus(type) {
-      const status = type & 240;
-      switch (status) {
-        case 144:
-          return "NOTE ON";
-        case 128:
-          return "NOTE OFF";
-        case 176:
-          return "CONTROL";
-        case 224:
-          return "PITCH";
-        default:
-          return "DATA";
-      }
-    }
-    addLogLine(ev, customMsg) {
-      const row = document.createElement("div");
-      row.style.display = "grid";
-      row.style.gridTemplateColumns = "60px 80px 40px 1fr 50px";
-      row.style.gap = "4px";
-      row.style.padding = "3px 10px";
-      row.style.borderBottom = "1px solid rgba(255,255,255,0.02)";
-      row.style.whiteSpace = "nowrap";
-      row.style.fontSize = "10px";
-      row.style.fontFamily = "'Courier New', monospace";
-      if (customMsg) {
-        row.innerHTML = `<span style="grid-column: span 5; color: #666; font-style: italic; letter-spacing: 1px;">> ${customMsg}</span>`;
-      } else {
-        const time = new Date(ev.ts * 1e3).toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const noteName = ev.type === 144 || ev.type === 128 ? `${noteNames[ev.d1 % 12]}${Math.floor(ev.d1 / 12) - 2}` : ev.d1;
-        row.innerHTML = `
-                <span style="color: #444;">${time}</span>
-                <span style="color: ${ev.type === 144 ? "#fff" : "#00f2ff"}; font-weight: bold;">${this.formatStatus(ev.type)}</span>
-                <span style="color: #00f2ff; text-align: center;">${ev.ch}</span>
-                <span style="color: #fff; letter-spacing: 1px;">${noteName}</span>
-                <span style="color: #ffaa00; font-weight: 800; text-align: right;">${ev.d2}</span>
-            `;
-      }
-      if (this.logEl.firstChild) {
-        this.logEl.insertBefore(row, this.logEl.firstChild);
-      } else {
-        this.logEl.appendChild(row);
-      }
-      while (this.logEl.children.length > this.maxLines) {
-        this.logEl.removeChild(this.logEl.lastChild);
-      }
-    }
-    onStateUpdate(state) {
-    }
-    destroy() {
-      if (this.pollingInterval)
-        clearInterval(this.pollingInterval);
-    }
-  };
-  if (typeof window !== "undefined")
-    window.ModuleMidiViewer = ModuleMidiViewer;
 
   // components/ModulePatchbayMatrix.js
   var ModulePatchbayMatrix = class {
@@ -2925,32 +2276,69 @@
     }
     async loadMetadata() {
       const rpc2 = window.omegaRPC;
+      const inv = window.inventoryStore;
+      if (inv && inv.getAllItems().length > 0) {
+        this.buildMetadataFromInventory(inv.getAllItems());
+        if (this.isWorkspaceOpen())
+          this.renderWorkspace();
+      }
       if (!rpc2)
         return;
       setTimeout(async () => {
         try {
-          const resp = await Promise.race([
-            rpc2.send("getModulationMetadata", {}),
-            new Promise((_, reject) => setTimeout(() => reject("TIMEOUT"), 3e3))
-          ]);
-          if (resp && resp.sources && resp.targets) {
+          const resp = await rpc2.send("getModulationMetadata", {});
+          if (resp && resp.sources && resp.targets && resp.sources.length > 0) {
             this.sources = this.normalizeList(resp.sources);
             this.targets = this.normalizeList(resp.targets);
+            OmegaLog.info("MATRIX", `Metadata synced from backend. Sources: ${this.sources.length}`);
             if (this.isWorkspaceOpen())
               this.renderWorkspace();
           } else {
-            OmegaLog.warn("MATRIX", "Received incomplete or timed-out modulation metadata", resp);
-            this.sources = this.sources.length > 0 ? this.sources : [];
-            this.targets = this.targets.length > 0 ? this.targets : [];
-            if (this.isWorkspaceOpen())
-              this.renderWorkspace();
+            OmegaLog.debug("MATRIX", "Backend returned empty metadata, keeping InventoryStore data.");
           }
         } catch (e) {
-          OmegaLog.error("MATRIX", "Failed to load modulation metadata:", e);
-          if (this.isWorkspaceOpen())
-            this.renderWorkspace();
+          OmegaLog.warn("MATRIX", "Backend metadata sync failed, relying on InventoryStore", e);
         }
       }, 500);
+    }
+    buildMetadataFromInventory(components) {
+      const newSources = [];
+      const newTargets = [];
+      const activeTypes = /* @__PURE__ */ new Set();
+      const activeModules = this.state?.patch?.modules || this.state?.preset?.modules || [];
+      activeModules.forEach((m) => {
+        const type = m.componentId || m.typeId || m.id || m.modelId;
+        if (type)
+          activeTypes.add(type);
+      });
+      OmegaLog.debug("MATRIX", `Active Types for metadata: ${Array.from(activeTypes).join(", ")}`);
+      if (activeTypes.size === 0) {
+        OmegaLog.warn("MATRIX", "Metadata rebuild triggered but no active modules found in state.");
+      }
+      components.forEach((comp) => {
+        if (!activeTypes.has(comp.id))
+          return;
+        if (!comp.registry)
+          return;
+        comp.registry.forEach((reg) => {
+          const portId = `${comp.id}.${reg.id}`;
+          const portName = `${comp.name || comp.id} ${reg.label || reg.id}`;
+          const item = {
+            id: portId,
+            name: portName,
+            instance: comp.id,
+            label: reg.label || reg.id,
+            type: reg.type || "CV"
+          };
+          if (reg.roles?.includes("output"))
+            newSources.push(item);
+          if (reg.roles?.includes("input"))
+            newTargets.push(item);
+        });
+      });
+      this.sources = newSources;
+      this.targets = newTargets;
+      OmegaLog.info("MATRIX", `Industrial Metadata Rebuilt: ${this.sources.length} sources, ${this.targets.length} targets`);
     }
     toggleWorkspace(open) {
       if (!this.ensureElements())
@@ -2969,8 +2357,11 @@
       return this.el.style.display === "flex";
     }
     onStateUpdate(state) {
+      const oldModules = this.state?.patch?.modules || this.state?.preset?.modules || [];
+      const newModules = state?.patch?.modules || state?.preset?.modules || [];
+      const structuralChange = oldModules.length !== newModules.length || JSON.stringify(oldModules.map((m) => m.id)) !== JSON.stringify(newModules.map((m) => m.id));
       this.state = state;
-      const matrixData = state?.preset?.patchbayMatrix || [];
+      const matrixData = state?.patch?.patchbayMatrix || state?.preset?.patchbayMatrix || [];
       const matrix = Array.isArray(matrixData) ? matrixData : Object.values(matrixData);
       const activeCount = matrix.filter((s) => s.active === true || s.active === "true").length;
       const countEl = document.getElementById("matrix-active-count");
@@ -2978,6 +2369,10 @@
         countEl.innerText = activeCount.toString().padStart(2, "0");
       this.triggerActivity("general");
       if (this.isWorkspaceOpen()) {
+        if (structuralChange) {
+          OmegaLog.debug("MATRIX", "Structural change detected, rebuilding metadata...");
+          this.loadMetadata();
+        }
         this.syncSlotsFromState(matrix);
       }
     }
@@ -3002,6 +2397,9 @@
     renderWorkspace() {
       if (!this.ensureElements())
         return;
+      if (!this.state && window.runtimeStore) {
+        this.state = window.runtimeStore.getSnapshot();
+      }
       const grid = document.getElementById("matrix-grid-container");
       const inspector = document.getElementById("matrix-inspector-container");
       if (!grid) {
@@ -3013,7 +2411,7 @@
         this.renderStructure(grid);
         this.structureBuilt = this.viewMode === "overview";
       }
-      const matrixData = this.state?.preset?.patchbayMatrix || [];
+      const matrixData = this.state?.patch?.patchbayMatrix || this.state?.preset?.patchbayMatrix || [];
       const matrix = this.normalizeList(matrixData);
       this.syncSlotsFromState(matrix);
       if (inspector)
@@ -3044,19 +2442,30 @@
     }
     renderStructure(grid) {
       let html = "";
-      const matrix = this.state?.preset?.patchbayMatrix || [];
+      const matrixData = this.state?.preset?.patchbayMatrix || [];
+      const matrix = this.normalizeList(matrixData);
       if (this.viewMode === "compose") {
         const activeSlots = matrix.map((s, i) => ({ ...s, i })).filter((s) => s.active === true || s.active === "true" || s.source !== "" && s.source !== void 0);
-        activeSlots.forEach((slot) => {
-          html += this.getSlotSkeleton(slot.i);
-        });
-        if (activeSlots.length < this.maxSlots) {
-          html += `
-                    <div class="matrix-card add-card" id="btn-add-modulation">
-                        <div class="add-icon">\uFF0B</div>
-                        <div class="card-label" style="text-align:center">ADD MODULATION</div>
+        if (activeSlots.length === 0 && this.sources.length === 0) {
+          html = `
+                    <div class="empty-state-info">
+                        <div class="info-title">NO SIGNAL ASSETS DETECTED</div>
+                        <p>The system catalog is currently empty or no active modules with I/O ports were found in the rack.</p>
+                        <div class="metadata-warning">HANDSHAKE PENDING: Verify Era 7 Bridge Status</div>
                     </div>
                 `;
+        } else {
+          activeSlots.forEach((slot) => {
+            html += this.getSlotSkeleton(slot.i);
+          });
+          if (activeSlots.length < this.maxSlots) {
+            html += `
+                        <div class="matrix-card add-card" id="btn-add-modulation">
+                            <div class="add-icon">\uFF0B</div>
+                            <div class="card-label" style="text-align:center">ADD MODULATION</div>
+                        </div>
+                    `;
+          }
         }
       } else {
         for (let i = 0; i < this.maxSlots; i++) {
@@ -3420,12 +2829,10 @@
                 <div class="aseptic-group-title">VISUAL THEME</div>
                 <div class="theme-selector-container">
                     <select class="selector-control" id="theme-selector">
-                        <option value="">DEFAULT (MANIFEST)</option>
-                        <option value="juno">JUNO-STYLE (ORANGE/BLUE)</option>
-                        <option value="jp">JP-STYLE (NEON CYAN)</option>
-                        <option value="korg-ms20">KORG MS-20 (CONSOLAS/WHITE)</option>
-                        <option value="korg-prophecy">KORG PROPHECY (SILVER)</option>
-                        <option value="space">SPACE ECHO (GREEN)</option>
+                        <option value="industrial">INDUSTRIAL (DEFAULT)</option>
+                        <option value="carbon">CARBON (TECH)</option>
+                        <option value="glass">GLASS (FUTURISTIC)</option>
+                        <option value="minimal">MINIMAL (CLEAN)</option>
                     </select>
                 </div>
                 <div class="rack-reorder-info">
@@ -3635,166 +3042,6 @@
         `;
     }
   };
-
-  // components/ModuleMidiToCv.js
-  var ModuleMidiToCv = class {
-    container;
-    content;
-    options;
-    activityPulse = false;
-    constructor(container, content, options) {
-      this.container = container;
-      this.content = content;
-      this.options = options;
-      this.addStyles();
-      this.render();
-    }
-    async init() {
-      console.log(`[MCV] Initialized instance: ${this.options.instanceId || "mcv.1"}`);
-    }
-    render() {
-      if (!this.options.manifest) {
-        this.content.innerHTML = `<div style="color:red; font-size:10px;">MISSING MANIFEST</div>`;
-        return;
-      }
-      const hp = this.options.manifest.layout?.hp || 8;
-      const width = hp * 18.25;
-      this.container.style.width = `${width}px`;
-      const isUpper = this.container.parentElement?.id === "upper-rack";
-      this.content.innerHTML = `
-            <div class="aseptic-module-container ${isUpper ? "upper-util" : ""}" style="width: 100%; height: 100%; display: flex; ${isUpper ? "flex-direction: row; align-items: center; padding: 0 10px;" : "flex-direction: column;"} background: #050505;">
-                <div class="module-header-narrow" style="${isUpper ? "width: 40px; border-bottom: none; border-right: 1px solid #111; margin-right: 10px;" : "padding: 6px 2px; border-bottom: 1px solid #111;"} font-size: 7px; color: #555; text-align: center; font-family: 'Outfit', sans-serif; letter-spacing: 1px;">
-                    ${this.options.manifest.name || "OMEGA MODULE"}
-                </div>
-                <div class="control-cells-stack" style="flex: 1; display: flex; ${isUpper ? "flex-direction: row;" : "flex-direction: column;"} align-items: center; gap: 15px; padding: ${isUpper ? "0" : "12px 0"}; overflow: hidden;">
-                    <!-- Dynamic Cells -->
-                </div>
-            </div>
-        `;
-      const stack = this.content.querySelector(".control-cells-stack");
-      if (!stack)
-        return;
-      const entities = this.options.manifest.registry || [];
-      entities.filter((e) => {
-        return e.front === true;
-      }).forEach((entity) => {
-        stack.appendChild(this.buildControlCell(entity));
-      });
-    }
-    buildControlCell(entity) {
-      const cell = document.createElement("div");
-      cell.className = "control-cell aseptic-cell";
-      cell.style.cssText = "display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%;";
-      const hasLed = entity.presentation?.ui?.attachments?.some((a) => a.type === "led");
-      if (hasLed) {
-        const led = document.createElement("div");
-        led.className = "mcv-led";
-        led.id = `led-${this.options.instanceId}-${entity.id}`;
-        led.style.cssText = "width: 7px; height: 7px; background: #212; border-radius: 50%; border: 1px solid #313; transition: all 0.05s;";
-        cell.appendChild(led);
-      }
-      const isUpper = this.container.parentElement?.id === "upper-rack";
-      if (!isUpper) {
-        const compType = entity.presentation?.ui?.component || "knob";
-        const comp = document.createElement("div");
-        comp.className = `entity-control-mini control-${compType}`;
-        comp.innerHTML = `<div class="knob-mini-placeholder" style="width: 22px; height: 22px; border: 1.5px solid var(--neon-cyan); border-radius: 50%; background: #111; position: relative;">
-                <div style="position: absolute; top: 2px; left: 50%; width: 1.5px; height: 6px; background: var(--neon-cyan); transform-origin: bottom center;"></div>
-            </div>`;
-        cell.appendChild(comp);
-      }
-      const label = document.createElement("div");
-      label.className = "label-tiny";
-      label.innerText = entity.label || entity.id.toUpperCase();
-      label.style.cssText = "font-size: 6px; color: #777; font-family: 'Inter', sans-serif; text-transform: uppercase;";
-      cell.appendChild(label);
-      const disp = document.createElement("div");
-      disp.className = "value-display-tiny";
-      disp.id = `disp-${this.options.instanceId}-${entity.id}`;
-      disp.innerText = entity.range?.default?.toString() || "0";
-      disp.style.cssText = "font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--neon-cyan); opacity: 0.8;";
-      cell.appendChild(disp);
-      return cell;
-    }
-    onStateUpdate(state) {
-      if (!state || !this.options.manifest)
-        return;
-      if (state.patch) {
-        const mod = state.patch.modules.find((m) => m.instanceId === this.options.instanceId);
-        if (mod) {
-          const entities2 = this.options.manifest.registry || [];
-          entities2.forEach((entity, index) => {
-            const paramId = index + 1;
-            const val = mod.params[paramId];
-            if (val !== void 0) {
-              const disp = this.content.querySelector(`#disp-${this.options.instanceId}-${entity.id}`);
-              if (disp) {
-                const precision = entity.presentation?.ui?.ui_precision ?? 2;
-                disp.innerHTML = typeof val === "number" ? val.toFixed(precision) : val.toString();
-              }
-            }
-          });
-        }
-        return;
-      }
-      const entities = this.options.manifest.registry || [];
-      entities.forEach((entity) => {
-        const paramIdStr = `${this.options.instanceId}.${entity.id}`;
-        const val = state.params?.[paramIdStr];
-      });
-    }
-    sendParamUpdate(paramId, value) {
-      window.rpcCommandDispatcher.dispatch({
-        type: "setParameter",
-        payload: {
-          instanceId: this.options.instanceId,
-          paramId,
-          value
-        }
-      });
-    }
-    addStyles() {
-      if (document.getElementById("aseptic-module-styles"))
-        return;
-      const style = document.createElement("style");
-      style.id = "aseptic-module-styles";
-      style.innerHTML = `
-            .aseptic-module-container {
-                background: linear-gradient(180deg, #111 0%, #050505 100%);
-                border-left: 1px solid #222;
-                border-right: 1px solid #000;
-                box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
-            }
-            .control-cell.aseptic-cell {
-                transition: transform 0.2s ease;
-                cursor: pointer;
-            }
-            .control-cell.aseptic-cell:hover {
-                transform: scale(1.05);
-            }
-            .knob-mini-placeholder {
-                box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);
-            }
-            .mcv-led {
-                box-shadow: 0 0 2px rgba(0,0,0,0.8);
-            }
-            .label-tiny {
-                letter-spacing: 0.5px;
-                font-weight: 500;
-            }
-            .value-display-tiny {
-                background: rgba(0,255,255,0.05);
-                padding: 1px 4px;
-                border-radius: 2px;
-                border: 0.5px solid rgba(0,255,255,0.1);
-            }
-        `;
-      document.head.appendChild(style);
-    }
-  };
-  if (typeof window !== "undefined") {
-    window.ModuleMidiToCv = ModuleMidiToCv;
-  }
 
   // components/ModuleBrowser.js
   var ModuleBrowser = class {
@@ -4058,11 +3305,7 @@
   var manager = new ModuleManager();
   win.moduleManager = manager;
   ModuleRegistry.register("ModuleRenderer", ModuleRenderer);
-  ModuleRegistry.register("ModuleOscilloscope", ModuleOscilloscope);
-  ModuleRegistry.register("ModuleMidiTrigger", ModuleMidiTrigger);
-  ModuleRegistry.register("ModuleMidiViewer", ModuleMidiViewer);
   ModuleRegistry.register("ModulePatchbayMatrix", ModulePatchbayMatrix);
-  ModuleRegistry.register("ModuleMidiToCv", ModuleMidiToCv);
   ModuleRegistry.register("ModuleBrowser", ModuleBrowser);
   win.Preferences = Preferences;
   win.ServiceMode = ServiceMode;
