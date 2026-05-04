@@ -1,35 +1,28 @@
-/* OMEGA ASEPTIC LEDS (Neon Glow Aesthetic) */
+/* OMEGA ASEPTIC LEDS (Era 7.2.3 — Cyberpunk High-Fidelity) */
+/* Aligned with ABDSynthsWeb Standards */
 
 .theme-aseptic .led {
-  border-radius: 50%;
-  background: #002222;
-  border: 1px solid rgba(0, 242, 255, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50% !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.1s ease-out !important;
+    background-color: #000; 
+    opacity: 0.4;
 }
 
-/* Variation A: Large glowing orb */
-.theme-aseptic .led.variant-A {
-  width: 18px;
-  height: 18px;
-  background: #fff;
-  box-shadow: 
-    0 0 10px #fff, 
-    0 0 20px var(--module-accent), 
-    0 0 40px rgba(0, 242, 255, 0.2);
-}
+/* SIZES */
+.theme-aseptic .led.size-A { width: 12px !important; height: 12px !important; }
+.theme-aseptic .led.size-B { width: 8px !important; height: 8px !important; }
+.theme-aseptic .led.size-C { width: 5px !important; height: 5px !important; }
+.theme-aseptic .led.size-D { width: 3px !important; height: 3px !important; }
 
-/* Variation B: Status dot */
-.theme-aseptic .led.variant-B {
-  width: 10px;
-  height: 10px;
-  background: var(--module-accent);
-  box-shadow: 0 0 15px var(--module-accent);
-}
+/* COLOR STATES & INTENSE BLOOM */
+.theme-aseptic .led.color-cyan { background-color: var(--wb-primary); }
+.theme-aseptic .led.color-red { background-color: #ff4444; }
+.theme-aseptic .led.color-orange { background-color: var(--wb-accent); }
+.theme-aseptic .led.color-green { background-color: #00ff88; }
 
-/* Variation C: Sub-pixel indicator */
-.theme-aseptic .led.variant-C {
-  width: 4px;
-  height: 4px;
-  background: var(--module-accent);
-  opacity: 0.4;
+.theme-aseptic .led.active {
+    opacity: 1 !important;
+    border-color: #fff !important;
+    box-shadow: 0 0 15px currentColor, 0 0 5px #fff !important;
 }

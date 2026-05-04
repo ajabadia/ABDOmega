@@ -97,14 +97,26 @@
 .knob {
     position: absolute;
     width: 2px;
-    height: 25%; /* Responsive height */
-    background: var(--white);
+    height: 25%;
+    background: var(--wb-text);
     left: 50%;
     top: 15%;
     transform: translateX(-50%);
-    transform-origin: center calc(var(--knob-size) * 0.35); /* Adjust rotation center */
+    transform-origin: center calc(var(--knob-size) * 0.35);
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
     border-radius: 1px;
+}
+
+/* SILVER VARIANT */
+.knob.silver {
+    background: radial-gradient(circle at center, #fff 0%, #ccc 60%, #999 100%) !important;
+    border-color: #777 !important;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2), inset 0 0 2px rgba(255,255,255,0.8) !important;
+}
+
+.knob-marker.silver {
+    background-color: #333 !important;
+    box-shadow: none !important;
 }
 
 /* [Era 7.1] Standardized Size/Color Variants (Aligned with abd-ia_synths) */
@@ -229,40 +241,59 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2);
 }
 
-/* LEDS */
-/* LEDS */
+/* ═══════════════════════════════════════════════
+   OMEGA ERA 7.2.3 — INDUSTRIAL LED SYSTEM
+   ═══════════════════════════════════════════════ */
+
 .led {
-    width: 14px;
-    height: 14px;
-    background: #222;
+    width: 12px;
+    height: 12px;
+    background: #111;
     border-radius: 50%;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+    border: 1px solid #000;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.05);
     position: relative;
-    border: 1px solid #333;
+    overflow: hidden;
+    margin: 4px;
+    transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* LED Shapes */
-.variant-A .led { width: 14px; height: 14px; border-radius: 50%; } /* Round Std */
-.variant-B .led { width: 8px; height: 8px; border-radius: 50%; }   /* Round Mini */
-.variant-C .led { width: 16px; height: 6px; border-radius: 1px; }  /* Rectangular */
-
-/* LED Colors & Glows */
-.led.active.led-cyan   { background: var(--omega-cyan); box-shadow: 0 0 12px var(--omega-cyan); }
-
-/* [Era 7.1] Pattern: [Size]_[Color] */
-[class*="_red"].led.active    { background: var(--omega-red); box-shadow: 0 0 12px var(--omega-red); }
-[class*="_green"].led.active  { background: var(--omega-green); box-shadow: 0 0 12px var(--omega-green); }
-[class*="_blue"].led.active   { background: #0066ff; box-shadow: 0 0 12px #0066ff; }
-[class*="_yellow"].led.active { background: #ffff00; box-shadow: 0 0 12px #ffff00; }
-[class*="_white"].led.active  { background: var(--omega-white); box-shadow: 0 0 12px var(--omega-white); }
-[class*="_orange"].led.active { background: var(--omega-orange); box-shadow: 0 0 12px var(--omega-orange); }
-[class*="_cyan"].led.active   { background: var(--omega-cyan); box-shadow: 0 0 12px var(--omega-cyan); }
-
-/* Compatibility with legacy assets if needed */
-.led.active {
-    background: #ff4444; /* Default fallback color */
-    box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+.led::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 4px;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
 }
+
+/* LED Colors & Glows (Aseptic Standards) */
+.led.active.led-red, .led.active { 
+    background: radial-gradient(circle at 30% 30%, #ff6666 0%, #cc0000 80%);
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.4), inset 0 0 5px rgba(255,255,255,0.2); 
+}
+
+.led.active.led-cyan { 
+    background: radial-gradient(circle at 30% 30%, #aaffff 0%, #00b0ff 80%);
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.4), inset 0 0 5px rgba(255,255,255,0.2); 
+}
+
+.led.active.led-orange { 
+    background: radial-gradient(circle at 30% 30%, #ffccaa 0%, #ff5500 80%);
+    box-shadow: 0 0 15px rgba(255, 85, 0, 0.4), inset 0 0 5px rgba(255,255,255,0.2); 
+}
+
+.led.active.led-green { 
+    background: radial-gradient(circle at 30% 30%, #ccffaa 0%, #39FF14 80%);
+    box-shadow: 0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 5px rgba(255,255,255,0.2); 
+}
+
+/* [Era 7.1] Pattern Support */
+[class*="_red"].led.active    { background: radial-gradient(circle at 30% 30%, #ff6666 0%, #cc0000 80%); box-shadow: 0 0 12px rgba(255,0,0,0.4); }
+[class*="_green"].led.active  { background: radial-gradient(circle at 30% 30%, #ccffaa 0%, #39FF14 80%); box-shadow: 0 0 12px rgba(57,255,20,0.4); }
+[class*="_cyan"].led.active   { background: radial-gradient(circle at 30% 30%, #aaffff 0%, #00b0ff 80%); box-shadow: 0 0 12px rgba(0,242,255,0.4); }
 
 /* BUTTONS */
 .sq {

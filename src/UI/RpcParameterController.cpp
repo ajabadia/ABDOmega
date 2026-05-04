@@ -66,6 +66,7 @@ namespace UI {
                 mObj->setProperty("instanceId", (int)m.instanceId);
                 mObj->setProperty("typeId", (int)m.typeId);
                 mObj->setProperty("componentId", juce::String(Core::Model::mapTypeToId(m.typeId)));
+                mObj->setProperty("rack", m.position.rack == 1 ? "upper" : "lower");
                 
                 juce::DynamicObject::Ptr params = new juce::DynamicObject();
                 for (const auto& p : m.parameters) {

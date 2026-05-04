@@ -1,0 +1,44 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL SWITCHES (Era 7.2.3) */
+/* CSS-only switch replacing legacy .sw-peg PNGs */
+
+.switch-container {
+    background: #000;
+    border: 1px solid var(--wb-outline);
+    border-radius: 9999px;
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.switch-dot {
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    transition: all 0.2s;
+}
+
+/* SIZES */
+.switch-container.size-A { width: 16px; height: 28px; }
+.switch-container.size-A .switch-dot { width: 12px; height: 12px; }
+
+.switch-container.size-B { width: 12px; height: 21px; }
+.switch-container.size-B .switch-dot { width: 8px; height: 8px; }
+
+.switch-container.size-C { width: 10px; height: 18px; }
+.switch-container.size-C .switch-dot { width: 6px; height: 6px; }
+
+.switch-container.size-D { width: 8px; height: 14px; }
+.switch-container.size-D .switch-dot { width: 4px; height: 4px; }
+
+/* ACTIVE STATES (Controlled by JS via adding .active class to dots) */
+.switch-container.color-cyan .switch-dot.active { background: var(--wb-primary); box-shadow: 0 0 8px var(--wb-primary); }
+.switch-container.color-red .switch-dot.active { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+.switch-container.color-orange .switch-dot.active { background: var(--wb-accent); box-shadow: 0 0 8px var(--wb-accent); }

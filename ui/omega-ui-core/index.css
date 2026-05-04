@@ -1,0 +1,45 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* ═══════════════════════════════════════════════
+   OMEGA UI CORE (Era 7.2.3)
+   Single Source of Truth for Visual Parity
+   ═══════════════════════════════════════════════ */
+
+/* TOKENS */
+@import './tokens/vars.css';
+@import './tokens/signals.css';
+@import './tokens/skins.css';
+
+/* LAYOUT */
+@import './layout/containers.css';
+@import './layout/screws.css';
+@import './layout/cells.css';
+@import './layout/tabs.css';
+@import './layout/splash.css';
+
+/* PRIMITIVES */
+@import './primitives/knob.css';
+@import './primitives/slider.css';
+@import './primitives/led.css';
+@import './primitives/port.css';
+@import './primitives/display.css';
+@import './primitives/select.css';
+@import './primitives/switch.css';
+@import './primitives/stepper.css';
+@import './primitives/label.css';
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-primary);
+    user-select: none; /* Prevent text selection during knob dragging */
+    -webkit-user-select: none;
+}
+

@@ -1,0 +1,50 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL SLIDERS (Era 7.2.3 — High Fidelity) */
+/* Aligned with ABDSynthsWeb Standards */
+
+.slider-wrapper {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid var(--wb-outline) !important;
+    border-radius: 20px !important;
+    padding: 2px !important;
+    position: relative;
+    cursor: crosshair;
+}
+
+.slider-rail-active {
+    position: absolute;
+    background: rgba(0, 240, 255, 0.1) !important;
+    border-radius: 20px !important;
+    pointer-events: none;
+    transition: width 0.1s ease-out, height 0.1s ease-out;
+}
+
+.slider-cap {
+    position: absolute;
+    border-radius: 1px !important;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.4) !important;
+    z-index: 10;
+    pointer-events: none;
+    background: var(--wb-primary);
+    transition: left 0.1s ease-out, bottom 0.1s ease-out;
+}
+
+/* SIZES (Height for V, Width for H) */
+.slider-wrapper.size-A { --slider-dim: 80px; }
+.slider-wrapper.size-B { --slider-dim: 60px; }
+.slider-wrapper.size-C { --slider-dim: 40px; }
+.slider-wrapper.size-D { --slider-dim: 30px; }
+
+/* HORIZONTAL / VERTICAL SPECIFIC */
+.slider-v { width: 12px !important; height: var(--slider-dim) !important; }
+.slider-h { height: 12px !important; width: var(--slider-dim) !important; }
+
+/* COLOR VARIANTS */
+.slider-wrapper.color-cyan .slider-cap { background: var(--wb-primary); box-shadow: 0 0 10px var(--wb-primary); }
+.slider-wrapper.color-orange .slider-cap { background: var(--wb-accent); box-shadow: 0 0 10px var(--wb-accent); }
+.slider-wrapper.color-red .slider-cap { background: #ff4444; box-shadow: 0 0 10px #ff4444; }

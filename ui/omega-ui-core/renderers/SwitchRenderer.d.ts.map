@@ -1,0 +1,1 @@
+{"version":3,"file":"SwitchRenderer.d.ts","sourceRoot":"","sources":["SwitchRenderer.ts"],"names":[],"mappings":"AAMA;;;GAGG;AAEH,MAAM,WAAW,WAAW;IAC1B,IAAI,EAAE,MAAM,CAAC;IACb,OAAO,EAAE,MAAM,CAAC;IAChB,KAAK,EAAE,MAAM,CAAC;IACd,EAAE,CAAC,EAAE,MAAM,CAAC;CACb;AAED,eAAO,MAAM,gBAAgB,GAAI,OAAO,WAAW,KAAG,MAUrD,CAAC"}

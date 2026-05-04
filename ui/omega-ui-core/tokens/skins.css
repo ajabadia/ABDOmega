@@ -1,0 +1,48 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* ═══════════════════════════════════════════════
+   OMEGA ERA 7.2.3 — SKIN SYSTEM
+   (Synchronized with ABDSynthsWeb Standards)
+   ═══════════════════════════════════════════════ */
+
+:root {
+    --carbon-texture: radial-gradient(#222 20%, transparent 20%), radial-gradient(#222 20%, transparent 20%);
+    --carbon-bg: #0a0a0a;
+    --glass-blur: 12px;
+    --glass-bg: rgba(20, 25, 30, 0.4);
+    --industrial-bg: #1a1c1e;
+    --industrial-border: var(--wb-outline);
+}
+
+/* SKIN: CARBON */
+.skin-carbon {
+    background-color: var(--carbon-bg, #0a0a0a) !important;
+    background-image: var(--carbon-texture) !important;
+    background-size: 4px 4px !important;
+    background-position: 0 0, 2px 2px !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* SKIN: GLASS */
+.skin-glass {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--glass-blur)) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* SKIN: MINIMAL */
+.skin-minimal {
+    background: transparent !important;
+    border: 1px dashed rgba(255, 255, 255, 0.1) !important;
+}
+
+/* SKIN: INDUSTRIAL */
+.skin-industrial {
+    background-color: #1a1c1e !important;
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}

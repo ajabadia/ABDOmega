@@ -22,7 +22,7 @@ namespace Omega {
                 .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
                 .withWinWebView2Options(juce::WebBrowserComponent::Options::WinWebView2()
                     .withUserDataFolder(juce::File::getSpecialLocation(juce::File::tempDirectory)
-                        .getChildFile("OmegaSynth_WebView2_V74_Diagnostic")))
+                        .getChildFile("OmegaSynth_WebView2_V75_Diagnostic")))
                 .withNativeIntegrationEnabled(true)
                 .withInitialisationData("omega", createInitData())
                 .withEventListener("omega_rpc_query", [this](juce::var p) {

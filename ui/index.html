@@ -70,14 +70,32 @@
         console.error = (...args) => { originalError.apply(console, args); appendToConsole('error', ...args); };
 
     </script>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="css/controls.css">
+    <!-- OMEGA ERA 7.2.3 — UNIFIED DESIGN SYSTEM (omega-ui-core) -->
+    <link rel="stylesheet" href="omega-ui-core/index.css">
+    
+    <!-- OMEGA Base Styles & Effects -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/effects.css">
+    <link rel="stylesheet" href="css/telemetry.css">
+    
+    <!-- Specialized Component Styles -->
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="css/preferences.css">
     <link rel="stylesheet" href="css/matrix_overlay.css">
     <link rel="stylesheet" href="css/module_browser.css">
-    <!-- OMEGA Themes (Module Skills) -->
-    <link rel="stylesheet" href="css/themes/default.css">
-    <link rel="stylesheet" href="css/themes/industrial.css">
+    <link rel="stylesheet" href="css/modals.css">
+    <link rel="stylesheet" href="css/performance.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/about.css">
+    <link rel="stylesheet" href="css/keyboard.css">
+    <link rel="stylesheet" href="css/engine.css">
+    
+    <!-- OMEGA Themes (Contextual Overrides) -->
+    <link rel="stylesheet" href="omega-ui-core/themes/industrial/theme.css">
+    <link rel="stylesheet" href="css/themes/aseptic/theme.css">
+
 </head>
 <body class="rack-bg">
     <div class="crt-screen"></div>
@@ -116,7 +134,7 @@
         <div class="menu-status-tray" style="margin-left: auto; display: flex; align-items: center; padding: 0 15px; gap: 8px;">
             <div id="bridge-health-led" class="led led-cyan" style="width: 8px; height: 8px; margin: 0; background-color: #331111; cursor: help;" title="Aseptic Bridge Status"></div>
             <span style="font-size: 9px; font-weight: 900; letter-spacing: 1px; color: #555; text-transform: uppercase;">ASEPTIC LINK</span>
-            <div class="top-bar-version" id="top-bar-version" style="margin-left: 10px; opacity: 0.4;">OMEGA Era 7.2.3</div>
+            <div class="top-bar-version" id="top-bar-version" style="margin-left: 10px; opacity: 0.4;">OMEGA Era 7.2.3 [ASEPTIC MODULAR]</div>
         </div>
     </nav>
 

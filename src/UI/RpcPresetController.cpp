@@ -100,7 +100,8 @@ namespace UI {
         for (const auto& m : doc.modules) if (m.instanceId > maxId) maxId = m.instanceId;
         ni.instanceId = maxId + 1;
         
-        ni.position.rack = 0;
+        auto info = mCatalog.getComponent(componentId.toStdString());
+        ni.position.rack = (info && info->rack == "upper") ? 1 : 0;
         ni.position.slot = (int16_t)doc.modules.size();
         
         doc.modules.push_back(ni);

@@ -1,0 +1,84 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL KNOBS (Era 7.2.3 — High Fidelity) */
+/* Aligned with ABDSynthsWeb Standards */
+
+.knob-container {
+    background: #111 !important;
+    border: 2px solid #333 !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.05) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s;
+    border-radius: 50% !important;
+}
+
+.knob-container:hover {
+    border-color: #444 !important;
+}
+
+.knob-cap {
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%) !important;
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+}
+
+/* VARIANT A: LARGE KNOB (48px) */
+.knob-container.size-A {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+}
+
+/* VARIANT B: MEDIUM KNOB (36px) */
+.knob-container.size-B {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+}
+
+/* VARIANT C: SMALL KNOB (24px) */
+.knob-container.size-C {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+}
+
+/* VARIANT D: MINI KNOB (18px) */
+.knob-container.size-D {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+}
+
+/* POINTER / MARKER SYSTEM */
+.knob-marker {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px !important;
+    height: 42% !important;
+    border-radius: 1px !important;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.6) !important;
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%) rotate(var(--knob-rotation, 0deg));
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* COLOR VARIANTS */
+.knob-container.color-cyan .knob-marker { background: var(--wb-primary) !important; box-shadow: 0 0 8px var(--wb-primary) !important; }
+.knob-container.color-red .knob-marker { background: #ff4444 !important; box-shadow: 0 0 8px #ff4444 !important; }
+.knob-container.color-orange .knob-marker { background: var(--wb-accent) !important; box-shadow: 0 0 8px var(--wb-accent) !important; }
+.knob-container.color-green .knob-marker { background: #00ff88 !important; box-shadow: 0 0 8px #00ff88 !important; }
+.knob-container.color-white .knob-marker { background: #ffffff !important; box-shadow: 0 0 8px #ffffff !important; }

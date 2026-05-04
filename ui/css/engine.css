@@ -22,7 +22,7 @@
     border: 1px solid #111;
 }
 
-.module {
+#engine-layout .module {
     flex: 1;
     background: transparent;
     display: flex;

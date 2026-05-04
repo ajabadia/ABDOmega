@@ -1,0 +1,19 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL LABELS (Era 7.2.3) */
+
+.cell-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 8px;
+    font-weight: 900;
+    color: var(--wb-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    line-height: 1;
+    pointer-events: none;
+    white-space: nowrap;
+}

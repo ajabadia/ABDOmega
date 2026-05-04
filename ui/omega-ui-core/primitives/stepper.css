@@ -1,0 +1,60 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL STEPPERS / BUTTONS (Era 7.2.3) */
+
+.industrial-btn {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    transition: all 0.1s;
+    overflow: hidden;
+}
+
+.industrial-btn:active {
+    transform: scale(0.9);
+    background: rgba(255,255,255,0.05);
+}
+
+.btn-indicator {
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    transition: all 0.2s;
+}
+
+.industrial-btn .btn-text {
+    font-family: 'Space Mono', monospace;
+    font-weight: 900;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+/* SIZES */
+.industrial-btn.size-A { width: 24px; height: 24px; }
+.industrial-btn.size-A .btn-indicator { width: 6px; height: 6px; }
+.industrial-btn.size-A .btn-text { font-size: 12px; }
+
+.industrial-btn.size-B { width: 18px; height: 18px; }
+.industrial-btn.size-B .btn-indicator { width: 4px; height: 4px; }
+.industrial-btn.size-B .btn-text { font-size: 9px; }
+
+.industrial-btn.size-C { width: 14px; height: 14px; }
+.industrial-btn.size-C .btn-indicator { width: 3px; height: 3px; }
+.industrial-btn.size-C .btn-text { font-size: 7px; }
+
+.industrial-btn.size-D { width: 12px; height: 12px; }
+.industrial-btn.size-D .btn-indicator { width: 2px; height: 2px; }
+.industrial-btn.size-D .btn-text { font-size: 6px; }
+
+/* ACTIVE STATES */
+.industrial-btn.active.color-cyan { border-color: rgba(0,240,255,0.4); }
+.industrial-btn.active.color-cyan .btn-indicator { background: var(--wb-primary); box-shadow: 0 0 10px var(--wb-primary); }
+.industrial-btn.active.color-cyan .btn-text { color: var(--wb-primary); }

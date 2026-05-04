@@ -1,0 +1,48 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL SELECTS (Era 7.2.3) */
+
+.industrial-select-wrapper {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    gap: 8px;
+}
+
+.industrial-select-wrapper:hover {
+    border-color: rgba(0, 240, 255, 0.4);
+}
+
+.industrial-select-label {
+    flex: 1;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.industrial-select-icon {
+    font-size: 6px;
+    opacity: 0.5;
+}
+
+/* SIZES */
+.industrial-select-wrapper.size-A { width: 120px; height: 24px; }
+.industrial-select-wrapper.size-B { width: 100px; height: 24px; }
+.industrial-select-wrapper.size-C { width: 80px; height: 24px; }
+.industrial-select-wrapper.size-D { width: 60px; height: 24px; }
+
+/* COLORS */
+.industrial-select-wrapper.color-cyan .industrial-select-label { color: var(--wb-primary); }
+.industrial-select-wrapper.color-cyan:hover .industrial-select-icon { color: var(--wb-primary); opacity: 1; }

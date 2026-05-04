@@ -1,40 +1,66 @@
-@import url('https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Inter:wght@400;700;900&family=Orbitron:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@400;700;900&family=Space+Mono&display=swap');
 
 @font-face {
-    font-family: 'SevenSegment';
+    font-family: 'Seven Segment';
     src: url('../SevenSegment.ttf') format('truetype');
 }
 
-@font-face {
-    font-family: 'Microgramma';
-    src: url('../microgrammanormal.ttf') format('truetype');
+:root {
+    /* ═══════════════════════════════════════════════
+       OMEGA ERA 7.2.3 — UNIFIED WORKBENCH TOKENS
+       (Synchronized with ABDSynthsWeb Standards)
+       ═══════════════════════════════════════════════ */
+    
+    --wb-bg: #050505;
+    --wb-surface: #0a0a0b;
+    --wb-surface-hover: #141416;
+    --wb-surface-inset: #1a1a1c;
+    --wb-outline: rgba(255, 255, 255, 0.08);
+    --wb-text: #e0e0e0;
+    --wb-text-muted: rgba(255, 255, 255, 0.4);
+    --wb-bloom: rgba(0, 240, 255, 0.3);
+    --wb-primary: #00f0ff;
+    --wb-accent: #ff8c00;
+
+    /* SIGNAL COLOR TOKENS (ERA 7.2.3) */
+    --signal-audio: #00f0ff;
+    --signal-cv: #ffaa00;
+    --signal-gate: #ffffff;
+    --signal-midi: #ff5500;
+
+    /* LAYOUT CONSTANTS */
+    --rack-height: 600px;
+    --knob-size: 42px;
+    --render-scale: 1.5;
+
+    /* OMEGA ERA 7.2.3 UNIFIED SKIN SYSTEM */
+    --carbon-texture: radial-gradient(#222 20%, transparent 20%), radial-gradient(#222 20%, transparent 20%);
+    --carbon-bg: #0a0a0a;
+    --glass-blur: 12px;
+    --glass-bg: rgba(20, 25, 30, 0.4);
+    --industrial-bg: #1a1c1e;
+    --industrial-border: var(--wb-outline);
 }
 
-:root {
-    /* Functional Colors */
-    --bg-synth: #0d0e11;
-    --metal-dark: #1e1f24;
-    --metal-highlight: #2a2c32;
-    --led-red: #ff1122;
-    --lcd-green: #00ff22;
-    --lcd-red: #ff3c3c;
-    --text-label: #9aa0a6;
-    --panel-border: #111;
-    --ivory: #fcfaf2;
-    --ebony: #1a1a1a;
-    --black: #000000;
-    --white: #ffffff;
+/* ═══════════════════════════════════════════════
+   WORKBENCH UI THEME ENGINE (Era 7.2.3)
+   Synchronized with ABDSynthsWeb standards
+   ═══════════════════════════════════════════════ */
+[data-ui-theme="light"] {
+    --wb-bg: #f8fafc;
+    --wb-surface: #ffffff;
+    --wb-surface-hover: #f1f5f9;
+    --wb-surface-inset: #e2e8f0; 
+    --wb-outline: #cbd5e1;
+    --wb-text: #020617;
+    --wb-text-muted: #475569; 
+    --wb-bloom: rgba(100, 116, 139, 0.1);
+    --wb-primary: #5c7089; 
+    --wb-accent: #f59e0b;
 
-    /* Layout constants */
-    --header-height: 90px;
-    --sidebar-width: 250px;
-    --slider-height: 125px;
-    --knob-size: 60px;
-    --rack-height: 280px;
-
-    /* Effects */
-    --led-glow: 0 0 12px #ff4444, 0 0 4px #fff;
-    --glass-blur: blur(2px);
-    --soft-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-    --panel-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5);
+    /* SIGNAL COLOR TOKENS (LIGHT ADAPTATION) */
+    --signal-audio: #3b82f6;
+    --signal-cv: #d97706;
+    --signal-gate: #475569;
+    --signal-midi: #ea580c;
 }

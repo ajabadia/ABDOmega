@@ -1,0 +1,76 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL DISPLAYS (Era 7.2.3 — High Fidelity) */
+
+.mini-display {
+    background: #000;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: inset 0 0 15px rgba(0,0,0,1);
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    border-radius: 2px;
+}
+
+.display-btn {
+    background: transparent;
+    border: none;
+    color: #444;
+    cursor: pointer;
+    flex-none: 1;
+    width: 20%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.display-btn:hover {
+    background: rgba(255,255,255,0.05);
+    color: #666;
+}
+
+.display-btn:active {
+    background: rgba(0,242,255,0.2);
+    color: #fff;
+}
+
+.display-value {
+    flex: 1;
+    text-align: center;
+    font-family: 'Seven Segment', monospace;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.4);
+}
+
+/* SIZES */
+.mini-display.size-A { width: 100px; height: 33px; }
+.mini-display.size-A .display-value { font-size: 14px; }
+
+.mini-display.size-B { width: 80px; height: 26px; }
+.mini-display.size-B .display-value { font-size: 11px; }
+
+.mini-display.size-C { width: 60px; height: 20px; }
+.mini-display.size-C .display-value { font-size: 8px; }
+
+.mini-display.size-D { width: 40px; height: 14px; }
+.mini-display.size-D .display-value { font-size: 6px; }
+
+/* VARIANTS / COLORS */
+.mini-display.color-cyan .display-value { color: var(--wb-primary); text-shadow: 0 0 10px rgba(0,240,255,0.3); }
+.mini-display.color-red .display-value { color: #ff4444; text-shadow: 0 0 10px rgba(255,68,68,0.3); }
+.mini-display.color-orange .display-value { color: var(--wb-accent); text-shadow: 0 0 10px rgba(255,140,0,0.3); }
+.mini-display.color-green .display-value { color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.3); }
+.mini-display.color-white .display-value { color: #ffffff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+
+/* OLED / LCD / LED specific overrides */
+.mini-display.variant-oled { background: #0a0a0a; }
+.mini-display.variant-lcd { background: #111811; }
+.mini-display.variant-lcd.color-green .display-value { color: #113311; text-shadow: none; font-weight: bold; } /* Inverted style LCD */

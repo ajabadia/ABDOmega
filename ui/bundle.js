@@ -860,6 +860,21 @@
       el.className = `module module-${type} ${className} ${options.manifest.panelClass || ""}`;
       const header = document.createElement("div");
       header.className = "module-header";
+      header.style.display = "flex";
+      header.style.flexDirection = "row";
+      header.style.alignItems = "center";
+      header.style.gap = "6px";
+      const configBtn = document.createElement("div");
+      configBtn.className = "module-header-action config-btn";
+      configBtn.innerHTML = "\u2699";
+      configBtn.title = `Configure ${id}`;
+      configBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (window.modulePatchModal) {
+          window.modulePatchModal.open(id, options.manifest);
+        }
+      };
+      header.appendChild(configBtn);
       const moveLeft = document.createElement("div");
       moveLeft.className = "module-header-action move-btn";
       moveLeft.innerHTML = "\u25C0";
@@ -881,19 +896,8 @@
       const spacer = document.createElement("div");
       spacer.style.flex = "1";
       header.appendChild(spacer);
-      const configBtn = document.createElement("div");
-      configBtn.className = "module-header-action config-btn";
-      configBtn.innerHTML = "\u2699";
-      configBtn.title = `Configure ${id}`;
-      configBtn.onclick = (e) => {
-        e.stopPropagation();
-        if (window.modulePatchModal) {
-          window.modulePatchModal.open(id, options.manifest);
-        }
-      };
-      header.appendChild(configBtn);
       const closeBtn = document.createElement("div");
-      closeBtn.className = "module-header-action close-btn";
+      closeBtn.className = "module-header-action module-header-action-close";
       closeBtn.innerHTML = "\xD7";
       closeBtn.title = `Remove ${id}`;
       closeBtn.onclick = (e) => {
@@ -922,6 +926,27 @@
       } else {
         console.error(`[ModuleManager] Module class not found in registry: ${className}`);
       }
+    }
+    /**
+     * Increments or decrements a parameter value by a single step.
+     * Used by shared stateless components like the Display primitive.
+     */
+    stepParameter(id, step) {
+      const win2 = window;
+      if (!win2.runtimeStore || !win2.rpcCommandDispatcher)
+        return;
+      const snapshot = win2.runtimeStore.getSnapshot();
+      const currentValue = snapshot.parameters?.[id] || 0;
+      const delta = step * 0.01;
+      const nextValue = Math.max(0, Math.min(1, currentValue + delta));
+      OmegaLog.debug("MANAGER", `Stepping parameter ${id}: ${currentValue} -> ${nextValue}`);
+      win2.rpcCommandDispatcher.dispatch({
+        type: "setParameter",
+        payload: {
+          id,
+          value: nextValue
+        }
+      });
     }
     cleanupModules(activeIds) {
       this.activeModules.forEach((mod, id) => {
@@ -1672,6 +1697,290 @@
   var PresetBrowser = new OMEGA_PresetBrowser();
   window.PresetBrowser = PresetBrowser;
 
+  // omega-ui-core/renderers/KnobRenderer.js
+  var renderKnobHTML = (props) => {
+    const { size, colorId, value, isSelected, isMain, id, rotationOffset = -135, rotationRange = 270 } = props;
+    const rotation = rotationOffset + value * rotationRange;
+    const selectedClass = isMain && isSelected ? "selected" : "";
+    const classes = [
+      "knob-container",
+      `size-${size}`,
+      `color-${colorId}`,
+      selectedClass
+    ].filter(Boolean).join(" ");
+    return `
+    <div class="${classes}" ${id ? `data-source="${id}"` : ""}>
+      <div class="knob-cap"></div>
+      <div class="knob-marker" style="transform: rotate(${rotation}deg)"></div>
+    </div>
+  `.trim();
+  };
+
+  // omega-ui-core/renderers/PortRenderer.js
+  var inferPortSignalColor = (id = "", label = "", explicitColor) => {
+    if (explicitColor)
+      return `var(--signal-${explicitColor.toLowerCase().replace("b_", "")}, var(--wb-primary))`;
+    const searchStr = `${id} ${label}`.toLowerCase();
+    if (searchStr.includes("midi"))
+      return "var(--signal-midi)";
+    if (searchStr.includes("gate") || searchStr.includes("trig"))
+      return "var(--signal-gate)";
+    if (searchStr.includes("cv") || searchStr.includes("mod"))
+      return "var(--signal-cv)";
+    if (searchStr.includes("pitch") || searchStr.includes("freq") || searchStr.includes("out") || searchStr.includes("in"))
+      return "var(--signal-audio)";
+    return "var(--wb-primary)";
+  };
+  var renderPortHTML = (props) => {
+    const { size, colorId, value, isSelected, isMain, id, label, explicitColor } = props;
+    const signalColor = inferPortSignalColor(id, label, explicitColor);
+    const opacity = 0.3 + value * 0.7;
+    const selectedClass = isMain && isSelected ? "selected" : "";
+    const classes = [
+      "port-socket",
+      `size-${size}`,
+      `color-${colorId}`,
+      selectedClass
+    ].filter(Boolean).join(" ");
+    const ledStyle = `background-color: ${signalColor}; opacity: ${opacity};`;
+    return `<div class="${classes}" ${id ? `data-source="${id}"` : ""}><div class="port-inner"><div class="port-led" style="${ledStyle}"></div></div></div>`;
+  };
+
+  // omega-ui-core/renderers/LedRenderer.js
+  var renderLedHTML = (props) => {
+    const { size, colorId, value, id, transform } = props;
+    const isActive = value > 0.05;
+    const opacity = 0.3 + value * 0.7;
+    const classes = [
+      "led",
+      `size-${size}`,
+      `color-${colorId}`,
+      isActive ? "active" : ""
+    ].filter(Boolean).join(" ");
+    const style = [
+      `opacity: ${opacity}`,
+      transform || ""
+    ].filter(Boolean).join("; ");
+    return `<div class="${classes}" ${id ? `data-source="${id}"` : ""} style="${style}"></div>`;
+  };
+
+  // omega-ui-core/renderers/SliderRenderer.js
+  var renderSliderHTML = (props) => {
+    const { type, size, colorId, value, id } = props;
+    const isHoriz = type === "slider-h";
+    const railStyle = isHoriz ? `width: calc(${value * 100}% - 4px)` : `height: calc(${value * 100}% - 4px)`;
+    const capStyle = isHoriz ? `left: calc(${value * 90}%)` : `bottom: calc(${value * 90}%)`;
+    return `
+    <div class="slider-wrapper ${type} size-${size} color-${colorId}" ${id ? `data-source="${id}"` : ""}>
+      <div class="slider-rail-active" style="${railStyle}"></div>
+      <div class="slider-cap" style="${capStyle}"></div>
+    </div>
+  `.trim();
+  };
+
+  // omega-ui-core/renderers/DisplayRenderer.js
+  var renderDisplayHTML = (props) => {
+    const { size, colorId, mode, value, steps, id } = props;
+    const displayValue = Math.round(value * (steps || 100));
+    return `
+    <div class="mini-display variant-${mode} size-${size} color-${colorId}" ${id ? `data-source="${id}"` : ""}>
+      <button class="display-btn minus" data-action="step-down">\u2212</button>
+      <div class="display-value">${displayValue}</div>
+      <button class="display-btn plus" data-action="step-up">+</button>
+    </div>
+  `.trim();
+  };
+
+  // omega-ui-core/renderers/SwitchRenderer.js
+  var renderSwitchHTML = (props) => {
+    const { size, colorId, value, id } = props;
+    const isActive = value >= 0.5;
+    return `
+    <div class="switch-container size-${size} color-${colorId}" ${id ? `data-source="${id}"` : ""}>
+      <div class="sw-led ${!isActive ? "active" : ""}"></div>
+      <div class="sw-led ${isActive ? "active" : ""}"></div>
+    </div>
+  `.trim();
+  };
+
+  // omega-ui-core/renderers/StepperRenderer.js
+  var renderStepperHTML = (props) => {
+    const { type, size, colorId, value, text, id } = props;
+    const isPressed = value >= 0.5;
+    const content = text ? `<span class="stepper-text">${text.toUpperCase()}</span>` : `<div class="stepper-dot"></div>`;
+    return `
+    <div class="stepper-container type-${type} size-${size} color-${colorId} ${isPressed ? "pressed" : ""}" 
+         ${id ? `data-source="${id}"` : ""} 
+         data-type="${type}">
+      ${content}
+    </div>
+  `.trim();
+  };
+
+  // omega-ui-core/renderers/SelectRenderer.js
+  var renderSelectHTML = (props) => {
+    const { size, colorId, value, options = [], id } = props;
+    const labels = options.length > 0 ? options : ["NO OPTIONS"];
+    const currentIndex = Math.min(labels.length - 1, Math.floor(value * labels.length));
+    const currentLabel = labels[currentIndex];
+    return `
+    <div class="mini-select size-${size} color-${colorId}" ${id ? `data-source="${id}"` : ""}>
+      <div class="select-value">${(currentLabel || "").toUpperCase()}</div>
+
+      <div class="select-arrow">\u25BC</div>
+    </div>
+  `.trim();
+  };
+
+  // omega-ui-core/renderers/AttachmentRenderer.js
+  var AttachmentRenderer = class {
+    static renderAttachmentHTML(props) {
+      const { type, variant, text = "" } = props;
+      if (type === "label") {
+        const parts = (variant || "B_cyan").split("_");
+        const sizeClass = parts[0] || "B";
+        const colorVariant = variant || "B_cyan";
+        const sizes = { A: 12, B: 9, C: 7, D: 6 };
+        const fontSize = sizes[sizeClass] || 9;
+        return `
+        <div class="attachment-label variant-${colorVariant}" style="font-size: ${fontSize}px;">
+          ${text.toUpperCase()}
+        </div>
+      `;
+      }
+      return `<!-- Unknown Attachment Type: ${type} -->`;
+    }
+  };
+
+  // omega-ui-core/renderers/CellRenderer.js
+  var RADIUS_MAP = {
+    knob: { A: 24, B: 18, C: 12, D: 9 },
+    port: { A: 21, B: 18, C: 15, D: 12 },
+    display: { A: 16.5, B: 13, C: 10, D: 7 },
+    led: { A: 6, B: 4, C: 2.5, D: 1.5 },
+    slider: { A: 6, B: 6, C: 6, D: 6 },
+    switch: { A: 16, B: 12, C: 10, D: 8 },
+    stepper: { A: 12, B: 9, C: 7, D: 6 },
+    select: { A: 12, B: 12, C: 12, D: 12 }
+  };
+  var CellRenderer = class {
+    /**
+     * Calculates the physical radius of a component based on its metadata.
+     */
+    static getComponentRadius(item) {
+      const variant = item.presentation?.variant || "B_cyan";
+      const parts = variant.split("_");
+      let size = parts[0] || "B";
+      if (variant.includes("_3mm"))
+        size = "D";
+      if (variant.includes("_5mm"))
+        size = "C";
+      const comp = item.presentation?.component || "knob";
+      const typeKey = comp.includes("slider") ? "slider" : comp;
+      const sizeMap = RADIUS_MAP[typeKey] || RADIUS_MAP.knob;
+      const radius = sizeMap ? sizeMap[size] : 12;
+      return radius || 12;
+    }
+    /**
+     * Renders the complete HTML for a cell, including its main component and all orbitant attachments.
+     */
+    static renderCellHTML(item, options) {
+      const { skin, runtimeValue, steps, isSelected, isLiveMode } = options;
+      const compType = item.presentation?.component || "knob";
+      const variant = item.presentation?.variant || "B_cyan";
+      const parts = variant.split("_");
+      let size = parts[0] || "B";
+      if (variant.includes("_3mm"))
+        size = "D";
+      if (variant.includes("_5mm"))
+        size = "C";
+      const colorId = parts.length > 1 ? parts.filter((p) => p !== size && p !== "3mm" && p !== "5mm").join("_") : "cyan";
+      const compRadius = this.getComponentRadius(item);
+      let mainHTML = "";
+      const commonProps = {
+        size,
+        colorId,
+        value: runtimeValue,
+        id: item.id,
+        isSelected: !!isSelected,
+        isMain: true
+      };
+      switch (compType) {
+        case "knob":
+          mainHTML = renderKnobHTML({ ...commonProps });
+          break;
+        case "port":
+          mainHTML = renderPortHTML({
+            ...commonProps,
+            label: item.label || "",
+            explicitColor: variant
+          });
+          break;
+        case "led":
+          mainHTML = renderLedHTML({ ...commonProps });
+          break;
+        case "display":
+          const mode = parts.includes("lcd") ? "lcd" : parts.includes("led") ? "led" : "oled";
+          mainHTML = renderDisplayHTML({ ...commonProps, mode, steps });
+          break;
+        case "slider-v":
+        case "slider-h":
+          mainHTML = renderSliderHTML({ ...commonProps, type: compType });
+          break;
+        case "switch":
+          mainHTML = renderSwitchHTML({ ...commonProps });
+          break;
+        case "stepper":
+        case "button":
+        case "push":
+          mainHTML = renderStepperHTML({
+            ...commonProps,
+            type: compType,
+            text: item.label || ""
+          });
+          break;
+        case "select":
+          mainHTML = renderSelectHTML({
+            ...commonProps,
+            options: item.presentation?.options || [item.presentation?.lookup || ""]
+          });
+          break;
+        default:
+          mainHTML = `<!-- Unsupported Component: ${compType} -->`;
+      }
+      const attachments = item.presentation?.attachments || [];
+      const renderStack = (pos) => {
+        const stackItems = attachments.filter((a) => a.position === pos);
+        if (stackItems.length === 0)
+          return "";
+        const itemsHTML = stackItems.map((a) => {
+          const html = AttachmentRenderer.renderAttachmentHTML({
+            type: a.type,
+            variant: a.variant,
+            text: a.text || ""
+          });
+          const offX = (a.offsetX || 0) * 1.5;
+          const offY = (a.offsetY || 0) * 1.5;
+          return `<div style="transform: translate(${offX}px, ${offY}px)">${html}</div>`;
+        }).join("");
+        return `<div class="attachment-stack stack-${pos}">${itemsHTML}</div>`;
+      };
+      const cellOffsetX = (item.presentation?.offsetX || 0) * 1.5;
+      const cellOffsetY = (item.presentation?.offsetY || 0) * 1.5;
+      return `
+      <div class="control-cell variant-${variant}" style="--comp-radius: ${compRadius}px;">
+        ${renderStack("top")}
+        ${renderStack("bottom")}
+        ${renderStack("left")}
+        ${renderStack("right")}
+        <div class="cell-main" style="width: ${compRadius * 2 * 1.5}px; height: ${compRadius * 2 * 1.5}px; transform: translate(calc(-50% + ${cellOffsetX}px), calc(-50% + ${cellOffsetY}px))">
+          ${mainHTML}
+        </div>
+      </div>
+    `.trim();
+    }
+  };
+
   // module_renderer.js
   var ModuleRenderer = class {
     el;
@@ -1681,8 +1990,6 @@
     isInitialized = false;
     activeTab = "MAIN";
     RENDER_SCALE = 1.5;
-    // Aligned with abd-ia_synths VirtualRack
-    activityTimeouts = /* @__PURE__ */ new Map();
     constructor(el, content, options) {
       this.el = el;
       this.content = content;
@@ -1692,7 +1999,7 @@
       if (firstWithTab && firstWithTab.presentation?.tab) {
         this.activeTab = firstWithTab.presentation.tab;
       }
-      OmegaLog.info("RENDERER", `ModuleRenderer initialized for: ${this.descriptor.id} (Items: ${allItems.length})`);
+      OmegaLog.info("RENDERER", `ModuleRenderer initialized for: ${this.descriptor.id}`);
     }
     async init() {
       this.render();
@@ -1705,13 +2012,13 @@
       const pins = [];
       const allItems = [...this.descriptor.ui?.controls || [], ...this.descriptor.ui?.jacks || []];
       allItems.forEach((item) => {
-        if (item.presentation?.component === "led" || item.look === "led") {
+        if (item.presentation?.component === "led" || item.look === "led" || item.presentation?.component === "port") {
           const id = item.source || item.bind || item.id;
           if (id)
             pins.push(`${this.descriptor.id}.${id}`);
         }
         item.presentation?.attachments?.forEach((att) => {
-          if (att.type === "led" || att.type === "display" || att.type === "stepper") {
+          if (att.type === "led" || att.type === "display") {
             const id = att.bind || item.bind || item.id;
             if (id)
               pins.push(`${this.descriptor.id}.${id}`);
@@ -1722,87 +2029,60 @@
         window.rpcCommandDispatcher.dispatch({
           type: "subscribeTelemetry",
           payload: { pins: [...new Set(pins)] }
-          // Unique pins
         });
       }
-    }
-    getRegistryEntity(id) {
-      if (!this.descriptor.registry)
-        return null;
-      return this.descriptor.registry.find((e) => e.id === id) || null;
     }
     render() {
       const desc = this.descriptor;
-      const skinClass = `skin-${desc.ui?.skin || "default"}`;
-      const themeClass = `theme-${desc.theme || "default"}`;
-      const classes = ["aseptic-module", skinClass, themeClass];
-      const width = (desc.ui?.dimensions?.width || 120) * this.RENDER_SCALE;
-      const height = (desc.ui?.dimensions?.height || 420) * this.RENDER_SCALE;
+      const skin = desc.ui?.skin || "industrial";
+      const w = (desc.ui?.dimensions?.width || 120) * this.RENDER_SCALE;
+      const h = (desc.ui?.dimensions?.height || 420) * this.RENDER_SCALE;
       const allItems = [...desc.ui?.controls || [], ...desc.ui?.jacks || []];
       const tabs = [...new Set(allItems.map((i) => i.presentation?.tab || "MAIN"))].sort();
       this.content.innerHTML = `
-            <div class="${classes.join(" ")}" style="width: ${width}px; height: ${height}px; position: relative; overflow: hidden;">
+            <div class="module-panel skin-${skin}" style="width: ${w}px; height: ${h}px; box-sizing: content-box; border-left: 4px solid #333; border-right: 4px solid #333; border-top: 1px solid #444; border-bottom: 1px solid #111; box-shadow: 0 10px 30px rgba(0,0,0,0.8); position: relative;">
+                <!-- Industrial Screws -->
+                <div class="module-screw top-left"></div>
+                <div class="module-screw top-right"></div>
+                <div class="module-screw bottom-left"></div>
+                <div class="module-screw bottom-right"></div>
                 
-                <!-- TAB NAVIGATION (Aligned with Editor) -->
                 ${tabs.length > 1 ? `
-                <div class="module-tabs" style="display: flex; gap: 4px; padding: 10px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    ${tabs.map((t) => `
-                        <button class="tab-btn ${this.activeTab === t ? "active" : ""}" data-tab="${t}" style="font-size: 9px; font-weight: 900; letter-spacing: 1px; background: ${this.activeTab === t ? "var(--omega-cyan)" : "transparent"}; color: ${this.activeTab === t ? "#000" : "rgba(255,255,255,0.4)"}; border: none; border-radius: 20px; padding: 4px 12px; cursor: pointer;">
-                            ${t}
-                        </button>
-                    `).join("")}
+                <div class="module-tabs">
+                    ${tabs.map((t) => {
+        const isActive = this.activeTab === t;
+        return `<button class="tab-btn ${isActive ? "active" : ""}" data-tab="${t}">${t}</button>`;
+      }).join("")}
                 </div>
                 ` : ""}
 
-                <!-- ABSOLUTE CANVAS -->
-                <div class="module-canvas" style="position: absolute; inset: 0; padding-top: ${tabs.length > 1 ? "40px" : "0"}">
-                    ${allItems.filter((item) => this.shouldRenderInTab(item, this.activeTab)).map((item) => this.renderItem(item)).join("")}
-                    
-                    <!-- LAYOUT CONTAINERS (Era 7.2) -->
-                    ${this.renderContainers()}
+                <div class="module-canvas" style="position: absolute; inset: 0; overflow: hidden;">
+                    <div class="layer layer-background">${this.renderContainers()}</div>
+                    <div class="layer layer-controls">
+                        ${allItems.filter((item) => this.shouldRenderInTab(item, this.activeTab)).map((item) => this.renderItem(item)).join("")}
+                    </div>
                 </div>
             </div>
         `;
-      this.content.querySelectorAll(".tab-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          this.activeTab = e.target.dataset.tab || "MAIN";
-          this.render();
-          this.bind();
-          this.syncAllFromStore();
-        });
-      });
+      this.bind();
+      this.syncAllFromStore();
     }
     renderItem(item) {
       const id = item.bind || item.paramId || item.source || item.portId;
-      const entity = id ? this.getRegistryEntity(id) : null;
-      const label = item.label || (entity ? entity.label : id || "");
-      if (!this.shouldRenderInTab(item, this.activeTab))
-        return "";
-      const rawX = item.pos?.x || 0;
-      const rawY = item.pos?.y || 0;
-      const gridX = Math.round(rawX / 5) * 5;
-      const gridY = Math.round(rawY / 5) * 5;
-      const x = gridX * this.RENDER_SCALE;
-      const y = gridY * this.RENDER_SCALE;
-      const style = `position: absolute; left: ${x}px; top: ${y}px; transform: translate(-50%, -50%);`;
-      const cellClass = `control-cell variant-${item.presentation?.variant || item.variant || "default"} ${!entity?.role ? "role-orphan" : ""}`;
-      if (id && !entity) {
-        console.warn(`[GOVERNANCE] Binding error: '${id}' not found in registry. Module: ${this.descriptor.id}`);
-      }
-      const attachments = item.presentation?.attachments || [];
+      const val = this.values[id] ?? 0;
+      const x = (item.pos?.x || 0) * this.RENDER_SCALE;
+      const y = (item.pos?.y || 0) * this.RENDER_SCALE;
+      const html = CellRenderer.renderCellHTML(item, {
+        skin: this.descriptor.ui?.skin || "industrial",
+        zoom: this.RENDER_SCALE,
+        runtimeValue: val,
+        steps: item.steps || 100,
+        isSelected: false,
+        isLiveMode: true
+      });
       return `
-            <div class="${cellClass}" style="${style}" data-id="${id}" data-bind="${id}">
-                ${this.renderAttachmentGroup(attachments, "top", label, entity, id)}
-                
-                <div class="cell-row-middle" style="display: flex; align-items: center; justify-content: center;">
-                    ${this.renderAttachmentGroup(attachments, "left", label, entity, id)}
-                    <div class="cell-main">
-                        ${this.renderComponent(item, entity, label)}
-                    </div>
-                    ${this.renderAttachmentGroup(attachments, "right", label, entity, id)}
-                </div>
-
-                ${this.renderAttachmentGroup(attachments, "bottom", label, entity, id)}
+            <div class="cell-anchor" style="position: absolute; left: ${x}px; top: ${y}px;">
+                ${html}
             </div>
         `;
     }
@@ -1810,14 +2090,11 @@
       const currentTab = activeTab || "MAIN";
       const containerId = item.presentation?.container || item.presentation?.group;
       if (containerId) {
-        const layout = this.descriptor.ui?.layout;
-        const container = layout?.containers?.find((c) => c.id === containerId);
-        if (container && container.tab) {
+        const container = this.descriptor.ui?.layout?.containers?.find((c) => c.id === containerId);
+        if (container && container.tab)
           return container.tab === currentTab;
-        }
       }
-      const itemTab = item.presentation?.tab || "MAIN";
-      return itemTab === currentTab;
+      return (item.presentation?.tab || "MAIN") === currentTab;
     }
     renderContainers() {
       const layout = this.descriptor.ui?.layout;
@@ -1825,32 +2102,19 @@
         return "";
       const rackWidth = this.descriptor.ui?.dimensions?.width || 120;
       const currentTab = this.activeTab || "MAIN";
-      const activeContainers = layout.containers.filter((c) => {
-        if (!c.tab)
-          return true;
-        return c.tab === currentTab;
-      });
+      const skin = this.descriptor.ui?.skin || "industrial";
+      const activeContainers = layout.containers.filter((c) => !c.tab || c.tab === currentTab);
       const sorted = [...activeContainers].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
       return sorted.map((c) => {
         const x = c.pos.x * this.RENDER_SCALE;
         const y = c.pos.y * this.RENDER_SCALE;
         const w = this.resolveContainerWidth(c.size.w, rackWidth) * this.RENDER_SCALE;
         const h = c.size.h * this.RENDER_SCALE;
-        const variantClass = `container-variant-${c.variant || "default"}`;
-        const labelPosClass = `label-pos-${c.labelPosition || "top"}`;
-        const style = `
-                position: absolute; 
-                left: ${x}px; 
-                top: ${y}px; 
-                width: ${w}px; 
-                height: ${h}px; 
-                z-index: ${c.zIndex || 0};
-                pointer-events: none;
-                overflow: hidden;
-            `;
+        const variant = c.variant || "default";
+        const style = `position: absolute; left: ${x}px; top: ${y}px; width: ${w}px; height: ${h}px; z-index: ${c.zIndex || 0}; pointer-events: none;`;
         return `
-                <div class="layout-container ${variantClass} ${labelPosClass}" style="${style}" data-container-id="${c.id}">
-                    <div class="container-label">${c.label}</div>
+                <div class="layout-container container-${skin} variant-${variant}" style="${style}" data-container-id="${c.id}">
+                    ${c.label ? `<div class="container-label-pill">${c.label}</div>` : ""}
                 </div>
             `;
       }).join("");
@@ -1861,168 +2125,37 @@
       switch (w) {
         case "full":
           return rackWidth;
-        case "3/4":
-          return rackWidth * 0.75;
-        case "2/3":
-          return rackWidth * 0.667;
         case "1/2":
           return rackWidth * 0.5;
-        case "1/3":
-          return rackWidth * 0.333;
-        case "1/4":
-          return rackWidth * 0.25;
         default:
-          const val = parseFloat(w);
-          return isNaN(val) ? rackWidth : val;
+          return parseFloat(w) || rackWidth;
       }
     }
-    renderAttachmentGroup(all, pos, fallbackLabel, entity, parentId) {
-      const filtered = all.filter((a) => a.position === pos);
-      if (filtered.length === 0)
-        return "";
-      return `
-            <div class="attachment-stack stack-${pos}" style="display: flex; flex-direction: ${pos === "top" || pos === "bottom" ? "column" : "row"}; align-items: center; justify-content: center;">
-                ${filtered.map((att) => {
-        const offX = (att.offsetX || (pos === "left" || pos === "right" ? att.offset : 0) || 0) * this.RENDER_SCALE;
-        const offY = (att.offsetY || (pos === "top" || pos === "bottom" ? att.offset : 0) || 0) * this.RENDER_SCALE;
-        const transform = `transform: translate(${offX}px, ${offY}px);`;
-        const margin = pos === "top" ? `margin-bottom: 6px` : pos === "bottom" ? `margin-top: 6px` : pos === "left" ? `margin-right: 6px` : `margin-left: 6px`;
-        const bindId = att.bind || parentId;
-        const val = this.values[bindId] ?? entity?.range?.default ?? 0;
-        if (att.type === "label") {
-          return `<label class="cell-label" style="${margin}; ${transform}">${att.text || fallbackLabel}</label>`;
-        }
-        if (att.type === "led") {
-          return `<div class="led variant-${att.variant || "A"} led-suffix-${att.variant || "red"}" data-source="${bindId}" style="${margin}; ${transform}"></div>`;
-        }
-        if (att.type === "display") {
-          const formatted = this._getFormattedValue(att, entity, val);
-          return `<div class="mini-display" data-source="${bindId}" style="${margin}; ${transform}">${formatted}</div>`;
-        }
-        if (att.type === "stepper") {
-          return `
-                            <div class="stepper-attachment" style="${margin}; ${transform}">
-                                <button class="stepper-btn" data-dir="-1" data-bind="${bindId}">-</button>
-                                <button class="stepper-btn" data-dir="1" data-bind="${bindId}">+</button>
-                            </div>
-                        `;
-        }
-        return "";
-      }).join("")}
-            </div>
-        `;
-    }
-    _getFormattedValue(att, entity, val) {
-      const fmt = att.format || {};
-      const decimals = att.ui_precision ?? fmt.decimals ?? 2;
-      const prefix = fmt.prefix || "";
-      const suffix = fmt.suffix || "";
-      let label = this._getEntityValueLabel(entity, val, decimals);
-      return `${prefix}${label}${suffix}`;
-    }
-    renderComponent(item, entity, label) {
-      const look = item.presentation?.component || item.look || "knob";
-      const id = item.bind || item.paramId || item.source || item.portId || "";
-      const val = this.values[id] ?? 0;
-      switch (look) {
-        case "knob":
-          return `
-                    <div class="knob-ring" data-param="${id}">
-                        <div class="knob"><div class="knob-marker white"></div></div>
-                    </div>
-                `;
-        case "slider-v":
-        case "slider-h":
-          const range = entity?.range || { min: 0, max: 1, step: "any", default: 0 };
-          return `<input type="range" class="${look === "slider-h" ? "h-slider" : "v-slider"}" data-param="${id}" min="${range.min}" max="${range.max}" step="${range.step}" value="${this.values[id] ?? range.default}" />`;
-        case "port":
-        case "jack":
-          const portColor = item.presentation?.color || this._inferPortColor(id, entity);
-          return `
-                    <div class="port-socket" data-port="${id}" style="--port-color: ${portColor}">
-                        <div class="port-inner">
-                            <div class="port-led" data-source="${id}"></div>
-                        </div>
-                    </div>
-                `;
-        case "display":
-          const formatted = this._getFormattedValue(item.presentation, entity, val);
-          return `
-                    <div class="mini-display" data-id="${id}" style="position: relative;">
-                        <button class="display-btn minus" data-dir="-1" data-bind="${id}">-</button>
-                        <div class="display-value" data-source="${id}">${formatted}</div>
-                        <button class="display-btn plus" data-dir="1" data-bind="${id}">+</button>
-                    </div>
-                `;
-        case "led":
-          return `<div class="led variant-${item.presentation?.variant || "A"}" id="led-${id}" data-source="${id}"></div>`;
-        case "select":
-          const options = entity?.options || [];
-          const currentIndex = Math.floor(val * options.length);
-          const currentLabel = options[currentIndex]?.label || "SELECT";
-          return `
-                    <div class="industrial-select-wrapper" data-param="${id}">
-                        <div class="industrial-select-label">${currentLabel}</div>
-                        <div class="industrial-select-icon">\u25BC</div>
-                    </div>
-                `;
-        default:
-          return `<div class="placeholder-comp">${look}</div>`;
-      }
+    getRegistryEntity(id) {
+      return window.omegaCatalog?.[id];
     }
     bind() {
+      this.content.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          this.activeTab = e.target.dataset.tab || "MAIN";
+          this.render();
+        });
+      });
       const allItems = [...this.descriptor.ui?.controls || [], ...this.descriptor.ui?.jacks || []];
       allItems.forEach((item) => {
-        const look = item.presentation?.component || item.look || "knob";
         const id = item.bind || item.paramId || item.source || item.portId;
         const entity = id ? this.getRegistryEntity(id) : null;
         if (!entity)
           return;
-        const selector = `[data-id="${id}"]`;
-        const cell = this.content.querySelector(selector);
+        const cell = this.content.querySelector(`[data-id="${id}"]`);
         if (!cell)
           return;
-        if (look === "knob") {
-          const ctrl = cell.querySelector(`.knob-ring`);
-          if (ctrl)
-            this._bindKnob(ctrl, entity);
-        } else if (look === "slider-v" || look === "slider-h") {
-          const input = cell.querySelector(`input`);
-          if (input)
-            input.addEventListener("input", (e) => this.setParam(id, parseFloat(e.target.value)));
-        } else if (look === "display") {
-          const ctrl = cell.querySelector(`.display-unit`);
-          if (ctrl)
-            this._bindDisplay(ctrl, entity);
-        } else if (look === "select") {
-          const sel = cell.querySelector(`select`);
-          if (sel)
-            sel.addEventListener("change", (e) => this.setParam(id, parseFloat(e.target.value)));
-        } else if (look === "button" || look === "switch" || look === "toggle") {
-          const trigger = cell.querySelector(`[data-param]`);
-          if (trigger) {
-            trigger.addEventListener("click", () => {
-              const current = this.values[id] || entity.range?.default || 0;
-              this.setParam(id, current > 0.5 ? 0 : 1);
-            });
-          }
-        } else if (look === "select" || item.presentation?.component === "select") {
-          const trigger = cell.querySelector(`.industrial-select-wrapper`);
-          if (trigger) {
-            trigger.addEventListener("click", () => {
-              const options = entity.options || [];
-              if (options.length === 0)
-                return;
-              const currentVal = this.values[id] || 0;
-              const currentIndex = Math.floor(currentVal * options.length);
-              const nextIndex = (currentIndex + 1) % options.length;
-              this.setParam(id, nextIndex / options.length);
-              const labelEl = trigger.querySelector(".industrial-select-label");
-              if (labelEl && options[nextIndex])
-                labelEl.textContent = options[nextIndex].label;
-            });
-          }
-        }
+        const knob = cell.querySelector(".knob-container");
+        if (knob)
+          this._bindKnob(knob, entity);
+        const slider = cell.querySelector(".slider-wrapper");
+        if (slider)
+          this._bindSlider(slider, entity);
         const steppers = cell.querySelectorAll(".stepper-btn, .display-btn");
         steppers.forEach((btn) => {
           btn.addEventListener("click", (e) => {
@@ -2032,19 +2165,28 @@
             if (targetEntity) {
               const range = targetEntity.range || { min: 0, max: 1, step: 1 };
               const current = this.values[targetId] ?? range.default ?? 0;
-              const stepVal = range.step || 1 / (range.max - range.min || 100);
+              const stepVal = range.step || 0.01;
               let next = current + dir * stepVal;
               next = Math.max(range.min, Math.min(range.max, next));
               this.setParam(targetId, next);
             }
           });
         });
+        const sel = cell.querySelector(".industrial-select-wrapper");
+        if (sel) {
+          sel.addEventListener("click", () => {
+            const options = entity.options || [];
+            if (options.length === 0)
+              return;
+            const currentVal = this.values[id] || 0;
+            const currentIndex = Math.floor(currentVal * options.length);
+            const nextIndex = (currentIndex + 1) % options.length;
+            this.setParam(id, nextIndex / options.length);
+          });
+        }
       });
     }
-    _bindKnob(ctrl, entity) {
-      const knob = ctrl.querySelector(".knob");
-      if (!knob)
-        return;
+    _bindKnob(knob, entity) {
       let isDragging = false;
       let startY = 0;
       let startVal = 0;
@@ -2056,25 +2198,60 @@
         knob.setPointerCapture(e.pointerId);
         e.preventDefault();
       });
-      const onMove = (e) => {
+      knob.addEventListener("pointermove", (e) => {
         if (!isDragging)
           return;
         const delta = (startY - e.clientY) / 150;
         let next = startVal + delta * (range.max - range.min);
         next = Math.max(range.min, Math.min(range.max, next));
         this.setParam(entity.id, next);
-      };
+      });
       const onUp = (e) => {
         if (isDragging) {
           isDragging = false;
           knob.releasePointerCapture(e.pointerId);
         }
       };
-      knob.addEventListener("pointermove", onMove);
       knob.addEventListener("pointerup", onUp);
       knob.addEventListener("pointercancel", onUp);
     }
-    _bindDisplay(ctrl, entity) {
+    _bindSlider(slider, entity) {
+      let isDragging = false;
+      const isHoriz = slider.classList.contains("slider-h");
+      const range = entity.range || { min: 0, max: 1 };
+      slider.addEventListener("pointerdown", (e) => {
+        isDragging = true;
+        slider.setPointerCapture(e.pointerId);
+        this._handleSliderMove(e, slider, entity);
+        e.preventDefault();
+      });
+      slider.addEventListener("pointermove", (e) => {
+        if (!isDragging)
+          return;
+        this._handleSliderMove(e, slider, entity);
+      });
+      const onUp = (e) => {
+        if (isDragging) {
+          isDragging = false;
+          slider.releasePointerCapture(e.pointerId);
+        }
+      };
+      slider.addEventListener("pointerup", onUp);
+      slider.addEventListener("pointercancel", onUp);
+    }
+    _handleSliderMove(e, slider, entity) {
+      const rect = slider.getBoundingClientRect();
+      const isHoriz = slider.classList.contains("slider-h");
+      const range = entity.range || { min: 0, max: 1 };
+      let norm = 0;
+      if (isHoriz) {
+        norm = (e.clientX - rect.left) / rect.width;
+      } else {
+        norm = 1 - (e.clientY - rect.top) / rect.height;
+      }
+      norm = Math.max(0, Math.min(1, norm));
+      const next = range.min + norm * (range.max - range.min);
+      this.setParam(entity.id, next);
     }
     setParam(id, value) {
       this.values[id] = value;
@@ -2086,30 +2263,46 @@
       this.updateControlUI(id, value);
     }
     updateControlUI(id, value) {
-      const entity = this.getRegistryEntity(id);
       const cell = this.content.querySelector(`[data-id="${id}"]`);
       if (!cell)
         return;
-      const input = cell.querySelector(`input`);
-      if (input)
-        input.value = value.toString();
-      const sw = cell.querySelector(`.sw-unit`);
-      if (sw)
-        sw.setAttribute("data-state", value > 0.5 ? "1" : "0");
-      const knob = cell.querySelector(`.knob-ring`);
-      if (knob && entity)
-        this._updateKnobVisual(knob, entity, value);
+      const knobMarker = cell.querySelector(".knob-marker");
+      if (knobMarker) {
+        const angle = -135 + value * 270;
+        knobMarker.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
+      }
+      const slider = cell.querySelector(".slider-wrapper");
+      if (slider) {
+        const isHoriz = slider.classList.contains("slider-h");
+        const rail = slider.querySelector(".slider-rail-active");
+        const cap = slider.querySelector(".slider-cap");
+        if (rail) {
+          if (isHoriz)
+            rail.style.width = `calc(${value * 100}% - 4px)`;
+          else
+            rail.style.height = `calc(${value * 100}% - 4px)`;
+        }
+        if (cap) {
+          if (isHoriz)
+            cap.style.left = `calc(${value * 90}%)`;
+          else
+            cap.style.bottom = `calc(${value * 90}%)`;
+        }
+      }
       const display = cell.querySelector(".display-value");
-      if (display)
-        display.innerText = this._getEntityValueLabel(entity, value);
-      const miniDisplays = cell.querySelectorAll(".mini-display");
-      miniDisplays.forEach((md) => {
-        md.innerText = value.toFixed(2);
-      });
+      if (display) {
+        const entity = this.getRegistryEntity(id);
+        display.innerText = this._getFormattedValue(null, entity, value);
+      }
+      const selValue = cell.querySelector(".select-value");
+      if (selValue) {
+        const entity = this.getRegistryEntity(id);
+        selValue.textContent = this._getEntityValueLabel(entity, value);
+      }
       this.triggerContainerActivity(id);
     }
     triggerContainerActivity(id) {
-      const item = [...this.descriptor.ui?.controls || [], ...this.descriptor.ui?.jacks || []].find((i) => (i.bind || i.paramId || i.source || i.portId) === id);
+      const item = [...this.descriptor.ui?.controls || [], ...this.descriptor.ui?.jacks || []].find((i) => (i.bind || i.id) === id);
       const containerId = item?.presentation?.container || item?.presentation?.group;
       if (!containerId)
         return;
@@ -2119,33 +2312,23 @@
       containerEl.classList.remove("active-pulse");
       void containerEl.offsetWidth;
       containerEl.classList.add("active-pulse");
-      if (this.activityTimeouts.has(containerId)) {
-        clearTimeout(this.activityTimeouts.get(containerId));
-      }
-      const timeout = setTimeout(() => {
-        containerEl.classList.remove("active-pulse");
-        this.activityTimeouts.delete(containerId);
-      }, 2e3);
-      this.activityTimeouts.set(containerId, timeout);
     }
-    _getEntityValueLabel(entity, value, decimals = 2) {
+    _getFormattedValue(att, entity, val) {
+      const precision = att?.ui_precision ?? 2;
       if (!entity)
-        return value.toFixed(decimals);
+        return val.toFixed(precision);
       if (entity.options) {
-        const opt = entity.options.find((o) => o.value === value);
+        const opt = entity.options.find((o) => o.value === val);
         if (opt)
           return opt.label;
       }
-      return value.toFixed(decimals);
+      return val.toFixed(precision);
     }
-    _updateKnobVisual(ctrl, entity, value) {
-      const marker = ctrl.querySelector(".knob-marker");
-      if (!marker)
-        return;
-      const range = entity.range || { min: 0, max: 1 };
-      const norm = (value - range.min) / (range.max - range.min || 1);
-      const angle = -135 + norm * 270;
-      marker.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+    _getEntityValueLabel(entity, value) {
+      if (!entity || !entity.options)
+        return value.toFixed(2);
+      const currentIndex = Math.floor(value * entity.options.length);
+      return entity.options[currentIndex]?.label || value.toFixed(2);
     }
     syncAllFromStore() {
       if (!this.isInitialized)
@@ -2155,9 +2338,11 @@
         const id = item.bind || item.id || item.source;
         if (id) {
           const globalId = `${this.descriptor.id}.${id}`;
-          const store = window.runtimeStore.getSnapshot();
-          const val = store.params[globalId];
-          const tVal = store.telemetry[globalId];
+          const store = window.runtimeStore?.getSnapshot();
+          if (!store || !store.parameters)
+            return;
+          const val = store.parameters[globalId];
+          const tVal = store.telemetry ? store.telemetry[globalId] : void 0;
           if (val !== void 0) {
             this.values[id] = val;
             this.updateControlUI(id, val);
@@ -2170,36 +2355,37 @@
     }
     updateTelemetryUI(source, value) {
       const targets = this.content.querySelectorAll(`[data-source="${source}"]`);
-      targets.forEach((t) => {
+      targets.forEach((el) => {
+        const t = el;
         if (t.classList.contains("led") || t.classList.contains("port-led")) {
-          t.classList.toggle("active", value > 0.05);
+          const d = parseInt(t.style.width) || 8;
+          const baseColor = t.style.backgroundColor;
+          t.style.opacity = (0.3 + value * 0.7).toString();
+          if (value > 0.05) {
+            t.style.boxShadow = `0 0 ${d}px ${baseColor}99`;
+          } else {
+            t.style.boxShadow = "none";
+          }
         }
-        if (t.classList.contains("mini-display")) {
+        if (t.classList.contains("display-value")) {
           t.innerText = value.toFixed(2);
         }
       });
     }
     _inferPortColor(id, entity) {
-      if (!id)
-        return "var(--neon-cyan)";
-      const role = entity?.role?.toLowerCase() || "";
-      const idLower = id.toLowerCase();
-      if (role.includes("audio") || role.includes("pitch") || idLower.includes("out") || idLower.includes("audio")) {
-        return "var(--signal-audio)";
-      }
-      if (role.includes("cv") || role.includes("mod") || idLower.includes("cv") || idLower.includes("mod")) {
-        return "var(--signal-cv)";
-      }
-      if (role.includes("gate") || role.includes("trig") || idLower.includes("gate") || idLower.includes("trig")) {
-        return "var(--signal-gate)";
-      }
-      if (role.includes("midi") || idLower.includes("midi")) {
+      const idLower = (id || "").toLowerCase();
+      const label = (entity?.label || "").toLowerCase();
+      if (idLower.includes("midi") || label.includes("midi"))
         return "var(--signal-midi)";
-      }
-      return "var(--neon-cyan)";
+      if (idLower.includes("gate") || label.includes("gate") || idLower.includes("trig"))
+        return "var(--signal-gate)";
+      if (idLower.includes("cv") || label.includes("cv") || idLower.includes("mod"))
+        return "var(--signal-cv)";
+      if (idLower.includes("pitch") || idLower.includes("freq") || idLower.includes("out") || idLower.includes("in"))
+        return "var(--signal-audio)";
+      return "var(--wb-primary)";
     }
     onStateUpdate(state) {
-      OmegaLog.debug("RENDERER", `State update received for module: ${this.descriptor.id}`);
       this.syncAllFromStore();
     }
   };
@@ -3368,6 +3554,16 @@
       OmegaLog.error("BOOT", "Component shell init failed:", e);
     }
     app.init();
+    document.addEventListener("click", (e) => {
+      const target = e.target;
+      const action = target.getAttribute("data-action");
+      const id = target.getAttribute("data-id") || target.closest("[data-source]")?.getAttribute("data-source");
+      if (action && id && win.moduleManager) {
+        OmegaLog.debug("UI", `Global Action: ${action} on ${id}`);
+        const step = action === "step-up" ? 1 : -1;
+        win.moduleManager.stepParameter(id, step);
+      }
+    });
     const backgroundLoad = async () => {
       try {
         OmegaLog.info("BOOT", "Background data load started...");

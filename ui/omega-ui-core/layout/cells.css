@@ -1,0 +1,77 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* OMEGA INDUSTRIAL CELLS & ATTACHMENTS (Era 7.2.3) */
+/* Anchor-Center Model: Ensures component stays at exact X/Y regardless of labels */
+
+.control-cell {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.cell-main {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    z-index: 5;
+    /* transform: translate(-50%, -50%) is applied via JS for offsets */
+}
+
+.attachment-stack {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Precise attachment offsets from center (Edge-Anchored) */
+.stack-top {
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(calc(-1 * var(--comp-radius, 12px) - 8px));
+    flex-direction: column-reverse; /* Grow upwards from the bottom edge */
+    align-items: center;
+}
+
+.stack-bottom {
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(calc(var(--comp-radius, 12px) + 8px));
+    flex-direction: column; /* Grow downwards from the top edge */
+    align-items: center;
+}
+
+.stack-left {
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%) translateX(calc(-1 * var(--comp-radius, 12px) - 8px));
+    flex-direction: row-reverse; /* Grow leftwards from the right edge */
+    align-items: center;
+}
+
+.stack-right {
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) translateX(calc(var(--comp-radius, 12px) + 8px));
+    flex-direction: row; /* Grow rightwards from the left edge */
+    align-items: center;
+}
+
+.cell-row-middle {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}

@@ -108,4 +108,151 @@ Establish a robust, strictly-typed, and centralized UI framework that aligns wit
 
 ---
 
-*Last Updated: 2026-04-30 - OMEGA Era 7 Development Cycle Initialized*
+## Phase 7: Visual Parity — `omega-ui-core` (Pending)
+
+> **Diagnóstico**: OMEGA tiene un sistema de diseño CSS excelente (`controls.css`, `themes/industrial/*.css`, `skins.css`, `vars.css`) que **nadie consume correctamente**. `ModuleRenderer.ts` renderiza con `innerHTML` y estilos inline. El editor de ABDSynthsWeb renderiza con Tailwind inline. Ambos ignoran las clases CSS preparadas.
+
+### 7.0 Decisiones Estratégicas
+
+| Decisión | Resolución |
+|---|---|
+| **Fuente de verdad visual** | **ABDSynthsWeb** (editor). Tiene hot-reload para iterar en segundos. Los cambios estéticos siempre empiezan ahí. |
+| **Formato del paquete compartido** | Directorio `omega-ui-core/` con CSS puro + tokens. Cero lógica JS/TS. |
+| **Mecanismo de sincronización** | Script `sync_omega_ui.bat` (robocopy). Integrado en `build_auto.bat`. |
+| **Controles PNG legacy** | Se mantienen en OMEGA como fallback (botones, switches). No van a `omega-ui-core`. |
+| **Display variants (OLED/LCD/LED)** | Se portan al paquete compartido. Son profesionales y el editor debería usarlos. |
+| **¿Refactorizar `ModuleRenderer` a React?** | No. Es vanilla TS dentro de WebView JUCE. Pero debe usar clases CSS semánticas en vez de inline styles. |
+
+### 7.1 Crear `omega-ui-core/` — Paquete CSS Compartido
+- **Goal**: Una única fuente de verdad para todos los estilos visuales de módulos.
+- **Ubicación canónica**: `ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/`
+- **Copia en OMEGA**: `ABDOmega/ui/omega-ui-core/` (vía sync script)
+- **Contenido**:
+    ```
+    omega-ui-core/
+    ├── index.css              # Entry point (@import de todo)
+    ├── tokens.css             # --wb-*, --signal-*, --omega-*
+    ├── skins.css              # .skin-industrial, .skin-carbon, .skin-glass, .skin-minimal
+    ├── containers.css         # .layout-container, .container-label-pill, variantes
+    ├── screws.css             # .module-screw + pseudo-elementos
+    ├── tabs.css               # .module-tabs, .tab-btn
+    ├── effects.css            # .cyan-bloom, .orange-bloom, CRT
+    ├── primitives/
+    │   ├── knobs.css          # .knob-container.size-{A|B|C|D}.color-{cyan|red|...}
+    │   ├── sliders.css        # .slider-wrapper.slider-{v|h}.size-*.color-*
+    │   ├── leds.css           # .led.size-*.color-*
+    │   ├── ports.css          # .port-socket, .port-inner, .port-led
+    │   ├── displays.css       # .mini-display.variant-{A|B|C} (OLED/LCD/LED)
+    │   ├── switches.css       # .switch-container (nuevo, portado de Switch.tsx)
+    │   ├── steppers.css       # .stepper-btn + variantes push/button
+    │   ├── selects.css        # .industrial-select-wrapper
+    │   └── labels.css         # .cell-label
+    └── SPEC.md                # Contrato formal de clases CSS
+    ```
+- **Action**:
+    - [ ] Extraer tokens de `vars.css` → `omega-ui-core/tokens.css`
+    - [ ] Mover skins de `skins.css` → `omega-ui-core/skins.css`
+    - [ ] Consolidar `themes/industrial/*.css` → `omega-ui-core/primitives/` (sin prefijo `.theme-industrial`)
+    - [ ] Crear `containers.css`, `screws.css`, `tabs.css` desde las definiciones inline actuales
+    - [ ] Escribir `SPEC.md` con el contrato de clases
+
+### 7.2 Visual Parity Contract
+- **Goal**: Documento formal que liste cada primitiva con sus variantes y las clases CSS canónicas.
+- **Contrato de clases**:
+    ```
+    KNOB:      .knob-container.size-{A|B|C|D}.color-{cyan|red|orange|green|white}
+                └── .knob-cap
+                └── .knob-marker
+
+    SLIDER:    .slider-wrapper.slider-{v|h}.size-{A|B|C|D}.color-{cyan|red|...}
+                └── .slider-rail-active
+                └── .slider-cap
+
+    LED:       .led.size-{A|B|C|D}.color-{cyan|red|orange|green|white}
+
+    PORT:      .port-socket.size-{A|B|C|D}
+                └── .port-inner
+                    └── .port-led
+
+    DISPLAY:   .mini-display.variant-{A|B|C}
+                └── .display-btn.minus
+                └── .display-value
+                └── .display-btn.plus
+
+    SWITCH:    .switch-container.size-{A|B|C|D}.color-{...}
+
+    SCREW:     .module-screw.{top-left|top-right|bottom-left|bottom-right}
+
+    SKIN:      .skin-{industrial|carbon|glass|minimal}
+    CONTAINER: .layout-container.variant-{inset|header|panel|section|minimal}
+                └── .container-label-pill
+    ```
+- **Action**:
+    - [ ] Crear `SPEC.md` con tablas de primitiva × variante × clase CSS
+    - [ ] Validar que ambos renderers generan el DOM esperado
+
+### 7.3 Refactorizar `ModuleRenderer.ts` (ABDOmega)
+- **Goal**: Que el renderer use clases de `omega-ui-core` en vez de inline styles.
+- **Action**:
+    - [ ] `renderKnob()` → emitir `class="knob-container size-B color-cyan"`, sin `style="..."`
+    - [ ] `renderSlider()` → emitir `class="slider-wrapper slider-v size-B color-cyan"`
+    - [ ] `renderLed()` → emitir `class="led size-B color-cyan"`, solo `style` para opacity dinámica
+    - [ ] `renderPort()` → emitir `class="port-socket size-B"` + `class="port-inner"` + `class="port-led"`
+    - [ ] Screws → de inline a `class="module-screw top-left"`
+    - [ ] Containers → de inline variant styles a `class="layout-container variant-inset"`
+    - [ ] Actualizar `index.html` para importar `omega-ui-core/index.css`
+
+### 7.4 Refactorizar Primitivas TSX (ABDSynthsWeb)
+> **NOTA**: Estos cambios se ejecutan en ABDSynthsWeb.
+- **Goal**: Que las primitivas React emitan las mismas clases CSS que `ModuleRenderer.ts`.
+- **Action**:
+    - [ ] `Knob.tsx` → `className="knob-container size-B color-cyan"` en vez de Tailwind inline
+    - [ ] `Slider.tsx` → `className="slider-wrapper slider-v size-B color-cyan"`
+    - [ ] `Led.tsx` → `className="led size-B color-cyan"` + `style` solo para opacity
+    - [ ] `Port.tsx` → `className="port-socket size-B"` + subelementos con clases
+    - [ ] `Display.tsx` → `className="mini-display variant-A"`
+    - [ ] `Switch.tsx` → `className="switch-container size-B color-cyan"`
+    - [ ] `Select.tsx` → `className="industrial-select-wrapper"`
+    - [ ] `RackScrews.tsx` → `className="module-screw top-left"`
+    - [ ] `RackContainer.tsx` → mover `getVariantStyles()` a `containers.css`
+    - [ ] `VirtualRack.tsx` → mover `getSkinConfig()` inline styles a `skins.css`
+    - [ ] `globals.css` → eliminar skins/tokens duplicados, importar `omega-ui-core/index.css`
+
+### 7.5 Script de Sincronización
+- **Dirección**: Estrictamente **unidireccional** (ABDSynthsWeb → ABDOmega). Nunca al revés.
+- **Salvaguarda**: El script debe inyectar en cada archivo copiado un header:
+    ```css
+    /* ═══════════════════════════════════════════════════════════════
+       DO NOT EDIT — Synced from ABDSynthsWeb/omega-ui-core
+       Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+       Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+       ═══════════════════════════════════════════════════════════════ */
+    ```
+- **Action**:
+    - [ ] Crear `sync_omega_ui.bat` en ABDOmega (robocopy + header injection)
+    - [ ] Integrar llamada al inicio de `build_auto.bat`
+- **Ref**: El VPC (`docs/VISUAL_PARITY_CONTRACT.md`) cubre la fase 7.2. Se moverá a `omega-ui-core/SPEC.md` al crear el paquete.
+
+---
+
+## Phase 8: Attachment Rendering Parity (Pending)
+
+> Ambos renderers soportan attachments (labels, leds, displays posicionados relativamente a un control principal). Pero usan rutas de código completamente distintas y reglas de posicionamiento incompatibles.
+
+### 8.1 Unificar Reglas de Posicionamiento
+- **Goal**: Que un attachment `{ position: "top", offsetX: 5 }` produzca el mismo resultado visual en ambos motores.
+- **Action**:
+    - [ ] Documentar en `SPEC.md` las reglas de posicionamiento (top/bottom/left/right + offsets)
+    - [ ] Crear `omega-ui-core/attachments.css` con las clases `.attachment-stack.stack-{top|bottom|left|right}`
+    - [ ] Verificar que `renderAttachmentGroup()` (OMEGA) y el sistema de `attachments` de `RackEntity.tsx` producen el mismo layout
+
+### 8.2 Test de Paridad Visual
+- **Goal**: Validar visualmente que un `.acemm` se ve igual en ambos motores.
+- **Action**:
+    - [ ] Crear un manifiesto de referencia (`test_parity.acemm`) con todas las primitivas y variantes
+    - [ ] Capturar screenshots de ambos motores lado a lado
+    - [ ] Documentar discrepancias y resolverlas
+
+---
+
+*Last Updated: 2026-05-04 — Phase 7 (omega-ui-core) & Phase 8 (Attachment Parity) added. Era 7.2.3 Visual Unification Cycle.*

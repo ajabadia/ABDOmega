@@ -15,7 +15,7 @@ namespace Omega {
               mWebView(bridge)
         {
             addAndMakeVisible(mWebView);
-            setSize(1200, 800);
+            setSize(1400, 1000);
         }
 
         ~OmegaMainEditor() override {}

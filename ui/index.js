@@ -117,7 +117,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // 3. Launch App Logic (Will hide splash after timeout)
     app.init();
-    // 4. Background Data Loading (Fires without blocking the UI)
+    // 4. Global Action Delegation (Phase 7.4)
+    document.addEventListener('click', (e) => {
+        const target = e.target;
+        const action = target.getAttribute('data-action');
+        const id = target.getAttribute('data-id') || target.closest('[data-source]')?.getAttribute('data-source');
+        if (action && id && win.moduleManager) {
+            OmegaLog.debug('UI', `Global Action: ${action} on ${id}`);
+            const step = action === 'step-up' ? 1 : -1;
+            win.moduleManager.stepParameter(id, step);
+        }
+    });
+    // 5. Background Data Loading (Fires without blocking the UI)
     const backgroundLoad = async () => {
         try {
             OmegaLog.info('BOOT', "Background data load started...");

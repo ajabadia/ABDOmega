@@ -133,7 +133,7 @@ namespace UI {
             mo->setProperty("instanceId", (int)m.instanceId);
             mo->setProperty("typeId", (int)m.typeId);
             mo->setProperty("componentId", juce::String(Core::Model::mapTypeToId(m.typeId)));
-            mo->setProperty("rack", m.position.rack);
+            mo->setProperty("rack", m.position.rack == 1 ? "upper" : "lower");
             mo->setProperty("slot", m.position.slot);
             
             juce::DynamicObject::Ptr params = new juce::DynamicObject();

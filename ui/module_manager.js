@@ -243,7 +243,24 @@ export class ModuleManager {
         el.className = `module module-${type} ${className} ${options.manifest.panelClass || ''}`;
         const header = document.createElement('div');
         header.className = 'module-header';
+        header.style.display = 'flex';
+        header.style.flexDirection = 'row';
+        header.style.alignItems = 'center';
+        header.style.gap = '6px';
         // 1. Reordering Controls (Era 6.3 - Unified Patch Hub)
+        const configBtn = document.createElement('div');
+        configBtn.className = 'module-header-action config-btn';
+        configBtn.innerHTML = '⚙';
+        configBtn.title = `Configure ${id}`;
+        configBtn.onclick = (e) => {
+            e.stopPropagation();
+            // @ts-ignore
+            if (window.modulePatchModal) {
+                // @ts-ignore
+                window.modulePatchModal.open(id, options.manifest);
+            }
+        };
+        header.appendChild(configBtn);
         const moveLeft = document.createElement('div');
         moveLeft.className = 'module-header-action move-btn';
         moveLeft.innerHTML = '◀';
@@ -267,22 +284,8 @@ export class ModuleManager {
         const spacer = document.createElement('div');
         spacer.style.flex = '1';
         header.appendChild(spacer);
-        // 2. Config & Close
-        const configBtn = document.createElement('div');
-        configBtn.className = 'module-header-action config-btn';
-        configBtn.innerHTML = '⚙';
-        configBtn.title = `Configure ${id}`;
-        configBtn.onclick = (e) => {
-            e.stopPropagation();
-            // @ts-ignore
-            if (window.modulePatchModal) {
-                // @ts-ignore
-                window.modulePatchModal.open(id, options.manifest);
-            }
-        };
-        header.appendChild(configBtn);
         const closeBtn = document.createElement('div');
-        closeBtn.className = 'module-header-action close-btn';
+        closeBtn.className = 'module-header-action module-header-action-close';
         closeBtn.innerHTML = '×';
         closeBtn.title = `Remove ${id}`;
         closeBtn.onclick = (e) => {
@@ -316,6 +319,31 @@ export class ModuleManager {
         else {
             console.error(`[ModuleManager] Module class not found in registry: ${className}`);
         }
+    }
+    /**
+     * Increments or decrements a parameter value by a single step.
+     * Used by shared stateless components like the Display primitive.
+     */
+    stepParameter(id, step) {
+        const win = window;
+        if (!win.runtimeStore || !win.rpcCommandDispatcher)
+            return;
+        // 1. Get current value from the reactive store
+        const snapshot = win.runtimeStore.getSnapshot();
+        const currentValue = snapshot.parameters?.[id] || 0;
+        // 2. Calculate next value (Standard step: 0.01 for 100 steps)
+        // Note: Real world might use schema.steps if available
+        const delta = step * 0.01;
+        const nextValue = Math.max(0, Math.min(1, currentValue + delta));
+        OmegaLog.debug('MANAGER', `Stepping parameter ${id}: ${currentValue} -> ${nextValue}`);
+        // 3. Dispatch to Audio Engine
+        win.rpcCommandDispatcher.dispatch({
+            type: 'setParameter',
+            payload: {
+                id: id,
+                value: nextValue
+            }
+        });
     }
     cleanupModules(activeIds) {
         this.activeModules.forEach((mod, id) => {

@@ -29,7 +29,10 @@ namespace Model {
         SpaceEcho = 102,
         
         // System / IO
-        MidiIn = 500
+        MidiIn = 500,
+        
+        // Validation / Utility
+        TestParity = 999
     };
 
     /**
@@ -50,6 +53,7 @@ namespace Model {
             case ModuleTypeId::ChorusPool:   return "fx_chorus_juno";
             case ModuleTypeId::SpaceEcho:    return "fx_space_echo_re201";
             case ModuleTypeId::MidiIn:       return "midi_in";
+            case ModuleTypeId::TestParity:   return "test_parity_v7";
             default: return "unknown";
         }
     }
@@ -71,6 +75,7 @@ namespace Model {
         if (id == "fx_chorus_juno")    return ModuleTypeId::ChorusPool;
         if (id == "fx_space_echo_re201") return ModuleTypeId::SpaceEcho;
         if (id == "midi_in")           return ModuleTypeId::MidiIn;
+        if (id == "test_parity_v7")    return ModuleTypeId::TestParity;
         return ModuleTypeId::None;
     }
 

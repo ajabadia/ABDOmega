@@ -1,0 +1,45 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* ═══════════════════════════════════════════════
+   OMEGA ERA 7.2.3 — UNIFIED WORKBENCH TOKENS
+   (Synchronized with ABDSynthsWeb Standards)
+   ═══════════════════════════════════════════════ */
+
+:root {
+    --wb-bg: #050505;
+    --wb-surface: #0a0a0b;
+    --wb-surface-hover: #141416;
+    --wb-surface-inset: #1a1a1c;
+    --wb-outline: rgba(255, 255, 255, 0.08);
+    --wb-text: #e0e0e0;
+    --wb-text-muted: rgba(255, 255, 255, 0.4);
+    --wb-bloom: rgba(0, 240, 255, 0.3);
+    --wb-primary: #00f0ff;
+    --wb-accent: #ff8c00;
+
+    /* LAYOUT CONSTANTS (Era 7.2.3 Unified Scaling) */
+    --rack-height: 680px;
+    --knob-size: 42px;
+    --render-scale: 1.5;
+}
+
+/* ═══════════════════════════════════════════════
+   WORKBENCH UI THEME ENGINE (Era 7.2.3)
+   Synchronized with ABDSynthsWeb standards
+   ═══════════════════════════════════════════════ */
+[data-ui-theme="light"] {
+    --wb-bg: #f8fafc;
+    --wb-surface: #ffffff;
+    --wb-surface-hover: #f1f5f9;
+    --wb-surface-inset: #e2e8f0; 
+    --wb-outline: #cbd5e1;
+    --wb-text: #020617;
+    --wb-text-muted: #475569; 
+    --wb-bloom: rgba(100, 116, 139, 0.1);
+    --wb-primary: #5c7089; 
+    --wb-accent: #f59e0b;
+}

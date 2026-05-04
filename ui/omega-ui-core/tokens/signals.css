@@ -1,0 +1,23 @@
+/* =================================================================
+   DO NOT EDIT - Synced from ABDSynthsWeb/omega-ui-core
+   Any changes here will be OVERWRITTEN by sync_omega_ui.bat
+   Edit the source at: ABDSynthsWeb/abd-ia_synths/src/omega-ui-core/
+   ================================================================= */
+
+/* ═══════════════════════════════════════════════
+   OMEGA ERA 7.2.3 — SIGNAL COLOR TOKENS
+   ═══════════════════════════════════════════════ */
+
+:root {
+    --signal-audio: #00f0ff;
+    --signal-cv: #ffaa00;
+    --signal-gate: #ffffff;
+    --signal-midi: #ff5500;
+}
+
+[data-ui-theme="light"] {
+    --signal-audio: #3b82f6;
+    --signal-cv: #d97706;
+    --signal-gate: #475569;
+    --signal-midi: #ea580c;
+}
